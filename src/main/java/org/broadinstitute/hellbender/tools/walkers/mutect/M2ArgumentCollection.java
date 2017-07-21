@@ -100,7 +100,6 @@ public class M2ArgumentCollection extends AssemblyBasedCallerArgumentCollection 
     @Argument(fullName = "normal_lod", optional = true, doc = "LOD threshold for calling normal variant non-germline.")
     public double NORMAL_LOD_THRESHOLD = 2.2;
 
-
     /**
      * Set of annotation arguments to use.
      * Any requirements that are not met, e.g. failing to provide a pedigree file for a pedigree-based annotation, may cause the run to fail.
