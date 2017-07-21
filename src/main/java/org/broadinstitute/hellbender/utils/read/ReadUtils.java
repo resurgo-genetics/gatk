@@ -10,6 +10,7 @@ import org.broadinstitute.hellbender.cmdline.StandardArgumentDefinitions;
 import org.broadinstitute.hellbender.exceptions.GATKException;
 import org.broadinstitute.hellbender.exceptions.UserException;
 import org.broadinstitute.hellbender.utils.BaseUtils;
+import org.broadinstitute.hellbender.utils.QualityUtils;
 import org.broadinstitute.hellbender.utils.Utils;
 import org.broadinstitute.hellbender.utils.recalibration.EventType;
 
@@ -1328,5 +1329,12 @@ public final class ReadUtils {
                 return read.getLength() - offset + CigarUtils.countRightHardClippedBases(read.getCigar());
             }
         }
+    }
+
+    /**
+     * This method is used when we go through reads in the likelihood object
+     */
+    public static boolean readHasReasonableMQ(final GATKRead read){
+        return read.getMappingQuality() != 0 && read.getMappingQuality() != QualityUtils.MAPPING_QUALITY_UNAVAILABLE;
     }
 }
