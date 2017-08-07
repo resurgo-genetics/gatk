@@ -1332,9 +1332,14 @@ public final class ReadUtils {
     }
 
     /**
-     * This method is used when we go through reads in the likelihood object
-     */
+     * This method is used when we go through reads in the likelihood object. Used to be called isUsableRead()
+     **/
     public static boolean readHasReasonableMQ(final GATKRead read){
         return read.getMappingQuality() != 0 && read.getMappingQuality() != QualityUtils.MAPPING_QUALITY_UNAVAILABLE;
+    }
+
+    // TODO: duplicate method in OxoGReadCounts.java
+    public static boolean isF2R1(final GATKRead read) {
+        return read.isReverseStrand() == read.isFirstOfPair();
     }
 }
