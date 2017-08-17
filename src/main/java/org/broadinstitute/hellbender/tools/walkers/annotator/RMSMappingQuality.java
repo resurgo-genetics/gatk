@@ -70,7 +70,7 @@ public final class RMSMappingQuality extends InfoFieldAnnotation implements Stan
         ReducibleAnnotationData combinedData = new ReducibleAnnotationData(null);
 
         for (final ReducibleAnnotationData currentValue : annotationList) {
-            parseRawDataString(currentValue.getRawData().toString());
+            parseRawDataString(currentValue);
             combineAttributeMap(currentValue, combinedData);
 
         }
@@ -94,7 +94,7 @@ public final class RMSMappingQuality extends InfoFieldAnnotation implements Stan
             return new HashMap<>();
 
         ReducibleAnnotationData myData = new ReducibleAnnotationData(rawMQdata);
-        myData.putAttribute(Allele.NO_CALL, parseRawDataString(rawMQdata));
+        parseRawDataString(rawMQdata);
 
         String annotationString = makeFinalizedAnnotationString(vc, myData.getAttributeMap());
         return Collections.singletonMap(getKeyNames().get(0), (Object)annotationString);
@@ -172,6 +172,15 @@ public final class RMSMappingQuality extends InfoFieldAnnotation implements Stan
         }
     }
 
+    protected void parseRawDataString(ReducibleAnnotationData<Number> myData) {
+        final String rawDataString = myData.getRawData();
+        String[] rawMQdataAsStringVector;
+        rawMQdataAsStringVector = rawDataString.split(",");
+        double squareSum = Double.parseDouble(rawMQdataAsStringVector[0]);
+        myData.putAttribute(Allele.NO_CALL, squareSum);
+    }
+
+    //TODO once the AS annotations have been added genotype gvcfs this can be removed for a more generic approach
     private static double parseRawDataString(String rawDataString) {
         try {
             /*

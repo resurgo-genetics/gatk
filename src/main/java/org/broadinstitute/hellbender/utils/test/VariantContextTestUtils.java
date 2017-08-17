@@ -140,11 +140,12 @@ public final class VariantContextTestUtils {
 
     }
 
+    @SuppressWarnings({"unchecked", "rawtypes"})
     private static Object updateAttribute(final String key, final Object value,
                                           final List<Allele> originalAlleles, final List<Allele> sortedAlleles,
                                           final VCFHeaderLineCount count, int ploidy) {
         if (key.startsWith("AS_")) {
-            return remapASValues((String) value, createAlleleIndexMap(originalAlleles, sortedAlleles));
+            return remapASValues(value instanceof List? String.join(",", ((List<String>) value)) : (String) value, createAlleleIndexMap(originalAlleles, sortedAlleles));
         }else {
             switch (count) {
                 case INTEGER:
@@ -166,8 +167,8 @@ public final class VariantContextTestUtils {
 
     static List<Integer> createAlleleIndexMap(final List<Allele> originalAlleles, final List<Allele> sortedAlleles){
         final List<Integer> mapping = new ArrayList<>(originalAlleles.size());
-        for ( final Allele a: originalAlleles){
-            final int newIndex = sortedAlleles.indexOf(a);
+        for ( final Allele a: sortedAlleles){
+            final int newIndex = originalAlleles.indexOf(a);
             mapping.add(newIndex);
         }
         return mapping;
