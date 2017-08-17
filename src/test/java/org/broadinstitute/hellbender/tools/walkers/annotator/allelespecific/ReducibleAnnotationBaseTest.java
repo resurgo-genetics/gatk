@@ -3,7 +3,6 @@ package org.broadinstitute.hellbender.tools.walkers.annotator.allelespecific;
 import htsjdk.samtools.util.Locatable;
 import htsjdk.variant.variantcontext.*;
 import htsjdk.variant.vcf.VCFConstants;
-import org.apache.hadoop.yarn.webapp.hamlet.Hamlet;
 import org.broadinstitute.hellbender.engine.FeatureDataSource;
 import org.broadinstitute.hellbender.engine.FeatureInput;
 import org.broadinstitute.hellbender.tools.walkers.ReferenceConfidenceVariantContextMerger;
@@ -49,34 +48,36 @@ public abstract class ReducibleAnnotationBaseTest extends BaseTest {
         return tests.toArray(new Object[][]{});
     }
 
-    // Method that determines whether two variant contexts have equivalent allele specific annotations regardless of allele ordering
-    public static Boolean alleleSpecificAnnotationEquals(VariantContext a, VariantContext b, String annotation) {
-        List<Allele> Aalleles = a.getAlleles();
-        String[] Aannot = String.join(",",a.getAttributeAsStringList(annotation, "")).split("\\|",-1);
-        String[] Bannot = String.join(",",b.getAttributeAsStringList(annotation, "")).split("\\|",-1);
-        if (Arrays.equals(Aannot, Bannot)) {
-            return true;
-        } if (Aannot.length!=Bannot.length) {
-            return false;
-        }
-        for (int i = 0; i < Aalleles.size(); i++) {
-            Allele al = Aalleles.get(i);
-
-            int k = b.getAlleleIndex(al);
-
-            if (!Aannot[i].equals(Bannot[k])) {
-                return false;
-            }
-        }
-        return true;
-     }
-
     /*
      * Methods that must be overriden in order for the automatic GATK3 combineGVCFs tests to be run.
      */
     protected abstract List<String> getAnnotationsToUse();
     protected abstract String getRawKey();
 
+    /**
+     * Asserts that two allele specific annotations are euqal to eachother taking into account that the annotation
+     * ordering might be different between two variant contexts.
+     *
+     * @param a
+     * @param b
+     * @param annotation
+     * @return
+     */
+    public static void alleleSpecificAnnotationEquals(VariantContext a, VariantContext b, String annotation) {
+        List<Allele> Aalleles = a.getAlleles();
+        String[] Aannot = String.join(",",a.getAttributeAsStringList(annotation, "")).split("\\|",-1);
+        String[] Bannot = String.join(",",b.getAttributeAsStringList(annotation, "")).split("\\|",-1);
+
+        Assert.assertEquals(Aannot.length,Bannot.length);
+
+        for (int i = 0; i < Aalleles.size(); i++) {
+            Allele al = Aalleles.get(i);
+
+            int k = b.getAlleleIndex(al);
+
+            Assert.assertEquals(Aannot[i], Bannot[k]);
+        }
+    }
 
 
     // NOTE: this code is mimicking the behavior of GATK3 combineGVCFS insofar as it is important for the annotations
@@ -84,7 +85,7 @@ public abstract class ReducibleAnnotationBaseTest extends BaseTest {
     public void testAnnotationCombineGVCF(List<VariantContext> VCs, VariantContext result) throws Exception {
         ReferenceConfidenceVariantContextMerger merger = new MiniMerger(getAnnotationsToUse());
         VariantContext merged = merger.merge(VCs, new SimpleInterval(result.getContig(), result.getStart(), result.getStart()), result.getReference().getBases()[0],false, false );
-        Assert.assertTrue(alleleSpecificAnnotationEquals(merged,result,getRawKey()));
+        alleleSpecificAnnotationEquals(merged,result,getRawKey());
     }
 
 
@@ -93,14 +94,9 @@ public abstract class ReducibleAnnotationBaseTest extends BaseTest {
      * allele specific annotaions to test the combine logic for client tools.
      */
     private class MiniMerger extends ReferenceConfidenceVariantContextMerger {
-        VariantAnnotatorEngine annotatorEngine;
 
         public MiniMerger(List<String> annotationsToUse) {
-            final List<String> annotationGroupsToUse = Collections.emptyList();
-            final List<String> annotationsToExclude = Collections.emptyList();
-            final FeatureInput<VariantContext> dbSNPBinding = null;
-            final List<FeatureInput<VariantContext>> features = Collections.emptyList();
-            annotatorEngine = VariantAnnotatorEngine.ofSelectedMinusExcluded(annotationGroupsToUse, annotationsToUse, annotationsToExclude, dbSNPBinding, features);
+            super(VariantAnnotatorEngine.ofSelectedMinusExcluded(Collections.emptyList(), annotationsToUse, Collections.emptyList(), null, Collections.EMPTY_LIST));
         }
 
         /**
@@ -162,10 +158,10 @@ public abstract class ReducibleAnnotationBaseTest extends BaseTest {
                 }
 
                 // add attributes
-                addReferenceConfidenceAttributes(vcWithNewAlleles, annotationMap);
+                addReferenceConfidenceAttributesOverride(vcWithNewAlleles, annotationMap);
             }
 
-            final Map<String, Object> attributes = mergeAttributes(depth, allelesList, annotationMap);
+            final Map<String, Object> attributes = mergeAttributesOverride(depth, allelesList, annotationMap);
 
             final String ID = rsIDs.isEmpty() ? VCFConstants.EMPTY_ID_FIELD : String.join(",", rsIDs);
 
@@ -183,7 +179,7 @@ public abstract class ReducibleAnnotationBaseTest extends BaseTest {
             return builder.make();
         }
 
-        protected <T extends Comparable<? super T>> void addReferenceConfidenceAttributes(final VCWithNewAlleles vcPair,
+        protected <T extends Comparable<? super T>> void addReferenceConfidenceAttributesOverride(final VCWithNewAlleles vcPair,
                                                                                                  final Map<String, List<ReducibleAnnotationData<Object>>> annotationMap) {
             for (final Map.Entry<String, Object> p : vcPair.getVc().getAttributes().entrySet()) {
                 final String key = p.getKey();
@@ -210,14 +206,14 @@ public abstract class ReducibleAnnotationBaseTest extends BaseTest {
         }
 
 
-        public Map<String, Object> mergeAttributes(int depth, List<Allele> alleleList, Map<String, List<ReducibleAnnotationData<Object>>> annotationMap) {
+        public Map<String, Object> mergeAttributesOverride(int depth, List<Allele> alleleList, Map<String, List<ReducibleAnnotationData<Object>>> annotationMap) {
             final Map<String, Object> attributes = new LinkedHashMap<>();
 
-            attributes.putAll(annotatorEngine.combineAnnotations(alleleList, annotationMap));
-            annotationMap.entrySet().stream()
-                    .filter(p -> !p.getValue().isEmpty())
-                    .forEachOrdered(p -> attributes.put(p.getKey(), (p.getValue()))
-                    );
+            Map<String, List<Object>> engineMap = new HashMap<>();
+            for (Map.Entry<String, List<ReducibleAnnotationData<Object>>> entry : annotationMap.entrySet()) {
+                engineMap.put(entry.getKey(), (List<Object>)(List<?>)entry.getValue());
+            }
+            attributes.putAll(annotatorEngine.combineAnnotations(alleleList, engineMap));
 
             if ( depth > 0 ) {
                 attributes.put(VCFConstants.DEPTH_KEY, String.valueOf(depth));

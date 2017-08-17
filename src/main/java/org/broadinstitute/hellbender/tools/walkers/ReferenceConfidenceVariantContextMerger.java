@@ -5,6 +5,10 @@ import htsjdk.samtools.util.Locatable;
 import htsjdk.variant.variantcontext.*;
 import htsjdk.variant.vcf.VCFConstants;
 import org.broadinstitute.hellbender.exceptions.UserException;
+import org.broadinstitute.hellbender.tools.walkers.annotator.VariantAnnotatorEngine;
+import org.broadinstitute.hellbender.tools.walkers.annotator.allelespecific.AlleleSpecificAnnotationData;
+import org.broadinstitute.hellbender.tools.walkers.annotator.allelespecific.ReducibleAnnotationData;
+import org.broadinstitute.hellbender.tools.walkers.genotyper.GenotypeLikelihoodCalculator;
 import org.broadinstitute.hellbender.tools.walkers.genotyper.GenotypeLikelihoodCalculators;
 import org.broadinstitute.hellbender.utils.Utils;
 import org.broadinstitute.hellbender.utils.variant.GATKVCFConstants;
@@ -23,25 +27,12 @@ import java.util.stream.Stream;
 public class ReferenceConfidenceVariantContextMerger {
 
     private final GenotypeLikelihoodCalculators calculators;
+    protected final VariantAnnotatorEngine annotatorEngine;
 
     @VisibleForTesting
-    public ReferenceConfidenceVariantContextMerger(){
+    protected ReferenceConfidenceVariantContextMerger(VariantAnnotatorEngine engine){
         calculators = new GenotypeLikelihoodCalculators();
-    }
-
-    /**
-     * Combine annotation values by computing the medianish middle element
-     * @param values a list of integers
-     * @return the median element
-     */
-    private static <T extends Comparable<? super T>> T combineAnnotationValues(final List<T> values) {
-        Utils.nonEmpty(values);
-        final int size = values.size();
-        if ( size == 1 ) { return values.get(0); }
-        else {
-            final List<T> sorted = values.stream().sorted().collect(Collectors.toList());
-            return sorted.get(size / 2);
-        }
+        annotatorEngine = engine;
     }
 
     /**
@@ -56,7 +47,7 @@ public class ReferenceConfidenceVariantContextMerger {
      * @return new VariantContext representing the merge of all vcs or null if it not relevant
      */
     public VariantContext merge(final List<VariantContext> vcs, final Locatable loc, final Byte refBase,
-                                       final boolean removeNonRefSymbolicAllele, final boolean samplesAreUniquified) {
+                                final boolean removeNonRefSymbolicAllele, final boolean samplesAreUniquified) {
         Utils.nonEmpty(vcs);
 
         // establish the baseline info (sometimes from the first VC)
@@ -82,7 +73,7 @@ public class ReferenceConfidenceVariantContextMerger {
 
         final Set<String> rsIDs = new LinkedHashSet<>(1); // most of the time there's one id
         int depth = 0;
-        final Map<String, List<Comparable>> annotationMap = new LinkedHashMap<>();
+        final Map<String, List<Object>> annotationMap = new LinkedHashMap<>();
 
         final GenotypesContext genotypes = GenotypesContext.create();
 
@@ -103,10 +94,10 @@ public class ReferenceConfidenceVariantContextMerger {
             }
 
             // add attributes
-            addReferenceConfidenceAttributes(vc.getAttributes(), annotationMap);
+            addReferenceConfidenceAttributes(vcWithNewAlleles, annotationMap);
         }
 
-        final Map<String, Object> attributes = mergeAttributes(depth, annotationMap);
+        final Map<String, Object> attributes = mergeAttributes(depth, allelesList, annotationMap);
 
         final String ID = rsIDs.isEmpty() ? VCFConstants.EMPTY_ID_FIELD : String.join(",", rsIDs);
 
@@ -269,14 +260,24 @@ public class ReferenceConfidenceVariantContextMerger {
         }
     }
 
-    public Map<String, Object> mergeAttributes(int depth, Map<String, List<Comparable>> annotationMap) {
+    public Map<String, Object> mergeAttributes(int depth, List<Allele> alleleList, Map<String, List<Object>> annotationMap) {
         final Map<String, Object> attributes = new LinkedHashMap<>();
 
-        // when combining annotations use the median value from all input vcs which had annotations provided
-        annotationMap.entrySet().stream()
-                .filter(p -> !p.getValue().isEmpty())
-                .forEachOrdered(p -> attributes.put(p.getKey(), combineAnnotationValues(p.getValue()))
-        );
+        attributes.putAll(annotatorEngine.combineAnnotations(alleleList, annotationMap));
+
+        // Afterwards, we simply add the median value for all the annotations that weren't recognized as reducible
+        for (String key : annotationMap.keySet()) {
+            List<Comparable<?> > values = (List<Comparable<?>>)(List<?>) annotationMap.get(key);
+            if (values!= null && values.size() > 0 ) {
+                final int size = values.size();
+                if (size == 1) {
+                    attributes.put(key, values.get(0));
+                } else {
+                    final List<?> sorted = values.stream().sorted().collect(Collectors.toList());
+                    attributes.put(key, sorted.get(size / 2));
+                }
+            }
+        }
 
         if ( depth > 0 ) {
             attributes.put(VCFConstants.DEPTH_KEY, String.valueOf(depth));
@@ -344,35 +345,56 @@ public class ReferenceConfidenceVariantContextMerger {
     /**
      * Adds attributes to the global map from the new context in a sophisticated manner
      *
-     * @param myAttributes               attributes to add from
+     * @param vcPair                     variant context with attributes to add from
      * @param annotationMap              map of annotations for combining later
      */
     @VisibleForTesting
-    protected static <T extends Comparable<? super T>> void addReferenceConfidenceAttributes(final Map<String, Object> myAttributes,
-                                                                                             final Map<String, List<Comparable>> annotationMap) {
-        for ( final Map.Entry<String, Object> p : myAttributes.entrySet() ) {
+    protected void addReferenceConfidenceAttributes(final VCWithNewAlleles vcPair, final Map<String, List<Object>> annotationMap) {
+        for ( final Map.Entry<String, Object> p : vcPair.getVc().getAttributes().entrySet() ) {
             final String key = p.getKey();
-            final Object value = p.getValue();
 
-            // add the annotation values to a list for combining later
-            List<Comparable> values = annotationMap.get(key);
-            if( values == null ) {
-                values = new ArrayList<>();
-                annotationMap.put(key, values);
-            }
-            try {
-                final String stringValue = value.toString();
-                // Branch to avoid unintentional, implicit type conversions that occur with the ? operator.
-                if (stringValue.contains(".")) {
-                    values.add(Double.parseDouble(stringValue));
-                } else {
-                    values.add(Integer.parseInt(stringValue));
+            // If the key corresponds to a requested reducible key, store ReducibleAnnotationData
+            if (annotatorEngine.isReducibleRawKey(key)) {//TODO figure out how to signal the annotaions here
+                final List<Object> valueList = vcPair.getVc().getAttributeAsList(key);
+
+                List<ReducibleAnnotationData<?>> values = (List<ReducibleAnnotationData<?>>)(List<?>) annotationMap.get(key);
+                if (values == null) {
+                    values = new ArrayList<>();
+                    annotationMap.put(key, (List<Object>)(List<?>) values);
                 }
-            } catch (final NumberFormatException e) {
-                // nothing to do
-                //TODO This comes directly from gatk3, we should determine if we should log this or if it happens so much it is not useful to log
+                StringJoiner joiner = new StringJoiner(",");
+                for (Object s : valueList) joiner.add(s.toString());
+
+                ReducibleAnnotationData<Object> pairData = new AlleleSpecificAnnotationData<>(vcPair.getNewAlleles(), joiner.toString());
+                values.add(pairData);
+
+            // Otherwise simply treat it as a number
+            } else{
+                final Object value = p.getValue();
+
+                // add the annotation values to a list for combining later
+                List<Comparable<?>> values = (List<Comparable<?>>)(List<?>) annotationMap.get(key);
+                if (values == null) {
+                    values = new ArrayList<>();
+                    annotationMap.put(key, (List<Object>)(List<?>) values);
+                }
+                try {
+                    final String stringValue = value.toString();
+                    // Branch to avoid unintentional, implicit type conversions that occur with the ? operator.
+                    if (stringValue.contains(".")) {
+                        values.add(Double.parseDouble(stringValue));
+                    } else {
+                        values.add(Integer.parseInt(stringValue));
+                    }
+                    // TODO Check for string anoations matching?
+                } catch (final NumberFormatException e) {
+                    // nothing to do
+                    //TODO This comes directly from gatk3, we should determine if we should log this or if it happens so much it is not useful to log
+                }
             }
         }
+
+        //TODO you need to make sure that this is properly scrubbing extrenious things
     }
 
     /**
@@ -470,7 +492,7 @@ public class ReferenceConfidenceVariantContextMerger {
      * @return non-null array of ints representing indexes
      */
     @VisibleForTesting
-    static int[] getIndexesOfRelevantAlleles(final List<Allele> remappedAlleles, final List<Allele> targetAlleles, final int position, final Genotype g) {
+    int[] getIndexesOfRelevantAlleles(final List<Allele> remappedAlleles, final List<Allele> targetAlleles, final int position, final Genotype g) {
 
         Utils.nonEmpty(remappedAlleles);
         Utils.nonEmpty(targetAlleles);
@@ -487,11 +509,69 @@ public class ReferenceConfidenceVariantContextMerger {
 
         // create the index mapping, using the <NON-REF> allele whenever such a mapping doesn't exist
         for ( int i = 1; i < targetAlleles.size(); i++ ) {
+            // if there’s more than 1 DEL allele then we need to use the best one
+            if ( targetAlleles.get(i) == Allele.SPAN_DEL && g.hasPL() ) {
+                final int occurrences = Collections.frequency(remappedAlleles, Allele.SPAN_DEL);
+                if ( occurrences > 1 ) {
+                    final int indexOfBestDel = indexOfBestDel(remappedAlleles, g.getPL(), g.getPloidy());
+                    indexMapping[i] = ( indexOfBestDel == -1 ? indexOfNonRef : indexOfBestDel );
+                    continue;
+                }
+            }
+
             final int indexOfRemappedAllele = remappedAlleles.indexOf(targetAlleles.get(i));
             indexMapping[i] = indexOfRemappedAllele == -1 ? indexOfNonRef : indexOfRemappedAllele;
+
         }
 
         return indexMapping;
+    }
+
+    /**
+     * Returns the index of the best spanning deletion allele based on AD counts
+     *
+     * @param alleles   the list of alleles
+     * @param PLs       the list of corresponding PL values
+     * @param ploidy    the ploidy of the sample
+     * @return the best index or -1 if not found
+     */
+    private int indexOfBestDel(final List<Allele> alleles, final int[] PLs, final int ploidy) {
+        int bestIndex = -1;
+        int bestPL = Integer.MAX_VALUE;
+
+        for ( int i = 0; i < alleles.size(); i++ ) {
+            if ( alleles.get(i) == Allele.SPAN_DEL ) {
+                final int homAltIndex = findHomIndex(i, ploidy, alleles.size());
+                final int PL = PLs[homAltIndex];
+                if ( PL < bestPL ) {
+                    bestIndex = i;
+                    bestPL = PL;
+                }
+            }
+        }
+
+        return bestIndex;
+    }
+
+    /** //TODO simplify these methods
+     * Returns the index of the PL that represents the homozygous genotype of the given i'th allele
+     *
+     * @param i           the index of the allele with the list of alleles
+     * @param ploidy      the ploidy of the sample
+     * @param numAlleles  the total number of alleles
+     * @return the hom index
+     */
+    private int findHomIndex(final int i, final int ploidy, final int numAlleles) {
+        // some quick optimizations for the common case
+        if ( ploidy == 2 )
+            return GenotypeLikelihoods.calculatePLindex(i, i);
+        if ( ploidy == 1 )
+            return i;
+
+        final GenotypeLikelihoodCalculator calculator = calculators.getInstance(ploidy, numAlleles);
+        final int[] alleleIndexes = new int[ploidy];
+        Arrays.fill(alleleIndexes, i);
+        return calculator.allelesToIndex(alleleIndexes);
     }
 
     /**
