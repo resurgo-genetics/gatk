@@ -3,6 +3,7 @@ package org.broadinstitute.hellbender.tools.walkers.readorientation;
 import htsjdk.variant.variantcontext.Allele;
 import org.apache.commons.math3.distribution.BinomialDistribution;
 import org.apache.commons.math3.util.MathArrays;
+import org.apache.logging.log4j.Logger;
 import org.broadinstitute.hellbender.utils.BaseUtils;
 import org.broadinstitute.hellbender.utils.GATKProtectedMathUtils;
 import org.broadinstitute.hellbender.utils.MathUtils;
@@ -119,7 +120,7 @@ public class ContextDependentArtifactFilterEngine {
         theta[States.BALANCED_HOM_VAR.ordinal()] = 0.5;
     }
 
-    public Hyperparameters runEMAlgorithm(){
+    public Hyperparameters runEMAlgorithm(final Logger logger){
         boolean converged = false;
         double[][] oldPi = new double[NUM_ALLELES][NUM_STATUSES];
 
@@ -147,6 +148,7 @@ public class ContextDependentArtifactFilterEngine {
             numIterations++;
         }
 
+        logger.info(String.format("Context %s, EM converged in %d steps", referenceContext, numIterations));
         return new Hyperparameters(referenceContext, pi, f, theta);
     }
 

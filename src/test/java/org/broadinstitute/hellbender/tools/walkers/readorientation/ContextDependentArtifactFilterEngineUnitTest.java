@@ -1,6 +1,8 @@
 package org.broadinstitute.hellbender.tools.walkers.readorientation;
 
 import htsjdk.variant.variantcontext.Allele;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.broadinstitute.hellbender.engine.AlignmentContext;
 import org.broadinstitute.hellbender.utils.BaseUtils;
 import org.broadinstitute.hellbender.utils.SimpleInterval;
@@ -53,7 +55,7 @@ public class ContextDependentArtifactFilterEngineUnitTest {
         }
 
         ContextDependentArtifactFilterEngine engine = new ContextDependentArtifactFilterEngine(data);
-        Hyperparameters hyperparameters = engine.runEMAlgorithm();
+        Hyperparameters hyperparameters = engine.runEMAlgorithm(LogManager.getLogger(this.getClass()));
 
         Assert.assertEquals(engine.effectiveCounts[States.F1R2.ordinal()], (double) NUM_F1R2_EXAMPLES);
         // START HERE, we get something like 78 - but we want 80. For such a simple example, we gotta get this right
@@ -77,7 +79,7 @@ public class ContextDependentArtifactFilterEngineUnitTest {
      * not all of the sites have orientation bias. Still assumes single context.
      */
     @Test
-    public void testMoreComplicatedCase() {
+    public void testMoreCdomplicatedCase() {
         final String refContext = "AGT";
 
         final int NUM_EXAMPLES = 1000;
@@ -120,7 +122,7 @@ public class ContextDependentArtifactFilterEngineUnitTest {
 
         // To consider: Can a site be both F1R2 and F2R1? What about the whole reverse complement thing?
         ContextDependentArtifactFilterEngine engine = new ContextDependentArtifactFilterEngine(data);
-        Hyperparameters hyperparameters = engine.runEMAlgorithm();
+        Hyperparameters hyperparameters = engine.runEMAlgorithm(LogManager.getLogger(this.getClass()));
 
         Assert.assertEquals(engine.effectiveCounts[States.F1R2.ordinal()], (double) NUM_F1R2_EXAMPLES_G_TO_T, EPSILON);
         // temporariliy disable these two tests - first fix the error with pi

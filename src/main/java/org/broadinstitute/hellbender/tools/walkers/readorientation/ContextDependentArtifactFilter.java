@@ -26,8 +26,8 @@ import java.util.stream.Collectors;
  * Inference phase will likely feature variant context and what not.
  */
 @CommandLineProgramProperties(
-        summary = "yoooo",
-        oneLineSummary = "hooooo",
+        summary = "",
+        oneLineSummary = "",
         programGroup = VariantProgramGroup.class
 )
 
@@ -35,21 +35,26 @@ public class ContextDependentArtifactFilter extends LocusWalker {
     @Argument(fullName = "", shortName = "", doc = "", optional = true)
     private File gnomad = null;
 
-    @Argument(fullName = "", shortName = "", doc = "", optional = true)
-    static final int DEFAULT_INITIAL_LIST_SIZE = 37_000_000/64; // by default we assume that that all 64 reference 3-mers are equally likely
-
     @Argument(fullName = "", shortName = "", doc = "exclude reads below this quality from pileup", optional = true)
-    static final int MINIMUM_MEDIAN_MQ = 20;
+    static int MINIMUM_MEDIAN_MQ = 20;
 
     @Argument(fullName = "", shortName = "", doc = "exclude bases below this quality from pileup", optional = true)
-    static final int MINIMUM_BASE_QUALITY = 10;
+    static int MINIMUM_BASE_QUALITY = 10;
 
-    @Argument(fullName = StandardArgumentDefinitions.OUTPUT_LONG_NAME, shortName = StandardArgumentDefinitions.OUTPUT_SHORT_NAME, doc = "a tab-seprated table of hyperparameters", optional = false)
+    @Argument(fullName = "test", shortName = "test", doc = "", optional = true)
+    static boolean test = false;
+
+    @Argument(fullName = StandardArgumentDefinitions.OUTPUT_LONG_NAME, shortName = StandardArgumentDefinitions.OUTPUT_SHORT_NAME, doc = "a tab-seprated table of hyperparameters")
     static File output = null;
 
     public static Map<String, PerContextData> contextDependentDataMap;
 
     public static final List<String> ALL_3_MERS = SequenceUtil.generateAllKmers(3).stream().map(String::new).collect(Collectors.toList());
+
+    public static final List<String> SOME_3_MERS = Arrays.asList("ACT", "GTT", "AAA", "CGT");
+
+    static final int DEFAULT_INITIAL_LIST_SIZE = 37_000_000/64; // by default we assume that that all 64 reference 3-mers are equally likely
+
 
     @Override
     public boolean requiresReference(){
@@ -79,6 +84,9 @@ public class ContextDependentArtifactFilter extends LocusWalker {
         referenceContext.setWindow(1, 1);
         final String reference3mer = new String(referenceContext.getBases());
         assert reference3mer.length() == 3 : "kmer must have length 3";
+        if (reference3mer.contains("N")){
+            return;
+        }
 
         final ReadPileup pileup = alignmentContext.filter(pe -> pe.getQual() > MINIMUM_BASE_QUALITY).getBasePileup();
 
@@ -125,7 +133,6 @@ public class ContextDependentArtifactFilter extends LocusWalker {
         final short altF1R2Depth = isVariantSite ? (short) pileup.getNumberOfElements(pe -> pe.getBase() == altBase.get() && ! ReadUtils.isF2R1(pe.getRead())) : 0;
         assert altDepth >= altF1R2Depth : String.format("altDepth >= altF1R2Depth but got %d, %d", altDepth, altF1R2Depth);
 
-
         // FIXME: choose the correct allele
         final Allele allele = isVariantSite ? Allele.create(altBase.get(), false) : Allele.create(refBase, true);
         contextDependentDataMap.get(reference3mer).addNewExample(depth, altDepth, altF1R2Depth, allele, alignmentContext);
@@ -155,11 +162,11 @@ public class ContextDependentArtifactFilter extends LocusWalker {
 
 
         // debug
-        for (final String refContext : ALL_3_MERS){
+        for (final String refContext : test ? SOME_3_MERS : ALL_3_MERS){
             PerContextData contextData = contextDependentDataMap.get(refContext);
             ContextDependentArtifactFilterEngine engine = new ContextDependentArtifactFilterEngine(contextData);
             final int numSites = contextData.getNumLoci();
-            Hyperparameters hyperparameters = engine.runEMAlgorithm();
+            Hyperparameters hyperparameters = engine.runEMAlgorithm(logger);
             hyperparameterEstimates.add(hyperparameters);
 
 
