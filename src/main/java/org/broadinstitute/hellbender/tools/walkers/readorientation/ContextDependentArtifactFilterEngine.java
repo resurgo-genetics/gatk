@@ -1,12 +1,12 @@
 package org.broadinstitute.hellbender.tools.walkers.readorientation;
 
-import htsjdk.variant.variantcontext.Allele;
 import org.apache.commons.math3.distribution.BinomialDistribution;
 import org.apache.commons.math3.util.MathArrays;
 import org.apache.logging.log4j.Logger;
 import org.broadinstitute.hellbender.utils.BaseUtils;
 import org.broadinstitute.hellbender.utils.GATKProtectedMathUtils;
 import org.broadinstitute.hellbender.utils.MathUtils;
+import org.broadinstitute.hellbender.utils.Nucleotide;
 import org.spark_project.guava.annotations.VisibleForTesting;
 
 import java.util.Arrays;
@@ -21,6 +21,7 @@ public class ContextDependentArtifactFilterEngine {
 
     static final String[] ALL_ALLELES = new String[] { "A", "C", "G", "T" };
 
+
     // A, C, G, or T, since we only look at SNP sites
     static final int NUM_ALLELES = ALL_ALLELES.length; // aka 4
 
@@ -30,25 +31,40 @@ public class ContextDependentArtifactFilterEngine {
     // Regularizer (?) TODO: think this through
     static final double EPSILON = 1e-4;
 
-    String referenceContext;
+
+    final String referenceContext;
+
+    final Nucleotide refAllele;
 
     // Observed data
     final PerContextData data;
 
     // N by K matrix of (natural) log posterior probabilities of latent variable z
-    // with the current estimates of hyperparameters pi, f, and theta
-    final double[][] log10Responsibilities;
+    // with the current estimates of hyperparameters pi, f, and theta, where N is the number of alt sites
+    // under the context
+    final double[][] log10AltResponsibilities;
 
     // experimental measure - eventually pick a log or linear version
-    final double[][] responsibilities;
+    final double[][] altResponsibilities;
+
+    // MAX_VALUE by K matrix of a cache of responsibilities of a ref site (i.e. m = 0, x = 0)
+    // for ref sites with coverage 0, 1, ..., MAX_VALUE - 1.
+    final double[][] refResponsibilities = new double[PerContextData.MAX_COVERAGE][NUM_STATUSES];
 
     final int numExamples;
 
     // A by K matrix of effective counts. Each column must add up to N_k
-    // TODO: rename to CountsPerAllele?
+    /**
+     *              State z
+     *             _ _ _ _ _
+     *         A |
+     * alleles C |
+     *         G |
+     *         T |
+     **/
     final double[][] effectiveCountsGivenAllele = new double[NUM_ALLELES][NUM_STATUSES];
 
-    // K-dimensional vector of effective sample counts for each class of z, weighted by the the responsibilities. For a fixed k,
+    // K-dimensional vector of effective sample counts for each class of z, weighted by the the altResponsibilities. For a fixed k,
     // we sum up the counts over all alleles. N_k in the docs.
     // TODO: should be final
     @VisibleForTesting
@@ -85,22 +101,27 @@ public class ContextDependentArtifactFilterEngine {
 
     public ContextDependentArtifactFilterEngine(final PerContextData data){
         this.data = data;
-        numExamples = data.getNumLoci();
-        log10Responsibilities = new double[numExamples][NUM_STATUSES];
-        responsibilities = new double[numExamples][NUM_STATUSES];
+        numExamples = data.getNumExamples();
+        log10AltResponsibilities = new double[numExamples][NUM_STATUSES];
+        altResponsibilities = new double[numExamples][NUM_STATUSES];
 
-        // initialize responsibilities in log 10 space
+        // initialize altResponsibilities in log 10 space
         final double initialLog10Probability = - Math.log10(NUM_STATUSES);
-        for (int n = 0; n < data.getNumLoci(); n++ ) {
-            Arrays.fill(log10Responsibilities[n], initialLog10Probability);
+        for (int n = 0; n < data.getNumExamples(); n++ ) {
+            Arrays.fill(log10AltResponsibilities[n], initialLog10Probability);
         }
 
-        final double initialProbability = - 1.0/ NUM_STATUSES;
-        for (int n = 0; n < data.getNumLoci(); n++ ) {
-            Arrays.fill(responsibilities[n], initialProbability);
+        final double initialProbability = 1.0/NUM_STATUSES;
+        for (int n = 0; n < data.getNumExamples(); n++ ) {
+            Arrays.fill(altResponsibilities[n], initialProbability);
+        }
+
+        for (int n = 0; n < PerContextData.MAX_COVERAGE; n++ ) {
+            Arrays.fill(refResponsibilities[n], initialProbability);
         }
 
         referenceContext = data.getReferenceContext();
+        refAllele = Nucleotide.valueOf(referenceContext.substring(1,2));
 
         // populate alleles
         final String referenceBase = referenceContext.substring(1, 2);
@@ -152,30 +173,40 @@ public class ContextDependentArtifactFilterEngine {
         return new Hyperparameters(referenceContext, pi, f, theta);
     }
 
-    // Given the current estimates of the parameters pi, f, and theta, compute the log10Responsibilities
+    // Given the current estimates of the parameters pi, f, and theta, compute the log10AltResponsibilities
     // gamma_nk = p(z_nk|a)
     private void takeEstep(){
-        for (int example = 0; example < numExamples; example++){
-            final int n = example;
+        // all ref sites look the same: altDepth = 0, altF1R2Depth = 0
+        // When we have no alt reads (i.e. m = 0), the binomial over the number of F1R2 is a deterministic;
+        // namely, it's always 1, and log(1) = 0
+        for (int depth = 0; depth < PerContextData.MAX_COVERAGE; depth++){
+            final int m = depth; // another hack to use depth in a stream
+            final double[] log10UnnormalizedResponsibilities = IntStream.range(0, NUM_STATUSES)
+                    .mapToDouble(k -> Math.log(pi[refAllele.ordinal()][k]) + new BinomialDistribution(m, f[k]).logProbability(0))
+                    .toArray();
+            refResponsibilities[depth] = MathUtils.normalizeFromLog10ToLinearSpace(log10UnnormalizedResponsibilities);
+        }
 
-            Allele allele = data.getAlleles().get(n);
+        // we must compute the altResponsibilities of each of n alt sites \gamma_{nk}
+        for (int example = 0; example < data.getNumAltExamples(); example++){
+            final int n = example; // hack to work around the fact that java stream doesn't let you use a non-final variable
+
+            final Nucleotide allele = data.getAlleles().get(n);
             final int depth = data.getDepths().get(n);
             final short altDepth = data.getAltDepths().get(n);
             final short altF1R2Depth = data.getAltF1R2Depths().get(n);
+            assert altDepth > 0 : "somehow a ref site slipped in as alt";
 
-            assert allele.getBases().length == 1 : "the length of allele must be 1";
-            final int a = BaseUtils.simpleBaseToBaseIndex(allele.getBases()[0]); // hack to work around the fact that java stream doesn't let you use a non-final variable
+            final int a = BaseUtils.simpleBaseToBaseIndex(allele.toBase());
 
             final double[] log10AlleleFractionTerms = IntStream.range(0, NUM_STATUSES)
                     .mapToDouble(k -> new BinomialDistribution(depth, f[k]).logProbability(altDepth) * MathUtils.LOG10_OF_E)
                     .toArray();
 
-            // When we have no alt reads (i.e. m = 0), the binomial over the number of F1R2 is a deterministic;
-            // namely, it's always 1, and log(1) = 0
-            final double[] logAltF1R2FractionTerms = altDepth == 0 ? new double[NUM_STATUSES] :
-                    IntStream.range(0, NUM_STATUSES)
-                            .mapToDouble(k -> new BinomialDistribution(altDepth, theta[k]).logProbability(altF1R2Depth) * MathUtils.LOG10_OF_E)
-                            .toArray();
+
+            final double[] logAltF1R2FractionTerms = IntStream.range(0, NUM_STATUSES)
+                    .mapToDouble(k -> new BinomialDistribution(altDepth, theta[k]).logProbability(altF1R2Depth) * MathUtils.LOG10_OF_E)
+                    .toArray();
 
             assert log10AlleleFractionTerms.length == NUM_STATUSES : "alleleFractionFactors must have length K";
             assert logAltF1R2FractionTerms.length == NUM_STATUSES : "altF1R2FractionFactors must have length K";
@@ -185,20 +216,25 @@ public class ContextDependentArtifactFilterEngine {
                     .mapToDouble(k -> Math.log10(pi[a][k]) + log10AlleleFractionTerms[k] + logAltF1R2FractionTerms[k])
                     .toArray();
 
-            log10Responsibilities[n] = MathUtils.normalizeLog10(log10UnnormalizedResponsibilities, true, false);
-            responsibilities[n] = MathUtils.normalizeFromLog10ToLinearSpace(log10UnnormalizedResponsibilities);
+            // do we need the log 10 responsibilities?
+            log10AltResponsibilities[n] = MathUtils.normalizeLog10(log10UnnormalizedResponsibilities, true, false);
 
-            assert Math.abs(MathUtils.sumLog10(log10Responsibilities[n]) - 1.0) < EPSILON :
-                    String.format("log responsibility for %dth example added up to %f", n,  MathUtils.sumLog10(log10Responsibilities[n]));
-            assert Math.abs(MathUtils.sum(responsibilities[n]) - 1.0) < EPSILON :
-                    String.format("responsibility for %dth example added up to %f", n,  MathUtils.sumLog10(responsibilities[n]));
+            // do we really need to normalize here?
+            altResponsibilities[n] = MathUtils.normalizeFromLog10ToLinearSpace(log10UnnormalizedResponsibilities);
+
+            assert Math.abs(MathUtils.sumLog10(log10AltResponsibilities[n]) - 1.0) < EPSILON :
+                    String.format("log responsibility for %dth example added up to %f", n,  MathUtils.sumLog10(log10AltResponsibilities[n]));
+            assert Math.abs(MathUtils.sum(altResponsibilities[n]) - 1.0) < EPSILON :
+                    String.format("responsibility for %dth example added up to %f", n,  MathUtils.sumLog10(altResponsibilities[n]));
         }
     }
 
-    // given the current posterior distributions over z, compute the maximum likelihood estimate for
-    // the categorical weights (pi), allele fractions (f), and alt F1R2 fraction (theta)
+    // given the current posterior distributions (i.e. altResponsibilities) over z, compute the estimate for
+    // the categorical weights (pi), allele fractions (f), and alt F1R2 fraction (theta) that maximizes the lower bound
+    // for the marginal likelihood, which is equivalent to maximizing the expectation of the complete data likelihood
+    // with respect to the posterior over z
     private void takeMstep(){
-        /*** compute responsibility-based statistics based on the current log10Responsibilities ***/
+        /*** compute responsibility-based statistics based on the current log10AltResponsibilities ***/
 
         // reset the effectiveCountsGivenAllele array
         for (int a = 0; a < NUM_ALLELES; a++){
@@ -206,20 +242,30 @@ public class ContextDependentArtifactFilterEngine {
         }
 
         // TODO: optimize
-        for (int n = 0; n < numExamples; n++) {
-            Allele allele = data.getAlleles().get(n);
-            final int a = BaseUtils.simpleBaseToBaseIndex(allele.getBases()[0]);
+        for (int n = 0; n < data.getNumAltExamples(); n++) {
+            final Nucleotide allele = data.getAlleles().get(n);
+            final int a = BaseUtils.simpleBaseToBaseIndex(allele.toBase()); // allele.ordinal()?
 
-            // Warning; raising the log responsibilities by 10 may be naive REWORD
+            // Warning; raising the log altResponsibilities by 10 may be naive REWORD
             effectiveCountsGivenAllele[a] = MathArrays.ebeAdd(effectiveCountsGivenAllele[a],
-                    Arrays.stream(log10Responsibilities[n]).map(logp -> Math.pow(10, logp)).toArray());
+                    Arrays.stream(log10AltResponsibilities[n]).map(logp -> Math.pow(10, logp)).toArray());
         }
+
+        // we optimize the sum of responsibilities over ref allele by taking a dot product of the cached responsibilities
+        // at depths [0, 1, 2, ...., MAX_COVERAGE] and the number of sites at those depths
+        effectiveCountsGivenAllele[refAllele.ordinal()] = GATKProtectedMathUtils.sumArrayFunction(0, PerContextData.MAX_COVERAGE,
+                d -> MathArrays.scale(data.getRefsiteCoverageHistogram()[d], refResponsibilities[d]));
+        assert Math.abs(MathUtils.sum(effectiveCountsGivenAllele[refAllele.ordinal()]) - data.getNumRefExamples()) < EPSILON :
+                String.format("Effective count given ref allele should equal the number of ref sites (%d) but got %.3f",
+                        data.getNumRefExamples(),
+                        MathUtils.sum(effectiveCountsGivenAllele[refAllele.ordinal()]));
 
         // For a fixed k, sum up the effective counts over all alleles. N_k in the docs.
         effectiveCounts = GATKProtectedMathUtils.sumArrayFunction(0, NUM_ALLELES, a -> effectiveCountsGivenAllele[a]);
 
         assert effectiveCounts.length == NUM_STATUSES : "effectiveCount must be a k-dimensional vector";
-        assert Math.abs(MathUtils.sum(effectiveCounts) - numExamples) < EPSILON : String.format("effective counts must add up to number of examples but got %f", MathUtils.sum(effectiveCounts));
+        assert Math.abs(MathUtils.sum(effectiveCounts) - numExamples) < EPSILON :
+                String.format("effective counts must add up to number of examples %d but got %f", numExamples, MathUtils.sum(effectiveCounts));
 
         // TODO: we don't have a good way of adding up columns of a 2-dimensional array
         for (int a = 0; a < NUM_ALLELES; a++){
@@ -228,36 +274,43 @@ public class ContextDependentArtifactFilterEngine {
 
         assert Math.abs(MathUtils.sum(effectiveCountsOfAlleles) - numExamples) < EPSILON : "effectiveCountOfAlleles should add up to numExamples";
 
-        // K-dimensional vector of sample means weighted by the log10Responsibilities, \bar{m} in the docs
+        // K-dimensional vector of sample means weighted by the log10AltResponsibilities, N_k \bar{m} in the docs
+        // ref sites do not contribute to the sum as m_n = 0 for ref sites
         // TOOD: I should probabily not enter log space - where do we need it? Where do we multiply a lot of small numbers?
-        final double[] weightedSampleMeanM = GATKProtectedMathUtils.sumArrayFunction(0, numExamples,
-                n -> MathArrays.scale((double) data.getAltDepths().get(n), responsibilities[n]));
+        final double[] weightedSampleMeanM = GATKProtectedMathUtils.sumArrayFunction(0, data.getNumAltExamples(),
+                n -> MathArrays.scale((double) data.getAltDepths().get(n), altResponsibilities[n]));
+        assert weightedSampleMeanM.length == NUM_STATUSES : "weightedSampleMeanM should have length K";
 
-        // K-dimensional vector of sample means weighted by the log10Responsibilities, \bar{x} in the docs
-        final double[] weightedSampleMeanX = GATKProtectedMathUtils.sumArrayFunction(0, numExamples,
-                n -> MathArrays.scale((double) data.getAltF1R2Depths().get(n), responsibilities[n]));
+        // K-dimensional vector of sample means weighted by the log10AltResponsibilities, N_k \bar{x} in the docs
+        // ref sites do not contribute to the sum as x_n = 0 for ref sites
+        final double[] weightedSampleMeanX = GATKProtectedMathUtils.sumArrayFunction(0, data.getNumAltExamples(),
+                n -> MathArrays.scale((double) data.getAltF1R2Depths().get(n), altResponsibilities[n]));
 
-        // K-dimensional vector of mean read depths weighted by the log10Responsibilities, \bar{R} in the docs
-        final double[] weightedDepthR = GATKProtectedMathUtils.sumArrayFunction(0, numExamples,
-                n -> MathArrays.scale((double) data.getDepths().get(n), responsibilities[n]));
+        // K-dimensional vector of mean read depths weighted by the log10AltResponsibilities, N_k \bar{R} in the docs
+        final double[] weightedDepthRAlt = GATKProtectedMathUtils.sumArrayFunction(0, data.getNumAltExamples(),
+                n -> MathArrays.scale((double) data.getDepths().get(n), altResponsibilities[n]));
+        final double[] weightedDepthRRef = GATKProtectedMathUtils.sumArrayFunction(0, PerContextData.MAX_COVERAGE,
+                d -> MathArrays.scale(data.refsiteCoverageHistogram[d] * d, refResponsibilities[d]));
+        final double[] weightedDepthR = MathArrays.ebeAdd(weightedDepthRAlt, weightedDepthRRef);
 
         // TODO: should we learn theta?
         // theta = MathArrays.ebeDivide(weightedSampleMeanX, weightedSampleMeanM);
 
-        // We update some allele fractions according to data and log10Responsibilities and keep others fixed
+        // We update some allele fractions according to data and log10AltResponsibilities and keep others fixed
         final double[] updatedAlleleFractions = MathArrays.ebeDivide(weightedSampleMeanM, weightedDepthR);
         f[States.F1R2.ordinal()] = updatedAlleleFractions[States.F1R2.ordinal()] == 0 ? DEFAULT_ARTIFACT_ALLELE_FRACTION :
                 updatedAlleleFractions[States.F1R2.ordinal()];
         f[States.F2R1.ordinal()] = updatedAlleleFractions[States.F2R1.ordinal()]  == 0 ? DEFAULT_ARTIFACT_ALLELE_FRACTION :
                 updatedAlleleFractions[States.F2R1.ordinal()];
 
+        // update pi
         for (int a = 0; a < NUM_ALLELES; a++){
+            // N_a in the docs
             final double numExamplesWithThisAllele = effectiveCountsOfAlleles[a];
             pi[a] = numExamplesWithThisAllele < EPSILON ? new double[NUM_STATUSES] :
                     MathArrays.scale(1/numExamplesWithThisAllele, effectiveCountsGivenAllele[a]);
-        }
 
-        for (int a = 0; a < NUM_ALLELES; a++){
+            // ensure that each row of the pi matrix is normalized
             final double sumProbabilities = Math.abs(MathUtils.sum(pi[a]));
             assert sumProbabilities - 1.0 < EPSILON || sumProbabilities == 0.0 : "pi[a] must add up to 1";
         }

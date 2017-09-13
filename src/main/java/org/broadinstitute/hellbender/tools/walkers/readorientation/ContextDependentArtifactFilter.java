@@ -1,7 +1,6 @@
 package org.broadinstitute.hellbender.tools.walkers.readorientation;
 
 import htsjdk.samtools.util.SequenceUtil;
-import htsjdk.variant.variantcontext.Allele;
 import org.broadinstitute.barclay.argparser.Argument;
 import org.broadinstitute.barclay.argparser.CommandLineProgramProperties;
 import org.broadinstitute.hellbender.cmdline.StandardArgumentDefinitions;
@@ -10,6 +9,7 @@ import org.broadinstitute.hellbender.engine.*;
 import org.broadinstitute.hellbender.engine.filters.ReadFilter;
 import org.broadinstitute.hellbender.utils.BaseUtils;
 import org.broadinstitute.hellbender.utils.MathUtils;
+import org.broadinstitute.hellbender.utils.Nucleotide;
 import org.broadinstitute.hellbender.utils.pileup.ReadPileup;
 import org.broadinstitute.hellbender.utils.read.ReadUtils;
 
@@ -122,20 +122,28 @@ public class ContextDependentArtifactFilter extends LocusWalker {
         }
 
         final Optional<Byte> altBase = findAltBaseFromBaseCounts(baseCounts, refBase);
-        final boolean isVariantSite = altBase.isPresent();
+        final boolean variantSite = altBase.isPresent();
+        final boolean referenceSite = ! variantSite;
+
 
         /*** Exit Heuristic Land ***/
 
+        // if the site is ref, we simply update the coverage histogram
+        if (referenceSite){
+            // TODO: accessing the map excessively. Use array, it'd be faster
+            contextDependentDataMap.get(reference3mer).addRefExample(depth);
+            return;
+        }
+
         // m in the docs
-        final short altDepth = isVariantSite ? (short) baseCounts[BaseUtils.simpleBaseToBaseIndex(altBase.get())] : 0;
+        final short altDepth = variantSite ? (short) baseCounts[BaseUtils.simpleBaseToBaseIndex(altBase.get())] : 0;
 
         // x in the docs
-        final short altF1R2Depth = isVariantSite ? (short) pileup.getNumberOfElements(pe -> pe.getBase() == altBase.get() && ! ReadUtils.isF2R1(pe.getRead())) : 0;
+        final short altF1R2Depth = variantSite ? (short) pileup.getNumberOfElements(pe -> pe.getBase() == altBase.get() && ! ReadUtils.isF2R1(pe.getRead())) : 0;
         assert altDepth >= altF1R2Depth : String.format("altDepth >= altF1R2Depth but got %d, %d", altDepth, altF1R2Depth);
 
-        // FIXME: choose the correct allele
-        final Allele allele = isVariantSite ? Allele.create(altBase.get(), false) : Allele.create(refBase, true);
-        contextDependentDataMap.get(reference3mer).addNewExample(depth, altDepth, altF1R2Depth, allele, alignmentContext);
+        Nucleotide altAllele = Nucleotide.valueOf(altBase.get());
+        contextDependentDataMap.get(reference3mer).addAltExample(depth, altDepth, altF1R2Depth, altAllele, alignmentContext);
         return;
     }
 
@@ -160,12 +168,11 @@ public class ContextDependentArtifactFilter extends LocusWalker {
         List<Hyperparameters> hyperparameterEstimates = new ArrayList<>();
         // remember we run EM separately for each of 4^3 = 64 ref contexts
 
-
         // debug
         for (final String refContext : test ? SOME_3_MERS : ALL_3_MERS){
             PerContextData contextData = contextDependentDataMap.get(refContext);
             ContextDependentArtifactFilterEngine engine = new ContextDependentArtifactFilterEngine(contextData);
-            final int numSites = contextData.getNumLoci();
+            final int numSites = contextData.getNumExamples();
             Hyperparameters hyperparameters = engine.runEMAlgorithm(logger);
             hyperparameterEstimates.add(hyperparameters);
 
