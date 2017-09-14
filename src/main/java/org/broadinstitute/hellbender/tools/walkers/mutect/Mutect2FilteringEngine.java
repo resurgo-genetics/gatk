@@ -3,30 +3,35 @@ package org.broadinstitute.hellbender.tools.walkers.mutect;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFConstants;
+import org.apache.commons.math3.distribution.BinomialDistribution;
 import org.broadinstitute.hellbender.tools.walkers.annotator.*;
 import org.broadinstitute.hellbender.tools.walkers.contamination.ContaminationRecord;
+import org.broadinstitute.hellbender.tools.walkers.readorientation.ContextDependentArtifactFilter;
+import org.broadinstitute.hellbender.tools.walkers.readorientation.ContextDependentArtifactFilterEngine;
+import org.broadinstitute.hellbender.tools.walkers.readorientation.Hyperparameters;
 import org.broadinstitute.hellbender.utils.GATKProtectedVariantContextUtils;
 import org.broadinstitute.hellbender.utils.MathUtils;
+import org.broadinstitute.hellbender.utils.Nucleotide;
 import org.broadinstitute.hellbender.utils.variant.GATKVCFConstants;
 import java.util.*;
+import java.util.stream.IntStream;
 
 /**
  * Created by David Benjamin on 9/15/16.
  */
 public class Mutect2FilteringEngine {
     private M2FiltersArgumentCollection MTFAC;
-    private final double contamination;
     private final String tumorSample;
     public static final String FILTERING_STATUS_VCF_KEY = "filtering_status";
 
     public Mutect2FilteringEngine(final M2FiltersArgumentCollection MTFAC, final String tumorSample) {
         this.MTFAC = MTFAC;
-        contamination = MTFAC.contaminationTable == null ? 0.0 : ContaminationRecord.readContaminationTable(MTFAC.contaminationTable).get(0).getContamination();
         this.tumorSample = tumorSample;
     }
 
     // very naive M1-style contamination filter -- remove calls with AF less than the contamination fraction
     private void applyContaminationFilter(final M2FiltersArgumentCollection MTFAC, final VariantContext vc, final Collection<String> filters) {
+        final double contamination = MTFAC.contaminationTable == null ? 0.0 : ContaminationRecord.readContaminationTable(MTFAC.contaminationTable).get(0).getContamination();
         final Genotype tumorGenotype = vc.getGenotype(tumorSample);
         final double[] alleleFractions = GATKProtectedVariantContextUtils.getAttributeAsDoubleArray(tumorGenotype, VCFConstants.ALLELE_FREQUENCY_KEY,
                 () -> new double[] {1.0}, 1.0);
@@ -64,7 +69,7 @@ public class Mutect2FilteringEngine {
         }
     }
 
-    private static void applyPanelOfNormalsFilter(final M2FiltersArgumentCollection MTFAC, final VariantContext vc, final Collection<String> filters) {
+    private static void applyPanelOfNormalsFilter(final VariantContext vc, final Collection<String> filters) {
         final boolean siteInPoN = vc.hasAttribute(GATKVCFConstants.IN_PON_VCF_ATTRIBUTE);
         if (siteInPoN) {
             filters.add(GATKVCFConstants.PON_FILTER_NAME);
@@ -193,6 +198,47 @@ public class Mutect2FilteringEngine {
         }
     }
 
+
+    private void applyReadOrientationFilter(final M2FiltersArgumentCollection MTFAC, final VariantContext vc, final Collection<String> filters){
+        // skip INDEL sites
+        if (vc.getAlternateAllele(0).length() > 1){
+            return;
+        }
+
+        // VCF must contain: reference context
+        final Nucleotide allele = Nucleotide.valueOf(vc.getAlternateAllele(0).toString());
+        final String referenceContext = "CGA"; // vc.getAttribute(REFERENCE_CONTEXT);
+        final int depth = 3; // or is allele count a genotype field? vc.getAttributeAsInt(GATKVCFConstants.MLE_ALLELE_COUNT_KEY);
+        final int altDepth = 2;
+        final int altF1R2Depth = 2;
+
+        final Hyperparameters hyps = Hyperparameters.readHyperparameter(MTFAC.readOrientationHyperparameters, referenceContext);
+
+        // A by K matrix of prior probabilities over K latent states, given allele a \in A
+        // \pi_{ak} is the prior probability of state k given observed allele a.
+        final double[][] pi = hyps.getPi();
+
+        // a vector of length K, the probability of drawing an alt read (i.e. allele fraction) given z
+        final double[] f = hyps.getF();
+
+        // a vector of length K, the probability of drawing an F1R2 alt read given z
+        final double[] theta = hyps.getTheta();
+
+        int NUM_STATUSES = 5;
+        // May have to do this in log space
+        final double[] unnormalizedPosteriorProbabilities = IntStream.range(0, NUM_STATUSES)
+                .mapToDouble(k -> pi[allele.ordinal()][k] * MathUtils.binomialProbability(depth, altDepth, f[k]) * MathUtils.binomialProbability(altDepth, altF1R2Depth, theta[k]))
+                .toArray();
+        final double[] posteriorProbabilties = MathUtils.normalizeFromRealSpace(unnormalizedPosteriorProbabilities);
+
+
+        final double threshold = 0.2;
+        if (posteriorProbabilties[ContextDependentArtifactFilterEngine.States.F1R2.ordinal()] > MTFAC.readOrientationFilterThreshold){
+            filters.add(GATKVCFConstants.READ_ORIENTATION_FILTER_NAME);
+        }
+    }
+
+
     //TODO: building a list via repeated side effects is ugly
     public Set<String> calculateFilters(final M2FiltersArgumentCollection MTFAC, final VariantContext vc) {
         final Set<String> filters = new HashSet<>();
@@ -200,7 +246,7 @@ public class Mutect2FilteringEngine {
         applyClusteredEventFilter(vc, filters);
         applyDuplicatedAltReadFilter(MTFAC, vc, filters);
         applyTriallelicFilter(vc, filters);
-        applyPanelOfNormalsFilter(MTFAC, vc, filters);
+        applyPanelOfNormalsFilter(vc, filters);
         applyGermlineVariantFilter(MTFAC, vc, filters);
         applyArtifactInNormalFilter(MTFAC, vc, filters);
         applyStrandArtifactFilter(MTFAC, vc, filters);

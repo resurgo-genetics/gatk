@@ -53,7 +53,8 @@ public class ContextDependentArtifactFilter extends LocusWalker {
 
     public static final List<String> SOME_3_MERS = Arrays.asList("ACT", "GTT", "AAA", "CGT");
 
-    static final int DEFAULT_INITIAL_LIST_SIZE = 37_000_000/64; // by default we assume that that all 64 reference 3-mers are equally likely
+    // 37M bases in the exome, and there's about 1 SNP every 1000 bases, and assume all 64 contexts are equally likely
+    static final int DEFAULT_INITIAL_LIST_SIZE = 37_000/64;
 
 
     @Override
@@ -170,9 +171,13 @@ public class ContextDependentArtifactFilter extends LocusWalker {
 
         // debug
         for (final String refContext : test ? SOME_3_MERS : ALL_3_MERS){
-            PerContextData contextData = contextDependentDataMap.get(refContext);
-            ContextDependentArtifactFilterEngine engine = new ContextDependentArtifactFilterEngine(contextData);
-            final int numSites = contextData.getNumExamples();
+            PerContextData data = contextDependentDataMap.get(refContext);
+            if (data.getNumAltExamples() == 0){
+                // without alt examples there's no point in reporting any probabilities
+                continue;
+            }
+
+            ContextDependentArtifactFilterEngine engine = new ContextDependentArtifactFilterEngine(data);
             Hyperparameters hyperparameters = engine.runEMAlgorithm(logger);
             hyperparameterEstimates.add(hyperparameters);
 

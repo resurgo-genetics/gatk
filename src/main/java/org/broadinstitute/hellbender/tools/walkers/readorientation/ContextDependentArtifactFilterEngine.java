@@ -182,7 +182,7 @@ public class ContextDependentArtifactFilterEngine {
         for (int depth = 0; depth < PerContextData.MAX_COVERAGE; depth++){
             final int m = depth; // another hack to use depth in a stream
             final double[] log10UnnormalizedResponsibilities = IntStream.range(0, NUM_STATUSES)
-                    .mapToDouble(k -> Math.log(pi[refAllele.ordinal()][k]) + new BinomialDistribution(m, f[k]).logProbability(0))
+                    .mapToDouble(k -> Math.log(pi[refAllele.ordinal()][k]) * MathUtils.LOG10_OF_E + new BinomialDistribution(m, f[k]).logProbability(0) * MathUtils.LOG10_OF_E)
                     .toArray();
             refResponsibilities[depth] = MathUtils.normalizeFromLog10ToLinearSpace(log10UnnormalizedResponsibilities);
         }
@@ -202,7 +202,6 @@ public class ContextDependentArtifactFilterEngine {
             final double[] log10AlleleFractionTerms = IntStream.range(0, NUM_STATUSES)
                     .mapToDouble(k -> new BinomialDistribution(depth, f[k]).logProbability(altDepth) * MathUtils.LOG10_OF_E)
                     .toArray();
-
 
             final double[] logAltF1R2FractionTerms = IntStream.range(0, NUM_STATUSES)
                     .mapToDouble(k -> new BinomialDistribution(altDepth, theta[k]).logProbability(altF1R2Depth) * MathUtils.LOG10_OF_E)
@@ -307,12 +306,16 @@ public class ContextDependentArtifactFilterEngine {
         for (int a = 0; a < NUM_ALLELES; a++){
             // N_a in the docs
             final double numExamplesWithThisAllele = effectiveCountsOfAlleles[a];
-            pi[a] = numExamplesWithThisAllele < EPSILON ? new double[NUM_STATUSES] :
-                    MathArrays.scale(1/numExamplesWithThisAllele, effectiveCountsGivenAllele[a]);
+            // when there are no examples of this particular (context, allele) pair, we give pi a uniform distribution
+            if (numExamplesWithThisAllele < EPSILON){
+                Arrays.fill(pi[a], 1/NUM_STATUSES);
+            } else {
+                pi[a] = MathArrays.scale(1 / numExamplesWithThisAllele, effectiveCountsGivenAllele[a]);
+            }
 
             // ensure that each row of the pi matrix is normalized
             final double sumProbabilities = Math.abs(MathUtils.sum(pi[a]));
-            assert sumProbabilities - 1.0 < EPSILON || sumProbabilities == 0.0 : "pi[a] must add up to 1";
+            assert sumProbabilities - 1.0 < EPSILON : "pi[a] must add up to 1";
         }
 
         return;
@@ -326,7 +329,7 @@ public class ContextDependentArtifactFilterEngine {
         return numIterations > 10;
     }
 
-    enum States {
+    public enum States {
         F1R2, // Orientation bias at the site, evidence for alt is predominantly F1R2 reads
         F2R1, // Orientation Bias at the site, evidence for alt is predominantly F1R1 reads
         BALANCED_HOM_REF, // No orientation bias, and the site is hom ref
