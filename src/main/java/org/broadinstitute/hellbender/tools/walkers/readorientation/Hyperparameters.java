@@ -18,11 +18,11 @@ import java.util.List;
 /**
  * Created by tsato on 9/5/17.
  */
-class Hyperparameters {
-    String referenceContext;
-    double[][] pi;
-    double[] f;
-    double[] theta;
+public class Hyperparameters {
+    private final String referenceContext;
+    private final double[][] pi;
+    private final double[] f;
+    private final double[] theta;
 
     public Hyperparameters(final String referenceContext, final double[][] pi, final double[] f, final double[] theta) {
         this.referenceContext = referenceContext;
@@ -31,20 +31,15 @@ class Hyperparameters {
         this.theta = theta;
     }
 
-    double[] getPiForAllele(final Allele allele) {
-        Utils.validateArg(allele.getBases().length == 1, "allele has to be single base");
-        return pi[BaseUtils.simpleBaseToBaseIndex(allele.getBases()[0])];
-    }
-
-    double[][] getPi() {
+    public double[][] getPi() {
         return pi;
     }
 
-    double[] getF() {
+    public double[] getF() {
         return f;
     }
 
-    double[] getTheta() {
+    public double[] getTheta() {
         return theta;
     }
 
@@ -54,9 +49,7 @@ class Hyperparameters {
 
     /** Reading and writing the learned hyperparameters of the model **/
 
-    /**
-     * Writing
-     **/
+    /** Code for writing hyperparameters to a table **/
     // TODO: I can abstract this, pretty much copied the code from PileupSummary
     private static class HyperparameterTableWriter extends TableWriter<Hyperparameters> {
         private HyperparameterTableWriter(final File output) throws IOException {
@@ -98,12 +91,27 @@ class Hyperparameters {
         }
     }
 
-    /**
-     * Reading
-     **/
+    /** Code for reading hyperparameters from a table **/
     public static List<Hyperparameters> readHyperparameters(final File table) {
         try (HyperParameterTableReader reader = new HyperParameterTableReader(table)) {
             return reader.toList();
+        } catch (IOException e) {
+            throw new UserException(String.format("Encountered an IO exception while reading from %s.", table), e);
+        }
+    }
+
+    /** Read a row for specific hyperparameters from the table **/
+    public static Hyperparameters readHyperparameter(final File table, final String referenceContext) {
+        Utils.validateArg(referenceContext.length() == 3, "reference context must be 3 bases long");
+        try (HyperParameterTableReader reader = new HyperParameterTableReader(table)) {
+            // TODO: might be worth revisiting if this is the right approach
+            for (Hyperparameters hyp : reader){
+                if (hyp.getReferenceContext().equals(referenceContext)) {
+                    return hyp;
+                }
+            }
+
+            throw new UserException(String.format("Reference context %s does not exist in the hyperparameter table"));
         } catch (IOException e) {
             throw new UserException(String.format("Encountered an IO exception while reading from %s.", table), e);
         }

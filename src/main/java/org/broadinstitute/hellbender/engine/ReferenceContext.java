@@ -308,6 +308,15 @@ public final class ReferenceContext implements Iterable<Byte> {
     }
 
     /**
+     * @param contig
+     * @return the length/end position of the contig
+     */
+    private int getContigLength(final String contig){
+        return dataSource.getSequenceDictionary().getSequence(contig).getSequenceLength();
+    }
+
+
+    /**
      * Get the base at the given locus.
      * @return The base at the given locus from the reference.
      */
@@ -323,13 +332,33 @@ public final class ReferenceContext implements Iterable<Byte> {
      * @return bases in the reference within the range [start, end)
      */
     public byte[] getBasesInInterval(final int start, final int end){
-        // TODO: add test
-        Utils.validateArg(window.getStart() <= start && start <= window.getEnd(), () -> "start position must fall within the window");
-        Utils.validateArg(window.getStart() < end && end <= window.getEnd() + 1, () -> "end position must fall within the window");
+        // TODO: REVISIT
+        Utils.validateArg(start >= 1, () -> "start position must be positive");
+        Utils.validateArg(end <= getContigLength(interval.getContig()), () -> "end position may not exceed the lenght of the contig");
         Utils.validateArg(start < end, "start position must be smaller than end position");
 
-        final int startIndex = start - window.getStart();
-        final int endIndex = end - window.getStart();
-        return Arrays.copyOfRange(getBases(), startIndex, endIndex);
+        if (start >= window.getStart() && end <= window.getEnd()){
+            // case 1, the query interval falls within the window
+            final int startIndex = start - window.getStart();
+            final int endIndex = window.getEnd() - end + 1; // TODO: check plus 1
+
+            return Arrays.copyOfRange(getBases(), startIndex, endIndex);
+        } else if (start < window.getStart() && end > window.getEnd()) {
+            // case 2, the query interval contains the window
+            // set window etc.
+
+            // YOUR CODE HERE
+        } else if (start >= window.getStart()){
+            // case 3, start is falls inside window but end doesn't
+            // YOUR CODE HERE
+        } else {
+            // case 4, end is within, but start isn't
+            // YOUR CODE HERE
+        }
+
+        SimpleInterval oldInterval = new SimpleInterval(interval.getContig(), interval.getStart(), interval.getEnd());
+        SimpleInterval pointerToInterval = interval;
+
+        return Arrays.copyOfRange(getBases(), start, end);
     }
 }

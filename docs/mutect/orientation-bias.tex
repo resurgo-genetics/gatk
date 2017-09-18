@@ -77,9 +77,9 @@ Few years back, folks at GP found that high-power acoustic shearing (as opposed 
 
 Now we pour the libraries on the flowcell, as detailed in Figure \ref{fig:flowcell}. 
 
+\paragraph{Forked adapters and why it's relevent}
+
 %%%%%
- 
- \section{Scrap yard of things that may be crap}
  
 Couple things to note about the adapters; adapters are not symmetric. That is, once adapter is ligated, the two strands in the double stranded insert molecule behave differently. Namely, the way adapter is ligated to the DNA decides which strand, forward or reverse, will be sequenced first. This means that we can sequence the same molecule two different ways, depending on how the adapter is ligated; read the forward strand first, or read the reverse strand first. This happens at random. We mark the read pair in the former case to have F1R2 orientation and the latter F2R1. Since the adapter ligation happens at random, we should see about an equal amount of F1R2 and F2R1 reads. For a fixed insert, the way adapter is ligated does not affect which sequences are read. 
 
@@ -153,14 +153,13 @@ We then model the number of $F1R2$ reads among $m$ alt reads as $x|m,z \sim \mat
 We estimate the hyperparameters $\vpi$ and $\vp$ that maximize likelihood using the EM algorithm. We can then compute the posterior probability of the latent variable $z$ to determine whether a variant is an orientation artifact and thus should be filtered.
 
 \subsubsection{E step}
-In the E step, we compute the responsibilities $\gamma_{nk} = p(z_{nk} | x_n, m_n, a)$. $\gamma_{nk}$ is the posterior probability of $k$th component of $z$ given random variables $x_n$ and $m_n$ and allele $a$. By Bayes rule we have \todo[inline]{Don't we need the binomial constants?}
+In the E step, we compute the responsibilities $\gamma_{nk} = p(z_{nk} | x_n, m_n, a)$. $\gamma_{nk}$ is the posterior probability of the $k$th component of $z$. By Bayes rule we may compute the unnormalized responsibilities $\gamma^*_{nk}$ as follows
 
 \begin{align}
-\gamma^*_{nk} &\propto p(z_{nk} | x_n, m_n, a) \nonumber \\
+\gamma^*_{nk}  &\propto p(z_{nk} | x_n, m_n, a) \nonumber \\
 		        &\propto p(z_{nk} | a) p(m_n | z_{nk}, f_{k} ) p(x_n | m_n ) \nonumber \\
-		        &= \pi_{ak}  \{ f_{k}^{m_n} (1-f_k)^{R - m_n} \} \{ \theta_k^{x_n} (1 - \theta_k)^{m_n - x_n} \}
+		        &= \pi_{ak} \cdot \mathrm{Binom}(m_n | f_k, R) \cdot \mathrm{Binom}(x_n | \theta_k, m_n)
 \end{align}
-
 
 where $R$ is the number of reads at site $n$, and the asterisk over $\gamma^*_{nk}$ denotes that the responsibility is not normalized and thus is not a probability. Normalizing responsibilities gives us
 
@@ -237,6 +236,7 @@ where $N_a = \sum_k N_{ak} $ is the number of observed sites with allele $a$. Pl
 % TODO: Discuss the forms of these update equations
 % Initialize parameters, and iterate E and M-steps.
 
+\subsection{Inference}
 
 
 %%%%%%%%%%

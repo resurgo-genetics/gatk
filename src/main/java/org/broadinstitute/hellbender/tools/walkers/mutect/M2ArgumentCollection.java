@@ -54,7 +54,7 @@ public class M2ArgumentCollection extends AssemblyBasedCallerArgumentCollection 
      * Population allele fraction assigned to alleles not found in germline resource.
      */
     @Argument(fullName="af_of_alleles_not_in_resource", shortName = "default_af",
-            doc="Population allele fraction assigned to alleles not found in germline resource.  A reasonable value is" +
+            doc="Population allele frequency assigned to alleles not found in germline resource.  A reasonable value is " +
                     "1/(2* number of samples in resource) if a germline resource is available; otherwise an average " +
                     "heterozygosity rate such as 0.001 is reasonable.", optional = true)
     public double afOfAllelesNotInGermlineResource = 0.001;
