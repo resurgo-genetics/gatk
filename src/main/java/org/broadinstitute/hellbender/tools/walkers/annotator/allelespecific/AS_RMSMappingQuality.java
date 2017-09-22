@@ -51,15 +51,6 @@ public final class AS_RMSMappingQuality extends InfoFieldAnnotation implements A
     public static final String PRINT_DELIM = "|";
 
     @Override
-    public List<VCFInfoHeaderLine> getDescriptions() {
-        //TODO I'm just going to ignore this for now
-//        if (AnnotationUtils.walkerRequiresRawData(callingWalker))
-            return Arrays.asList(GATKVCFHeaderLines.getInfoLine(getRawKeyName()));
-//        else
-//            return Arrays.asList(GATKVCFHeaderLines.getInfoLine(getKeyNames().get(0)));
-    }
-
-    @Override
     public Map<String, Object> annotate(final ReferenceContext ref,
                                         final VariantContext vc,
                                         final ReadLikelihoods<Allele> likelihoods) {

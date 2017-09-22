@@ -94,7 +94,7 @@ public final class RMSMappingQuality extends InfoFieldAnnotation implements Stan
             return new HashMap<>();
 
         ReducibleAnnotationData myData = new ReducibleAnnotationData(rawMQdata);
-        parseRawDataString(rawMQdata);
+        myData.putAttribute(Allele.NO_CALL, parseRawDataString(rawMQdata));
 
         String annotationString = makeFinalizedAnnotationString(vc, myData.getAttributeMap());
         return Collections.singletonMap(getKeyNames().get(0), (Object)annotationString);
@@ -148,6 +148,11 @@ public final class RMSMappingQuality extends InfoFieldAnnotation implements Stan
     @Override
     public List<VCFInfoHeaderLine> getDescriptions() {
         return Arrays.asList(VCFStandardHeaderLines.getInfoLine(getKeyNames().get(0)), GATKVCFHeaderLines.getInfoLine(getRawKeyName()));
+    }
+
+    @Override
+    public List<VCFInfoHeaderLine> getRawDescriptions() {
+        return getDescriptions();
     }
 
     /**

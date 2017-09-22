@@ -344,7 +344,8 @@ public final class VariantContextTestUtils {
         Assert.assertEquals(actual.getEnd(), expected.getEnd(), "end");
         Assert.assertEquals(actual.getID(), expected.getID(), "id");
         Assert.assertEquals(actual.getAlleles(), expected.getAlleles(), "alleles for " + expected + " vs " + actual);
-
+        System.out.println(expected);
+        System.out.println(actual);
         assertAttributesEquals(filterIgnoredAttributes(actual.getAttributes(), attributesToIgnore),
                                filterIgnoredAttributes(expected.getAttributes(), attributesToIgnore));
 

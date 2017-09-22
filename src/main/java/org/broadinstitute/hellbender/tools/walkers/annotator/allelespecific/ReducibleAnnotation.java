@@ -2,10 +2,13 @@ package org.broadinstitute.hellbender.tools.walkers.annotator.allelespecific;
 
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.VariantContext;
+import htsjdk.variant.vcf.VCFInfoHeaderLine;
 import org.broadinstitute.hellbender.engine.ReferenceContext;
 import org.broadinstitute.hellbender.tools.walkers.annotator.Annotation;
 import org.broadinstitute.hellbender.utils.genotyper.ReadLikelihoods;
+import org.broadinstitute.hellbender.utils.variant.GATKVCFHeaderLines;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -46,4 +49,9 @@ public interface ReducibleAnnotation extends Annotation {
     public abstract Map<String, Object> finalizeRawData(final VariantContext vc, final VariantContext originalVC);
 
 
+    public default List<VCFInfoHeaderLine> getRawDescriptions() {
+        final List<VCFInfoHeaderLine> lines = new ArrayList<>(1);
+        lines.add(GATKVCFHeaderLines.getInfoLine(getRawKeyName()));
+        return lines;
+    }
 }

@@ -116,11 +116,19 @@ public final class VariantAnnotatorEngine {
     /**
      * Returns the set of descriptions to be added to the VCFHeader line (for all annotations in this engine).
      */
-    public Set<VCFHeaderLine> getVCFAnnotationDescriptions() {
+    public Set<VCFHeaderLine> getVCFAnnotationDescriptions(boolean useRaw) {
         final Set<VCFHeaderLine> descriptions = new LinkedHashSet<>();
 
         for ( final InfoFieldAnnotation annotation : infoAnnotations) {
-            descriptions.addAll(annotation.getDescriptions());
+            if (annotation instanceof ReducibleAnnotation) {
+                if (useRaw) {
+                    descriptions.addAll(((ReducibleAnnotation)annotation).getRawDescriptions());
+                } else {
+                    descriptions.addAll(annotation.getDescriptions());
+                }
+            } else {
+                descriptions.addAll(annotation.getDescriptions());
+            }
         }
         for ( final GenotypeAnnotation annotation : genotypeAnnotations) {
             descriptions.addAll(annotation.getDescriptions());
@@ -168,7 +176,6 @@ public final class VariantAnnotatorEngine {
         return combinedAnnotations;
     }
 
-//TODO the following methods are not hooked up to any tools
     /**
      * Finalize reducible annotations (those that use raw data in gVCFs)
      * @param vc    the merged VC with the final set of alleles, possibly subset to the number of maxAltAlleles for genotyping
@@ -326,7 +333,7 @@ public final class VariantAnnotatorEngine {
      * @param key
      * @return
      */
-    public boolean isReducibleRawKey(String key) {
+    public boolean isRequestedReducibleRawKey(String key) {
         if (reducableKeys == null) {
             reducableKeys = new HashSet<>();
             for (InfoFieldAnnotation annot : infoAnnotations) {

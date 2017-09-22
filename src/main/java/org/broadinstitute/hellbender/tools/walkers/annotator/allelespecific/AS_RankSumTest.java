@@ -24,15 +24,6 @@ public abstract class AS_RankSumTest extends RankSumTest implements ReducibleAnn
     public static final String REDUCED_DELIM = ",";
 
     @Override
-    public List<VCFInfoHeaderLine> getDescriptions() {
-        //TODO only raw for now
-//        if (AnnotationUtils.walkerRequiresRawData(callingWalker))
-            return Arrays.asList(GATKVCFHeaderLines.getInfoLine(getRawKeyName()));
-//        else
-//            return Arrays.asList(GATKVCFHeaderLines.getInfoLine(getKeyNames().get(0)));
-    }
-
-    @Override
     public Map<String, Object> annotate(final ReferenceContext ref,
                                          final VariantContext vc,
                                         final ReadLikelihoods<Allele> likelihoods) {

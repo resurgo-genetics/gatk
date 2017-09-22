@@ -376,7 +376,7 @@ public final class CombineGVCFs extends MultiVariantWalker {
         final Set<VCFHeaderLine> headerLines = new LinkedHashSet<>(inputVCFHeader.getMetaDataInInputOrder());
         headerLines.addAll(getDefaultToolVCFHeaderLines());
 
-        headerLines.addAll(annotationEngine.getVCFAnnotationDescriptions());
+        headerLines.addAll(annotationEngine.getVCFAnnotationDescriptions(true));
 
         // add headers for annotations added by this tool
         headerLines.add(VCFStandardHeaderLines.getInfoLine(VCFConstants.DEPTH_KEY));   // needed for gVCFs without DP tags

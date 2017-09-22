@@ -354,7 +354,7 @@ public class ReferenceConfidenceVariantContextMerger {
             final String key = p.getKey();
 
             // If the key corresponds to a requested reducible key, store ReducibleAnnotationData
-            if (annotatorEngine.isReducibleRawKey(key)) {//TODO figure out how to signal the annotaions here
+            if (annotatorEngine.isRequestedReducibleRawKey(key)) {//TODO figure out how to signal the annotaions here
                 final List<Object> valueList = vcPair.getVc().getAttributeAsList(key);
 
                 List<ReducibleAnnotationData<?>> values = (List<ReducibleAnnotationData<?>>)(List<?>) annotationMap.get(key);

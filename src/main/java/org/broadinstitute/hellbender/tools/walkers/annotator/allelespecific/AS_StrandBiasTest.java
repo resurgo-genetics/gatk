@@ -34,15 +34,6 @@ public abstract class AS_StrandBiasTest extends StrandBiasTest implements Reduci
     }
 
     @Override
-    public List<VCFInfoHeaderLine> getDescriptions() {
-        //TODO only raw for now
-//        if (AnnotationUtils.walkerRequiresRawData(callingWalker))
-            return Arrays.asList(GATKVCFHeaderLines.getInfoLine(getRawKeyName()));
-//        else
-//            return Arrays.asList(GATKVCFHeaderLines.getInfoLine(getKeyNames().get(0)));
-    }
-
-    @Override
     public String getRawKeyName() { return GATKVCFConstants.AS_SB_TABLE_KEY; }
 
     @Override

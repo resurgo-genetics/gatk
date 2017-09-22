@@ -20,8 +20,12 @@ public final class MinimalGenotypingEngine extends GenotypingEngine<UnifiedArgum
      * @param samples list of samples
      */
     public MinimalGenotypingEngine(final UnifiedArgumentCollection configuration, final SampleList samples,
-                                    final AFCalculatorProvider afCalculatorProvider ) {
-        super(configuration, samples, afCalculatorProvider);
+                                   final AFCalculatorProvider afCalculatorProvider) {
+        this(configuration, samples, afCalculatorProvider, false);
+    }
+    public MinimalGenotypingEngine(final UnifiedArgumentCollection configuration, final SampleList samples,
+                                    final AFCalculatorProvider afCalculatorProvider, boolean doAlleleSpecificCalcs ) {
+        super(configuration, samples, afCalculatorProvider, doAlleleSpecificCalcs);
 
         if ( configuration.genotypingOutputMode == GenotypingOutputMode.GENOTYPE_GIVEN_ALLELES ) {
             throw new UserException("GENOTYPE_GIVEN_ALLELES mode not supported in the MinimalGenotypingEngine");
