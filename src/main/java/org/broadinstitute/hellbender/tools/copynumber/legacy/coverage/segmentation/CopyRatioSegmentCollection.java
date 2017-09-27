@@ -15,7 +15,7 @@ public final class CopyRatioSegmentCollection extends TSVLocatableCollection<Cop
         CONTIG,
         START,
         END,
-        NUM_POINTS,
+        NUM_POINTS_COPY_RATIO,
         MEAN_LOG2_COPY_RATIO;
 
         static final TableColumnCollection COLUMNS = new TableColumnCollection((Object[]) values());
@@ -24,7 +24,7 @@ public final class CopyRatioSegmentCollection extends TSVLocatableCollection<Cop
         final String contig = dataLine.get(CopyRatioSegmentTableColumn.CONTIG);
         final int start = dataLine.getInt(CopyRatioSegmentTableColumn.START);
         final int end = dataLine.getInt(CopyRatioSegmentTableColumn.END);
-        final int numPoints = dataLine.getInt(CopyRatioSegmentTableColumn.NUM_POINTS);
+        final int numPoints = dataLine.getInt(CopyRatioSegmentTableColumn.NUM_POINTS_COPY_RATIO);
         final double meanLog2CopyRatio = dataLine.getDouble(CopyRatioSegmentTableColumn.MEAN_LOG2_COPY_RATIO);
         final SimpleInterval interval = new SimpleInterval(contig, start, end);
         return new CopyRatioSegment(interval, numPoints, meanLog2CopyRatio);

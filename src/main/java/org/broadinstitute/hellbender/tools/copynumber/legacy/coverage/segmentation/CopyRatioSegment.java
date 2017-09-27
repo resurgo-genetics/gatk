@@ -1,6 +1,8 @@
 package org.broadinstitute.hellbender.tools.copynumber.legacy.coverage.segmentation;
 
 import htsjdk.samtools.util.Locatable;
+import org.broadinstitute.hellbender.utils.GATKProtectedMathUtils;
+import org.broadinstitute.hellbender.utils.MathUtils;
 import org.broadinstitute.hellbender.utils.SimpleInterval;
 import org.broadinstitute.hellbender.utils.Utils;
 import org.broadinstitute.hellbender.utils.param.ParamUtils;
@@ -23,8 +25,13 @@ public class CopyRatioSegment implements Locatable {
     }
 
     public CopyRatioSegment(final SimpleInterval interval,
-                            final List<Double> denoisedCopyRatios) {
-        this(interval, denoisedCopyRatios.size(), denoisedCopyRatios.stream().mapToDouble(Double::doubleValue).average().orElse(Double.NaN));
+                            final List<Double> denoisedLog2CopyRatios) {
+        Utils.nonNull(interval);
+        Utils.nonNull(denoisedLog2CopyRatios);
+        this.interval = interval;
+        numPoints = denoisedLog2CopyRatios.size();
+        final double meanCopyRatio = denoisedLog2CopyRatios.stream().mapToDouble(log2CR -> Math.pow(2., log2CR)).average().orElse(Double.NaN);
+        meanLog2CopyRatio = Math.log(meanCopyRatio) * GATKProtectedMathUtils.INV_LOG_2;
     }
 
     @Override

@@ -1,6 +1,7 @@
 package org.broadinstitute.hellbender.tools.exome;
 
 import org.broadinstitute.hellbender.exceptions.UserException;
+import org.broadinstitute.hellbender.tools.copynumber.legacy.coverage.copyratio.CopyRatioCollection;
 import org.broadinstitute.hellbender.tools.exome.alleliccount.AllelicCount;
 import org.broadinstitute.hellbender.tools.exome.alleliccount.AllelicCountCollection;
 import org.broadinstitute.hellbender.utils.Utils;
@@ -32,6 +33,20 @@ public final class Genome {
         this.targets = new HashedListTargetCollection<>(targets.records().stream().map(ReadCountRecord::asSingleSampleRecord).collect(Collectors.toList()));
         this.snps = new HashedListTargetCollection<>(snps);
         sampleName = ReadCountCollectionUtils.getSampleNameFromReadCounts(targets);
+    }
+
+    public Genome(final CopyRatioCollection denoisedCopyRatios, final org.broadinstitute.hellbender.tools.copynumber.allelic.alleliccount.AllelicCountCollection allelicCounts) {
+        Utils.nonNull(denoisedCopyRatios);
+        Utils.nonNull(allelicCounts);
+        Utils.validateArg(denoisedCopyRatios.getSampleName().equals(allelicCounts.getSampleName()),
+                "Sample names from copy ratios and allelic counts must match.");
+        this.targets = new HashedListTargetCollection<>(denoisedCopyRatios.getRecords().stream()
+                .map(cr -> new ReadCountRecord.SingleSampleRecord(new Target(cr.getInterval()), cr.getLog2CopyRatioValue()))
+                .collect(Collectors.toList()));
+        this.snps = new HashedListTargetCollection<>(allelicCounts.getRecords().stream()
+                .map(ac -> new AllelicCount(ac.getInterval(), ac.getRefReadCount(), ac.getAltReadCount()))
+                .collect(Collectors.toList()));
+        sampleName = denoisedCopyRatios.getSampleName();
     }
 
     /**

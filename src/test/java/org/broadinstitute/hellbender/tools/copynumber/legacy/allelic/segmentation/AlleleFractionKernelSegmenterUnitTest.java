@@ -22,7 +22,7 @@ public final class AlleleFractionKernelSegmenterUnitTest extends BaseTest {
     private static final int RANDOM_SEED = 1;   //reset seed before each simulated test case
     
     /**
-     * Generates alternate-allele fraction data (similar to zero-mean multimodal test data
+     * Generates alternate-allele-fraction-like data (similar to zero-mean multimodal test data
      * in {@link KernelSegmenterUnitTest#dataKernelSegmenter()}),
      * but introduces further segments by placing data on different chromosomes.
      */
@@ -53,7 +53,7 @@ public final class AlleleFractionKernelSegmenterUnitTest extends BaseTest {
                         (i % 2500) + 1))
                 .collect(Collectors.toList());
 
-        final int globalDepth = 10000;
+        final int globalDepth = 100;
         final List<AllelicCount> allelicCountsList = IntStream.range(0, numPoints).boxed()
                 .map(i -> new AllelicCount(
                         intervals.get(i),
@@ -98,5 +98,6 @@ public final class AlleleFractionKernelSegmenterUnitTest extends BaseTest {
                 .findSegmentation(maxNumChangepointsPerChromosome, kernelVariance, kernelApproximationDimension,
                         windowSizes, numChangepointsPenaltyLinearFactor, numChangepointsPenaltyLogLinearFactor);
         Assert.assertEquals(segments, segmentsExpected);
+        System.out.println(segments.getRecords().stream().map(AlleleFractionSegment::getMeanMinorAlleleFraction).collect(Collectors.toList()));
     }
 }

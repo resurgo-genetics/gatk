@@ -77,6 +77,6 @@ public final class DenoiseReadCountsIntegrationTest extends CommandLineProgramTe
         Assert.assertEquals(standardizedCopyRatios.getSampleName(), denoisedCopyRatios.getSampleName());
         Assert.assertEquals(standardizedCopyRatios.getIntervals(), denoisedCopyRatios.getIntervals());
         //standardized and denoised copy ratios should be the same if PoN is not provided
-        Assert.assertEquals(standardizedCopyRatios.getCopyRatioValues().equals(denoisedCopyRatios.getCopyRatioValues()), isStandardizedEqualsDenoised);
+        Assert.assertEquals(standardizedCopyRatios.getLog2CopyRatioValues().equals(denoisedCopyRatios.getLog2CopyRatioValues()), isStandardizedEqualsDenoised);
     }
 }

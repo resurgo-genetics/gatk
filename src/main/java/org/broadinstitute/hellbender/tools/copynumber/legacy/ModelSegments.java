@@ -134,7 +134,7 @@ public final class ModelSegments extends SparkCommandLineProgram {
             minValue = 1,
             optional = true
     )
-    private int maxNumSegmentsPerChromosome = 100;
+    private int maxNumSegmentsPerChromosome = 1000;
 
     @Argument(
             doc = "Minimum total count required to include site in allele-fraction segmentation.",
@@ -161,11 +161,11 @@ public final class ModelSegments extends SparkCommandLineProgram {
             minValue = 0.,
             optional = true
     )
-    private double kernelVarianceAlleleFraction = 0.1;
+    private double kernelVarianceAlleleFraction = 0.01;
 
     @Argument(
             doc = "Dimension of kernel approximation.  A subsample containing this number of data points " +
-                    "will be taken from the copy-ratio profile and used to construct the approximation for each chromosome.  " +
+                    "will be used to construct the approximation for each chromosome.  " +
                     "If the total number of data points in a chromosome is greater " +
                     "than this number, then all data points in the chromosome will be used.  " +
                     "Time complexity scales quadratically and space complexity scales linearly with this parameter.",
@@ -213,7 +213,7 @@ public final class ModelSegments extends SparkCommandLineProgram {
             minValue = 0.,
             optional = true
     )
-    private double numChangepointsPenaltyFactorAlleleFraction = 1.;
+    private double numChangepointsPenaltyFactorAlleleFraction = 10.;
 
     @Argument(
             doc = "Threshold number of copy-ratio intervals for small-segment merging. " +

@@ -47,7 +47,7 @@ public final class CopyRatioKernelSegmenter {
                         SimpleInterval::getContig,
                         LinkedHashMap::new,
                         Collectors.mapping(Function.identity(), Collectors.toList())));
-        final List<Double> denoisedCopyRatioValues = denoisedCopyRatios.getCopyRatioValues();
+        final List<Double> denoisedCopyRatioValues = denoisedCopyRatios.getLog2CopyRatioValues();
         denoisedCopyRatiosPerChromosome = IntStream.range(0, denoisedCopyRatios.getRecords().size()).boxed()
                 .map(i -> new ImmutablePair<>(
                         denoisedCopyRatios.getRecords().get(i).getContig(),

@@ -1,5 +1,6 @@
 package org.broadinstitute.hellbender.tools.copynumber.legacy.coverage.caller;
 
+import htsjdk.samtools.util.OverlapDetector;
 import org.apache.commons.math3.stat.descriptive.moment.Mean;
 import org.apache.commons.math3.stat.descriptive.moment.StandardDeviation;
 import org.apache.logging.log4j.LogManager;
@@ -34,38 +35,31 @@ public final class ReCapSegCaller {
     // Number of standard deviations before assuming that a target was an outlier in a segment
     private static final double Z_THRESHOLD = 2;
 
-    private final CopyRatioCollection denoisedCopyRatios;
     private final CopyRatioSegmentCollection copyRatioSegments;
-    private final LinkedHashMap<CopyRatioSegment, List<CopyRatio>> segmentToCopyRatiosMap;
+    private final LinkedHashMap<CopyRatioSegment, Set<CopyRatio>> segmentToCopyRatiosMap;
 
     /**
      * @param denoisedCopyRatios in log2 space
      */
     public ReCapSegCaller(final CopyRatioCollection denoisedCopyRatios,
                           final CopyRatioSegmentCollection copyRatioSegments) {
-        this.denoisedCopyRatios = Utils.nonNull(denoisedCopyRatios);
         this.copyRatioSegments = Utils.nonNull(copyRatioSegments);
         Utils.validateArg(denoisedCopyRatios.getSampleName().equals(copyRatioSegments.getSampleName()),
                 "Denoised copy ratios and copy-ratio segments do not have the same sample name.");
         segmentToCopyRatiosMap = constructSegmentToCopyRatiosMap(denoisedCopyRatios, copyRatioSegments);
     }
 
-    private static LinkedHashMap<CopyRatioSegment, List<CopyRatio>> constructSegmentToCopyRatiosMap(final CopyRatioCollection denoisedCopyRatios,
-                                                                                                    final CopyRatioSegmentCollection copyRatioSegments) {
-        final LinkedHashMap<CopyRatioSegment, List<CopyRatio>> segmentToCopyRatiosMap = new LinkedHashMap<>();
-        int index = 0;
+    private static LinkedHashMap<CopyRatioSegment,Set<CopyRatio>> constructSegmentToCopyRatiosMap(final CopyRatioCollection denoisedCopyRatios,
+                                                                                                  final CopyRatioSegmentCollection copyRatioSegments) {
+        final LinkedHashMap<CopyRatioSegment, Set<CopyRatio>> segmentToCopyRatiosMap = new LinkedHashMap<>();
+        final OverlapDetector<CopyRatio> copyRatioOverlapDetector = OverlapDetector.create(denoisedCopyRatios.getRecords());
         for (final CopyRatioSegment segment : copyRatioSegments.getRecords()) {
-            final int numPoints = segment.getNumPoints();
-            final int firstPointStart = denoisedCopyRatios.getRecords().get(index).getStart();
-            final int lastPointEnd = denoisedCopyRatios.getRecords().get(index + numPoints - 1).getEnd();
-            if (!(firstPointStart == segment.getStart() && lastPointEnd == segment.getEnd())) {
+            final int numPointsExpected = segment.getNumPoints();
+            final Set<CopyRatio> copyRatiosInSegment = copyRatioOverlapDetector.getOverlaps(segment);
+            if (copyRatiosInSegment.size() != numPointsExpected) {
                 throw new IllegalArgumentException("Denoised copy ratios and copy-ratio segments are not consistent.");
             }
-            segmentToCopyRatiosMap.put(segment, denoisedCopyRatios.getRecords().subList(index, index + numPoints));
-            index += numPoints;
-        }
-        if (index != denoisedCopyRatios.getRecords().size()) {
-            throw new IllegalArgumentException("Denoised copy ratios and copy-ratio segments are not consistent.");
+            segmentToCopyRatiosMap.put(segment, copyRatiosInSegment);
         }
         return segmentToCopyRatiosMap;
     }

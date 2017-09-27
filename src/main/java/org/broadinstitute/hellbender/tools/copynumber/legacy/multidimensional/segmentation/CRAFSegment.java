@@ -33,15 +33,15 @@ public class CRAFSegment implements Locatable {
     }
 
     public CRAFSegment(final SimpleInterval interval,
-                       final List<Double> denoisedCopyRatios,
+                       final List<Double> denoisedLog2CopyRatios,
                        final List<AllelicCount> allelicCounts) {
         Utils.nonNull(interval);
-        Utils.nonNull(denoisedCopyRatios);
+        Utils.nonNull(denoisedLog2CopyRatios);
         Utils.nonNull(allelicCounts);
         this.interval = interval;
-        numPointsCopyRatio = denoisedCopyRatios.size();
+        numPointsCopyRatio = denoisedLog2CopyRatios.size();
         numPointsAlleleFraction = allelicCounts.size();
-        meanLog2CopyRatio = new CopyRatioSegment(interval, denoisedCopyRatios).getMeanLog2CopyRatio();
+        meanLog2CopyRatio = new CopyRatioSegment(interval, denoisedLog2CopyRatios).getMeanLog2CopyRatio();
         meanMinorAlleleFraction = new AlleleFractionSegment(interval, allelicCounts).getMeanMinorAlleleFraction();
     }
 

@@ -11,7 +11,7 @@ import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-public class CopyRatioCollection extends TSVLocatableCollection<CopyRatio> {
+public final class CopyRatioCollection extends TSVLocatableCollection<CopyRatio> {
     enum CopyRatioTableColumn {
         CONTIG,
         START,
@@ -45,7 +45,7 @@ public class CopyRatioCollection extends TSVLocatableCollection<CopyRatio> {
         super(sampleName, copyRatios, CopyRatioTableColumn.COLUMNS, COPY_RATIO_DATA_LINE_TO_RECORD_FUNCTION, COPY_RATIO_RECORD_AND_DATA_LINE_BI_CONSUMER);
     }
 
-    public List<Double> getCopyRatioValues() {
+    public List<Double> getLog2CopyRatioValues() {
         return getRecords().stream().map(CopyRatio::getLog2CopyRatioValue).collect(Collectors.toList());
     }
 }

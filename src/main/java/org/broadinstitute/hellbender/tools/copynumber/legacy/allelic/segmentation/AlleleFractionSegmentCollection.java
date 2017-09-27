@@ -20,7 +20,7 @@ public final class AlleleFractionSegmentCollection extends TSVLocatableCollectio
         CONTIG,
         START,
         END,
-        NUM_POINTS,
+        NUM_POINTS_ALLELE_FRACTION,
         MEAN_MINOR_ALLELE_FRACTION;
 
         static final TableColumnCollection COLUMNS = new TableColumnCollection((Object[]) values());
@@ -30,7 +30,7 @@ public final class AlleleFractionSegmentCollection extends TSVLocatableCollectio
         final String contig = dataLine.get(AlleleFractionSegmentTableColumn.CONTIG);
         final int start = dataLine.getInt(AlleleFractionSegmentTableColumn.START);
         final int end = dataLine.getInt(AlleleFractionSegmentTableColumn.END);
-        final int numPoints = dataLine.getInt(AlleleFractionSegmentTableColumn.NUM_POINTS);
+        final int numPoints = dataLine.getInt(AlleleFractionSegmentTableColumn.NUM_POINTS_ALLELE_FRACTION);
         final double meanMinorAlleleFraction = dataLine.getDouble(AlleleFractionSegmentTableColumn.MEAN_MINOR_ALLELE_FRACTION);
         final SimpleInterval interval = new SimpleInterval(contig, start, end);
         return new AlleleFractionSegment(interval, numPoints, meanMinorAlleleFraction);

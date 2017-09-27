@@ -18,7 +18,7 @@ import java.util.function.Function;
  * @author Samuel Lee &lt;slee@broadinstitute.org&gt;
  * @author Mehrtash Babadi &lt;mehrtash@broadinstitute.org&gt;
  */
-public class AllelicCountCollection extends TSVLocatableCollection<AllelicCount>  {
+public final class AllelicCountCollection extends TSVLocatableCollection<AllelicCount>  {
     enum AllelicCountTableColumn {
         CONTIG,
         POSITION,

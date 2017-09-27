@@ -13,12 +13,12 @@ import java.util.List;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
 
-public class CalledCopyRatioSegmentCollection extends TSVLocatableCollection<CalledCopyRatioSegment> {
+public final class CalledCopyRatioSegmentCollection extends TSVLocatableCollection<CalledCopyRatioSegment> {
     enum CalledCopyRatioSegmentTableColumn {
         CONTIG,
         START,
         END,
-        NUM_POINTS,
+        NUM_POINTS_COPY_RATIO,
         MEAN_LOG2_COPY_RATIO,
         CALL;
 
@@ -29,7 +29,7 @@ public class CalledCopyRatioSegmentCollection extends TSVLocatableCollection<Cal
         final String contig = dataLine.get(CalledCopyRatioSegmentTableColumn.CONTIG);
         final int start = dataLine.getInt(CalledCopyRatioSegmentTableColumn.START);
         final int end = dataLine.getInt(CalledCopyRatioSegmentTableColumn.END);
-        final int numPoints = dataLine.getInt(CalledCopyRatioSegmentTableColumn.NUM_POINTS);
+        final int numPoints = dataLine.getInt(CalledCopyRatioSegmentTableColumn.NUM_POINTS_COPY_RATIO);
         final double meanLog2CopyRatio = dataLine.getDouble(CalledCopyRatioSegmentTableColumn.MEAN_LOG2_COPY_RATIO);
         final String callOutputString = dataLine.get(CalledCopyRatioSegmentTableColumn.CALL);
         final CalledCopyRatioSegment.Call call = Arrays.stream(CalledCopyRatioSegment.Call.values())
