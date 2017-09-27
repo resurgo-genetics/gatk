@@ -9,6 +9,7 @@ import org.broadinstitute.hellbender.utils.Utils;
 import org.broadinstitute.hellbender.utils.param.ParamUtils;
 import org.broadinstitute.hellbender.utils.pileup.ReadPileup;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -26,9 +27,11 @@ public final class AllelicCountCollector {
 
     public static final List<Nucleotide> BASES = Collections.unmodifiableList(Arrays.asList(Nucleotide.A, Nucleotide.C, Nucleotide.G, Nucleotide.T));
 
-    private final AllelicCountCollection allelicCounts = new AllelicCountCollection();
+    private final String sampleName;
+    private final List<AllelicCount> allelicCounts = new ArrayList<>();
 
-    public AllelicCountCollector() {
+    public AllelicCountCollector(final String sampleName) {
+        this.sampleName = Utils.nonNull(sampleName);
     }
 
     /**
@@ -74,7 +77,7 @@ public final class AllelicCountCollector {
      * @return a <em>reference</em> to the AllelicCountCollection
      */
     public AllelicCountCollection getAllelicCounts() {
-        return allelicCounts;
+        return new AllelicCountCollection(sampleName, allelicCounts);
     }
 
     /**

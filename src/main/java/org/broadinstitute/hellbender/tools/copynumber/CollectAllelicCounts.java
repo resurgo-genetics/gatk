@@ -2,6 +2,8 @@ package org.broadinstitute.hellbender.tools.copynumber;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import htsjdk.samtools.SAMReadGroupRecord;
+import org.apache.commons.lang3.StringUtils;
 import org.broadinstitute.barclay.argparser.Argument;
 import org.broadinstitute.barclay.argparser.CommandLineProgramProperties;
 import org.broadinstitute.barclay.help.DocumentedFeature;
@@ -13,11 +15,13 @@ import org.broadinstitute.hellbender.engine.LocusWalker;
 import org.broadinstitute.hellbender.engine.ReferenceContext;
 import org.broadinstitute.hellbender.engine.filters.MappingQualityReadFilter;
 import org.broadinstitute.hellbender.engine.filters.ReadFilter;
+import org.broadinstitute.hellbender.exceptions.UserException;
 import org.broadinstitute.hellbender.tools.copynumber.allelic.alleliccount.AllelicCountCollector;
 import org.broadinstitute.hellbender.utils.Nucleotide;
 
 import java.io.File;
 import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * Collects reference/alternate allele counts at sites.  The alt count is defined as the total count minus the ref count,
@@ -78,7 +82,7 @@ import java.util.List;
  */
 @CommandLineProgramProperties(
         summary = "Collects ref/alt counts at sites.",
-        oneLineSummary = "Collects ref/alt counts at sites",
+        oneLineSummary = "Collects ref/alt counts at sites.",
         programGroup = CopyNumberProgramGroup.class
 )
 @DocumentedFeature
@@ -91,20 +95,20 @@ public final class CollectAllelicCounts extends LocusWalker {
             fullName = StandardArgumentDefinitions.OUTPUT_LONG_NAME,
             shortName = StandardArgumentDefinitions.OUTPUT_SHORT_NAME
     )
-    protected File outputAllelicCountsFile;
+    private File outputAllelicCountsFile;
 
     @Argument(
             doc = "Minimum base quality; base calls with lower quality will be filtered out of pileup.",
             fullName = "minimumBaseQuality",
             shortName = "minBQ",
-            optional = true,
-            minValue = 0
+            minValue = 0,
+            optional = true
     )
-    protected int minimumBaseQuality = 20;
+    private int minimumBaseQuality = 20;
 
     private static final int DEFAULT_MINIMUM_MAPPING_QUALITY = 30;
 
-    private AllelicCountCollector allelicCountCollector = new AllelicCountCollector();
+    private AllelicCountCollector allelicCountCollector;
 
     @Override
     public boolean emitEmptyLoci() {return true;}
@@ -117,6 +121,8 @@ public final class CollectAllelicCounts extends LocusWalker {
 
     @Override
     public void onTraversalStart() {
+        final String sampleName = getSampleName();
+        allelicCountCollector = new AllelicCountCollector(sampleName);
         logger.info("Collecting allelic counts...");
     }
 
@@ -139,5 +145,20 @@ public final class CollectAllelicCounts extends LocusWalker {
     public void apply(AlignmentContext alignmentContext, ReferenceContext referenceContext, FeatureContext featureContext) {
         final byte refAsByte = referenceContext.getBase();
         allelicCountCollector.collectAtLocus(Nucleotide.valueOf(refAsByte), alignmentContext.getBasePileup(), alignmentContext.getLocation(), minimumBaseQuality);
+    }
+
+    //TODO extract this code from GetSampleName
+    private String getSampleName() {
+        if ((getHeaderForReads() == null) || (getHeaderForReads().getReadGroups() == null)) {
+            throw new UserException.BadInput("The input BAM has no header or no read groups.  Cannot determine a sample name.");
+        }
+        final List<String> sampleNames = getHeaderForReads().getReadGroups().stream().map(SAMReadGroupRecord::getSample).distinct().collect(Collectors.toList());
+        if (sampleNames.size() > 1) {
+            throw new UserException.BadInput(String.format("The input BAM has more than one unique sample name: %s", StringUtils.join(sampleNames, ", ")));
+        }
+        if (sampleNames.isEmpty()) {
+            throw new UserException.BadInput("The input BAM has no sample names.");
+        }
+        return sampleNames.get(0);
     }
 }

@@ -1,0 +1,12 @@
+{
+  "CNVSomaticBAMWorkflow.read_count_pon": "$__read_count_pon__",
+  "CNVSomaticBAMWorkflow.common_sites":  "$__common_sites__",
+  "CNVSomaticBAMWorkflow.gatk_jar": "$__gatk_jar__",
+  "CNVSomaticBAMWorkflow.ref_fasta_dict": "$__ref_fasta_dict__",
+  "CNVSomaticBAMWorkflow.ref_fasta_fai": "$__ref_fasta_fai__",
+  "CNVSomaticBAMWorkflow.ref_fasta": "$__ref_fasta__",
+  "CNVSomaticBAMWorkflow.targets": "$__targets__",
+  "CNVSomaticBAMWorkflow.bam_idx": "$__tumor_bam_idx__",
+  "CNVSomaticBAMWorkflow.bam": "$__tumor_bam__",
+  "CNVSomaticBAMWorkflow.gatk_docker": "$__gatk_docker__"
+}

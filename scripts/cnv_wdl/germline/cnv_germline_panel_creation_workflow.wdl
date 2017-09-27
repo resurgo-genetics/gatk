@@ -25,7 +25,7 @@
 #   These targets will be padded on both sides by the amount specified by PadTargets.padding (default 250).
 #
 # - If a target file is not provided, then the WGS workflow will be run instead and the specified value of
-#   wgs_bin_size (default 10000) will be used.
+#   wgs_bin_length (default 10000) will be used.
 #
 # - Example invocation:
 #    java -jar cromwell.jar run cnv_germline_panel_creation_workflow.wdl myParameters.json
@@ -72,7 +72,7 @@ workflow CNVGermlinePanelWorkflow {
   }
 
   scatter (normal_bam in normal_bams) {
-    call CNVTasks.CollectCoverage {
+    call CNVTasks.CollectReadCounts {
       input:
         padded_targets = PadTargets.padded_targets,
         keep_non_autosomes = true,
@@ -82,23 +82,22 @@ workflow CNVGermlinePanelWorkflow {
         ref_fasta_fai = ref_fasta_fai,
         ref_fasta_dict = ref_fasta_dict,
         gatk_jar = gatk_jar,
-        gatk_docker = gatk_docker,
-        transform = "RAW"
+        gatk_docker = gatk_docker
     }
   }
 
   call CombineReadCounts {
     input:
       combined_entity_id = combined_entity_id,
-      coverage_file_list = CollectCoverage.coverage,
+      coverage_file_list = CollectReadCounts.read_counts,
       gatk_jar = gatk_jar,
       gatk_docker = gatk_docker
   }
 
-  call CNVTasks.AnnotateTargets {
+  call CNVTasks.AnnotateIntervals {
     input:
       entity_id = combined_entity_id,
-      targets = CollectCoverage.coverage[0],
+      intervals = CollectReadCounts.intervals[0],
       ref_fasta = ref_fasta,
       ref_fasta_fai = ref_fasta_fai,
       ref_fasta_dict = ref_fasta_dict,
@@ -110,7 +109,7 @@ workflow CNVGermlinePanelWorkflow {
     input:
       entity_id = combined_entity_id,
       coverage = CombineReadCounts.combined_coverage,
-      annotated_targets = AnnotateTargets.annotated_targets,
+      annotated_intervals = AnnotateIntervals.annotated_intervals,
       gatk_jar = gatk_jar,
       gatk_docker = gatk_docker
   } 

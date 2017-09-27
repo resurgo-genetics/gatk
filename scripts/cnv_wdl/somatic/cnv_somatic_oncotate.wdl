@@ -7,11 +7,11 @@ workflow CNVOncotateCalledSegments {
 
     call OncotateSegments {
         input:
-            called_file=called_file,
-            mem=mem,
-            oncotator_docker=oncotator_docker,
-            oncotator_output_type=oncotator_output_type,
-            additional_args=additional_args
+            called_file = called_file,
+            mem = mem,
+            oncotator_docker = oncotator_docker,
+            oncotator_output_type = oncotator_output_type,
+            additional_args = additional_args
     }
 
     output {
