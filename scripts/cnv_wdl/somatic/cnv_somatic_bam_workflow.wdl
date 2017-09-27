@@ -19,7 +19,6 @@
 #############
 
 import "cnv_common_tasks.wdl" as CNVTasks
-import "cnv_somatic_oncotate.wdl" as Oncotate
 
 workflow CNVSomaticBAMWorkflow {
     # Workflow input files
@@ -36,11 +35,8 @@ workflow CNVSomaticBAMWorkflow {
     # If no target file is input, then do WGS workflow
     Boolean is_wgs = select_first([targets, ""]) == ""
 
-    Boolean is_run_oncotator = false
-
     # docker images
     String gatk_docker
-    String oncotator_docker = "broadinstitute/oncotator:1.9.3.0-eval-gatk-protected"
 
     if (!is_wgs) {
         call CNVTasks.PadTargets {
@@ -113,14 +109,6 @@ workflow CNVSomaticBAMWorkflow {
             gatk_docker = gatk_docker
     }
 
-    if (is_run_oncotator) {
-        call Oncotate.CNVOncotateCalledSegments as OncotateCalledCNVWorkflow {
-            input:
-                 called_file = CallCopyRatioSegments.called_copy_ratio_segments,
-                 oncotator_docker = oncotator_docker
-        }
-    }
-
     output {
         String entity_id = CollectReadCounts.entity_id
         File read_counts = CollectReadCounts.read_counts
@@ -129,12 +117,12 @@ workflow CNVSomaticBAMWorkflow {
         File denoised_copy_ratios = DenoiseReadCounts.denoised_copy_ratios
         File copy_ratio_segments = ModelSegments.copy_ratio_segments
         File allele_fraction_segments = ModelSegments.allele_fraction_segments
-        #File unioned_segments = ModelSegments.unioned_segments
+        File modeled_segments = ModelSegments.modeled_segments
+        File copy_ratio_parameters = ModelSegments.copy_ratio_parameters
+        File allele_fraction_parameters = ModelSegments.allele_fraction_parameters
         File called_copy_ratio_segments = CallCopyRatioSegments.called_copy_ratio_segments
         File denoised_copy_ratios_plot = PlotDenoisedCopyRatios.denoised_copy_ratios_plot
         File denoised_copy_ratios_lim_4_plot = PlotDenoisedCopyRatios.denoised_copy_ratios_lim_4_plot
-
-        File? oncotated_called_file = OncotateCalledCNVWorkflow.oncotated_called_file
     }
 }
 
@@ -211,7 +199,7 @@ task ModelSegments {
             --windowSizes ${sep= " --windowSizes " window_sizes} \
             --numChangepointsPenaltyFactorCopyRatio ${default="1.0" num_changepoints_penalty_factor_copy_ratio} \
             --numChangepointsPenaltyFactorAlleleFraction ${default="10.0" num_changepoints_penalty_factor_allele_fraction} \
-            --output ${output_dir} \
+            --output ${output_dir_} \
             --outputPrefix ${entity_id}
     }
 
@@ -223,8 +211,12 @@ task ModelSegments {
     }
 
     output {
-        File copy_ratio_segments = "${entity_id}.cr.seg"
-        File allele_fraction_segments = "${entity_id}.af.seg"
+        File copy_ratio_segments = "${output_dir_}/${entity_id}.cr.seg"
+        File allele_fraction_segments = "${output_dir_}/${entity_id}.af.seg"
+        File combined_segments = "${output_dir_}/${entity_id}.craf.seg"
+        File modeled_segments = "${output_dir_}/${entity_id}.modelFinal.seg"
+        File copy_ratio_parameters = "${output_dir_}/${entity_id}.modelFinal.cr.param"
+        File allele_fraction_parameters = "${output_dir_}/${entity_id}.modelFinal.af.param"
     }
 }
 
