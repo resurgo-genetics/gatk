@@ -325,40 +325,19 @@ public final class ReferenceContext implements Iterable<Byte> {
     }
 
     /**
-     * Get the bases within a specified range without altering the internal state of the object
+     * Get a kmer around a position in reference without altering the internal state of the object
+     * The position must lie within the window
      *
-     * @param start start position inclusive
-     * @param end end position exclusive
-     * @return bases in the reference within the range [start, end)
      */
-    public byte[] getBasesInInterval(final int start, final int end){
+    public byte[] getKmerAround(final int position, final int k){
         // TODO: REVISIT
-        Utils.validateArg(start >= 1, () -> "start position must be positive");
-        Utils.validateArg(end <= getContigLength(interval.getContig()), () -> "end position may not exceed the lenght of the contig");
-        Utils.validateArg(start < end, "start position must be smaller than end position");
+        Utils.validateArg(position >= 1, () -> "start position must be positive");
+        Utils.validateArg(window.getStart() <= position && position <= window.getEnd(), "position must be smaller than end position");
 
-        if (start >= window.getStart() && end <= window.getEnd()){
-            // case 1, the query interval falls within the window
-            final int startIndex = start - window.getStart();
-            final int endIndex = window.getEnd() - end + 1; // TODO: check plus 1
-
-            return Arrays.copyOfRange(getBases(), startIndex, endIndex);
-        } else if (start < window.getStart() && end > window.getEnd()) {
-            // case 2, the query interval contains the window
-            // set window etc.
-
-            // YOUR CODE HERE
-        } else if (start >= window.getStart()){
-            // case 3, start is falls inside window but end doesn't
-            // YOUR CODE HERE
-        } else {
-            // case 4, end is within, but start isn't
-            // YOUR CODE HERE
-        }
-
-        SimpleInterval oldInterval = new SimpleInterval(interval.getContig(), interval.getStart(), interval.getEnd());
-        SimpleInterval pointerToInterval = interval;
-
-        return Arrays.copyOfRange(getBases(), start, end);
+        final int index = position - window.getStart();
+        // Must consider the case when the position falls right on the edges of window - should we return fewer than k bases?
+        // Should the caller check for it, and should this mehtod simply fail?
+        final byte[] kmer =  Arrays.copyOfRange(getBases(), index - k/2, index + k/2 + 1);
+        return kmer;
     }
 }

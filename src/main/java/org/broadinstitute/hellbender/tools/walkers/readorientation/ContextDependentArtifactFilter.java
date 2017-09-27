@@ -32,9 +32,6 @@ import java.util.stream.Collectors;
 )
 
 public class ContextDependentArtifactFilter extends LocusWalker {
-    @Argument(fullName = "", shortName = "", doc = "", optional = true)
-    private File gnomad = null;
-
     @Argument(fullName = "", shortName = "", doc = "exclude reads below this quality from pileup", optional = true)
     static int MINIMUM_MEDIAN_MQ = 20;
 
@@ -85,7 +82,12 @@ public class ContextDependentArtifactFilter extends LocusWalker {
         referenceContext.setWindow(1, 1);
         final String reference3mer = new String(referenceContext.getBases());
         assert reference3mer.length() == 3 : "kmer must have length 3";
-        if (reference3mer.contains("N")){
+        if (reference3mer.contains("N")) {
+            return;
+        }
+
+        if (reference3mer == null){
+            logger.info(String.format("null reference found at interval %s, k-mer = %s", referenceContext.getInterval().toString(), reference3mer));
             return;
         }
 
@@ -200,22 +202,5 @@ public class ContextDependentArtifactFilter extends LocusWalker {
          */
 
         return "SUCCESS";
-    }
-
-    private List<String> makeAllPossible3Mers(){
-        // TODO: this method needs to be improved
-        final List<String> allPossible3Mers = new ArrayList<>(64); // 4^3 = 64
-        final char[] possibleAlleles = "ACGT".toCharArray();
-        for (int i = 0; i < possibleAlleles.length; i++){
-            for (int j = 0; j < possibleAlleles.length; j++){
-                for (int k = 0; k < possibleAlleles.length; k++){
-                    allPossible3Mers.add(new StringBuilder().append(possibleAlleles[i]).append(possibleAlleles[j]).append(possibleAlleles[k])
-                            .toString());
-                }
-            }
-        }
-
-        assert allPossible3Mers.size() == 64 : "there must be 64 kmers";
-        return allPossible3Mers;
     }
 }

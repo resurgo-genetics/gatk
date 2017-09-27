@@ -17,7 +17,7 @@ import java.util.stream.IntStream;
  */
 public class ContextDependentArtifactFilterEngine {
     // z \in { F1R2, F2R1, Balanced Hom Ref, Balanced Het, Balanced Hom Var }. Thus |z| = K = 5.
-    static final int NUM_STATUSES = 5;
+    public static final int NUM_STATUSES = 5;
 
     static final String[] ALL_ALLELES = new String[] { "A", "C", "G", "T" };
 

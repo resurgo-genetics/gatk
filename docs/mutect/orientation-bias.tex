@@ -30,6 +30,7 @@
 \newcommand{\vz}{{\bf z}}
 \newcommand{\vn}{{\bf n}}
 \newcommand{\vm}{{\bf m}}
+\newcommand{\vx}{{\bf x}}
 \newcommand{\vG}{{\bf G}}
 \newcommand{\vQ}{{\bf Q}}
 \newcommand{\vM}{{\bf M}}
@@ -111,9 +112,8 @@ We then ligate adapters to this double stranded DNA. The way we
   \label{fig:flowcell}
 \end{figure}
 
-
 \section{Oxog}
-
+`
 Oxog, for our purposes, is a process in which guanine (G-base) is oxidized and is able to base pair with adenine (A) instead of the usual cytosine (C). We know that this takes place somewhere in the process of sequencing the DNA in the lab. Suppose that an adapter-ligated DNA insert is oxidized to oxoG. This may happen on a forward strand or on a reverse strand. Consider the case in which it occurs in the forward strand, and call this $x$. When we sequence $x$, it gets ligate to the oligo tethered to the flow cell, and we base pair the rest. At the end we get the reverse complement of $x$, call it $x'$, tethered to the flowcell. Thanks to the oxidized $G$ in $x$, $x'$ contains an $A$ where it would normally have a $C$. Now we bind the primer to the read 1 primer binding site in $x'$, and we read off the bases. Where we should have read $G$, we will read a $T$. An artifact. Notice that we read the forward read first, so this read is F1R2.
 
 Why wouldn't this artifact appear in a F2R1 read? Well, to have an F2R1 read
@@ -153,51 +153,53 @@ We then model the number of $F1R2$ reads among $m$ alt reads as $x|m,z \sim \mat
 We estimate the hyperparameters $\vpi$ and $\vp$ that maximize likelihood using the EM algorithm. We can then compute the posterior probability of the latent variable $z$ to determine whether a variant is an orientation artifact and thus should be filtered.
 
 \subsubsection{E step}
-In the E step, we compute the responsibilities $\gamma_{nk} = p(z_{nk} | x_n, m_n, a)$. $\gamma_{nk}$ is the posterior probability of the $k$th component of $z$. By Bayes rule we may compute the unnormalized responsibilities $\gamma^*_{nk}$ as follows
+In the E step, we compute the responsibilities $\gamma_{nk} = p(z_{nk} | x_n, m_n, a)$. $\gamma_{nk}$ is the posterior probability of the $k$th component of $z$. Using Bayes rule we may compute the unnormalized responsibilities $\gamma^*_{nk}$ as follows
 
 \begin{align}
-\gamma^*_{nk}  &\propto p(z_{nk} | x_n, m_n, a) \nonumber \\
-		        &\propto p(z_{nk} | a) p(m_n | z_{nk}, f_{k} ) p(x_n | m_n ) \nonumber \\
-		        &= \pi_{ak} \cdot \mathrm{Binom}(m_n | f_k, R) \cdot \mathrm{Binom}(x_n | \theta_k, m_n)
+\gamma^*_{nk}  &\propto p(z_{nk} | x_n, m_n) \nonumber \\
+		        &\propto p(z_{nk}) p(m_n | z_{nk}, f_{k} ) p(x_n | m_n ) \nonumber \\
+		        &=  \begin{array}{ll}
+        				\pi_{k} \cdot \mathrm{BetaBinom}(m_n | \alpha, \beta, R) \cdot \mathrm{Binom}(x_n | \theta_k, m_n) 	&\text{if } z_{nk} = \text{Somatic Het} \\
+			        \pi_{k} \cdot \mathrm{Binom}(m_n | f_k, r_n) \cdot \mathrm{Binom}(x_n | \theta_k, m_n) 	&\text{otherwise}
+			     \end{array}
 \end{align}
 
-where $R$ is the number of reads at site $n$, and the asterisk over $\gamma^*_{nk}$ denotes that the responsibility is not normalized and thus is not a probability. Normalizing responsibilities gives us
+where $R$ is the number of reads at site $n$, and the asterisk in $\gamma^*_{nk}$ denotes that the responsibility is not normalized and thus is not a probability. Normalizing responsibilities gives us
 
 \begin{align}
 \gamma_{nk} = \frac{\gamma^*_{nk}}{\sum_{k'} \gamma^*_{nk'}}
 \end{align}
 
-Make a mention of the allele lurking in the background here. The allele $a$, a deterministic parameter, much like the depth, picks out the appropriate $\pi$ estimates for us.  \todo{Refine this explanation}. 
-
 \subsubsection{M step}
-In the M step, we maximize the expectation of the complete-data log likelihood with respect to the posterior distribution over $z$ (so $\E$ is a shorthand for $\E_{Z \sim p(Z|X,M)}$). We may read the form of the complete-data log likelihood $p(X, M, Z | \vpi, \vp, \vtheta)$ from the graphical model, and its expectation is
+In the M step, we maximize the expectation of the complete-data log likelihood with respect to the posterior distribution over $z$ (so $\E$ is a shorthand for $\E_{Z \sim p(Z|X,M)}$). The graphical model gives us the form of the complete-data log likelihood $p(X, M, Z | \vpi, \vp, \vtheta)$, and its expectation with respect to $z$ is
 
 \begin{align}
-\E [ \ln p(X, M , Z | \vpi, \vp, \vtheta, \va) ] &= \E [ \ln \prod_{n = 1}^{N}  p(z_n | a_n) p(m_n | z_n, p_{z} ) p(x_n | m_n, z_n, \theta_n ) ] \nonumber \\
-							&= \E [ \ln \prod_{n = 1}^{N} \{ \prod_{k = 1}^{K} \pi_{ak}^{z_{nk}} \} \{ \prod_{k = 1}^{K} ( f_k^{m_n} (1-f_k)^{R_n - m_n} ) ^{z_{nk}} \} \{ \prod_{k = 1}^{K} ( \theta_k^{x_n} (1 - \theta_k)^{m_n - x_n} )^{z_{nk}} \} ] \notag \\
-							&= \E [ \ln \prod_{n = 1}^{N} \prod_{k = 1}^{K} \{ \pi_{ak}  f_{k}^{m_n} (1-f_k)^{R_n - m_n} \theta_k^{x_n} (1 - \theta_k)^{m_n - x_n} \}^{z_{nk}} ]  \nonumber \\
-							&= \E [ \sum_{n = 1}^{N} \sum_{k = 1}^{K} z_{nk} \{ \ln \pi_{ak}  + m_n \ln f_k + (R_n - m_n) \ln (1-f_k) + \notag \\
-							&\phantom{---------------} x_n \ln \theta_k + (m_n - x_n) \ln (1 - \theta_k) \} ]  \nonumber \\
-							&= \sum_{n = 1}^{N} \sum_{k = 1}^{K} \gamma_{nk} \{ \ln \pi_{ak}  + m_n \ln f_k + (R_n - m_n) \ln (1-f_k) + \notag \\
-						    &\phantom{---------------} x_n \ln \theta_k + (m_n - x_n) \ln (1 - \theta_k) \label{eq:expjointLL} \}
+\mathbb{L}&(\vpi, \vf, \vtheta, \alpha, \beta) = \E [ \ln p(\vx, \vm , \vz | \vpi, \vf, \vtheta, \alpha, \beta) ] \nonumber \\
+           &= \E \Big [ \ln \prod_{n = 1}^{N}  p(z_n) p(m_n | z_n, f_{k} ) p(x_n | m_n, z_n, \theta_k ) \Big ] \nonumber \\
+           &= \E \Big [ \ln \prod_{n = 1}^{N} \Big \{ \prod_{k = 1}^{K} \pi_{k}^{z_{nk}} \Big \} \Big \{ \prod_{k \neq k^*} \mathrm{Binom}(m_n | f_k, r_n)^{z_{nk}} \mathrm{BetaBinom}(m_n | \alpha, \beta, r_n)^{z_{nk^*}} \Big \} \Big \{ \prod_{k = 1}^{K} \mathrm{Binom}(x_n | \theta_k, m_n) ^{z_{nk}} \Big \} \Big ] \notag \\
+            &= \E \Big [ \sum_{n = 1}^{N} \sum_{k \neq k^*} z_{nk} \Big ( \ln \pi_{k}  + m_n \ln f_k + (r_n - m_n) \ln (1-f_k) + x_n \ln \theta_k + (m_n - x_n) \ln (1 - \theta_k) \Big )  + \notag \\
+            &\phantom{--} z_{nk^*} \Big ( \ln \pi_{k^*} + \ln B(m_n + \alpha, r_n - m_n + \beta) - \ln B(\alpha, \beta) + x_n \ln \theta_{k^*} + (m_n - x_n) \ln (1 - \theta_{k^*}) \Big ) \Big ] + const \nonumber \\
+            &= \sum_{n = 1}^{N} \sum_{k \neq k^*} \gamma_{nk} \Big ( \ln \pi_{k}  + m_n \ln f_k + (r_n - m_n) \ln (1-f_k) + x_n \ln \theta_k + (m_n - x_n) \ln (1 - \theta_k) \Big )  + \notag \\
+            &\phantom{--} \gamma_{nk^*} \Big ( \ln \pi_{k^*} + \ln B(m_n + \alpha, r_n - m_n + \beta) - \ln B(\alpha, \beta) + x_n \ln \theta_{k^*} + (m_n - x_n) \ln (1 - \theta_{k^*}) \Big ) + const  \label{eq:expjointLL}
 \end{align} 
 
-where $K = |Z|$, $X$ is the design matrix whose $n$th row is $x_n$ ($M$ and $Z$ are defined analogously), and $\E [ z_{nk} ] = \gamma_{nk}$. We define the following terms to simplify the expected complete-data log likelihood.
+where $k^*$ is defined such that $z_{nk^*} = \text{Somatic Het}$, $K = |Z|$, $\E [ z_{nk} ] = \gamma_{nk}$, and $B(\cdot)$ is the beta function. $const$ denotes all terms that do not depend on the hyperparameters $\vpi, \vf, \vtheta$. 
+
+We also define the following to simplify the math that follows. $N_k$ may be interpreted as the effective number of samples in state $z_k$, and we may interpret $\bar{x}_k$, $\bar{m}_k$, and $\bar{r}_k$ analogously.
 
 \begin{align}
 N_k      &= \sum_n \gamma_{nk} \label{eq:nk} \\
-N_{ak}      &= \sum_{n : a_n = a} \gamma_{nk} \label{eq:nk} \\
 \bar{x}_k  &= \frac{1}{N_k} \sum_n \gamma_{nk} x_n \label{eq:xbar} \\
 \bar{m}_k &= \frac{1}{N_k} \sum_n \gamma_{nk} m_n \label{eq:mbar} \\
-\bar{R}_k  &= \frac{1}{N_k} \sum_n \gamma_{nk} R_n \label{eq:Rbar}
+\bar{r}_k  &= \frac{1}{N_k} \sum_n \gamma_{nk} r_n \label{eq:rbar}
 \end{align}
 
-$N_k$ is the effective number of samples in state $z_k$, and $N_{ak}$ the effective number of samples that are in state $z_k$ \textit{and} have allele $a$. $\bar{x}_k$ and $\bar{m}_k$ are the effective sample means of $x$ and $m$ weighted by the each sample's responsibility in explaining the state $z_k$, and $\bar{R}_k$ is the effective mean depth over the sites in state $z_k$. 
 
-We now take the derivative of (\ref{eq:expjointLL}) with respect to $\theta_k, p_k, \pi_{ak}$, set them equal to 0, and solve for those parameters to get the update equations.
+
+We now take the derivative of (\ref{eq:expjointLL}) with respect to $\theta_k, p_k, \pi_{k}$, set them equal to 0, and solve for those parameters to get the update equations. First we take the derivative with respect to $\vtheta$;
 
 \begin{align}
-\frac{\partial}{\partial \theta_k} \E [ \ln p(X, M , Z | \vpi, \vp, \vtheta, \va) ] &= \sum_n \gamma_{nk} \Big( \frac{ x_n}{\theta_k} - \frac{m_n - x_n}{1- \theta_k} \Big)\\
+\frac{\partial}{\partial \theta_k} \E [ \ln p(\vx, \vm , \vz | \vpi, \vp, \vtheta) ] &= \sum_n \gamma_{nk} \Big( \frac{ x_n}{\theta_k} - \frac{m_n - x_n}{1- \theta_k} \Big)\\
 					         							     &= \frac{N_k \bar{x}_k}{\theta_k} - \frac{N_k \bar{m}_k - N_k \bar{x}_k}{1- \theta_k} = 0
 \end{align}
 
@@ -207,31 +209,39 @@ where we used (\ref{eq:xbar}) and (\ref{eq:mbar}). Solving for $\theta_k$, we ge
 \hat{\theta}_k = \frac{\bar{x}_k}{\bar{m}_k} \label{eq:theta}
 \end{align}
 
-Thus we update $\theta$ to the fraction of F1R2 alt reads, counting only those examples that belong to class $k$ according to the current estimate for responsibilities. Derivative with respect to $f_k$ is completely analogous:
+Thus we update $\theta_k$ to the fraction of F1R2 alt reads over alt reads, weighting contribution from each example by the current estimates of responsibilities $\gamma_{nk}$. Taking the derivative with respect to $f_k$ is analogous to the case for $\theta_k$:
 
 \begin{align}
 \hat{f}_k = \frac{\bar{m}_k}{\bar{R}_k} \label{eq:f}
 \end{align}
 
-Finally we take the derivative with respect to $\pi_{ak}$ under the constraint $\sum_k \pi_{ak} = 1$. Using a Lagrange multiplier to account for the constraint, we get
+Next we take the derivative with respect to $\pi_{k}$ under the constraint $\sum_k \pi_{ak} = 1$ using a Lagrange multiplier:
 
 \begin{align}
-\frac{\partial}{\partial \pi_{ak}} \{ \E [ \ln p(X, M , Z | \vpi, \vp, \vtheta) ] + \lambda ( \sum_k \pi_{ak} - 1)\} &= \sum_{n : a_n = a} \frac{\gamma_{nk}}{\pi_{ak}} + \lambda \nonumber \\
+\frac{\partial}{\partial \pi_{k}} \Big( \E [ \ln p(\vx, \vm ,\vz | \vpi, \vp, \vtheta) ] + \lambda ( \sum_k \pi_{k} - 1) \Big) &= \sum_{n} \frac{\gamma_{nk}}{\pi_{k}} + \lambda \nonumber \\
 																   &= \frac{N_{ak}}{\pi_{ak}} + \lambda = 0 \label{eq:dpi}
 \end{align}
 
 where $\lambda$ is the Lagrange multiplier. Rearranging (\ref{eq:dpi}) and summing over $k$, we get
 
 \begin{align*}
-\sum_k N_{ak} &= \sum_k - \lambda \pi_{ak} \\
-      \lambda &= - N_a 
+\sum_k N_{k} &= \sum_k - \lambda \pi_{k} \\
+      N &= - \lambda
 \end{align*}
 
-where $N_a = \sum_k N_{ak} $ is the number of observed sites with allele $a$. Plugging in for $\lambda$ in (\ref{eq:dpi}) gives us
+Plugging in for $\lambda$ in (\ref{eq:dpi}) gives us
 
 \begin{equation}
-\hat{\pi}_{ak} = \frac{N_{ak}}{N_a}
+\hat{\pi}_{k} = \frac{N_{k}}{N}
 \end{equation}
+
+Lastly we take the derivative with respect to the hyperparameters to the beta binomial,  $\alpha$ and $\beta$:\
+
+\begin{align*}
+\frac{\partial}{\partial \alpha} \E [ \ln p(\vx, \vm ,\vz | \vpi, \vp, \vtheta, \alpha, \beta) ] &= \sum_{n = 1}^{N} \gamma_{nk^*} \Big( \frac{B'(m + \alpha, r_n - m_n + \beta)}{B(m + \alpha, r_n - m_n + \beta)} - \frac{B'(\alpha, \beta)}{B(\alpha, \beta)} \Big) \\
+		&=  \gamma_{nk^*} \Big ( \frac{\psi(m + \alpha) - \psi(\alpha + )}{3} \Big )
+\end{align*}
+
 
 % TODO: Discuss the forms of these update equations
 % Initialize parameters, and iterate E and M-steps.

@@ -6,6 +6,7 @@ import org.broadinstitute.hellbender.utils.test.BaseTest;
 import org.testng.Assert;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
+import org.testng.internal.junit.ArrayAsserts;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -234,22 +235,25 @@ public final class ReferenceContextUnitTest extends BaseTest {
     @DataProvider(name = "SubintervalDataProvider")
     public Object[][] getSubintervals() {
         return new Object[][] {
-                {11210, 11220, "CGGTGCTGTG"},
-                {11210, 11211, "C"},
-                {11217, 11220, "GTG"},
-                {11220, 11221, "C"}
+                // 01234567890
+                // CGGTGCTGTGC
+                {11211, 3, "CGG"},
+                {11219, 3, "TGC"},
+                {11217, 5, "CTGTG"}
+                // {11220, 3, "GC",} // falls out of the range
         };
     }
 
     @Test(dataProvider = "SubintervalDataProvider")
-    public void testGetBasesInInterval(int start, int end, String expectedSubsequence){
+    public void testGetKmerAround(final int start, final int k, String expectedSubsequence){
         // the interval of a ReferenceContext object is *in*clusive on both ends
         final int intervalStart = 11210;
         final int intervalEnd = 11220;
         try (ReferenceDataSource reference = new ReferenceFileSource(TEST_REFERENCE)) {
             final SimpleInterval interval = new SimpleInterval("1", intervalStart, intervalEnd);
             ReferenceContext refContext = new ReferenceContext(reference, interval);
-            Assert.assertTrue(Arrays.equals(refContext.getBasesInInterval(start, end), expectedSubsequence.getBytes()));
+            final byte[] kmer = refContext.getKmerAround(start, k);
+            ArrayAsserts.assertArrayEquals(kmer, expectedSubsequence.getBytes());
         }
     }
 }

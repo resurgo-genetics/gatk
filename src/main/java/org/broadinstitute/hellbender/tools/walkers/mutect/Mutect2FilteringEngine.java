@@ -12,6 +12,7 @@ import org.broadinstitute.hellbender.tools.walkers.readorientation.Hyperparamete
 import org.broadinstitute.hellbender.utils.GATKProtectedVariantContextUtils;
 import org.broadinstitute.hellbender.utils.MathUtils;
 import org.broadinstitute.hellbender.utils.Nucleotide;
+import org.broadinstitute.hellbender.utils.Utils;
 import org.broadinstitute.hellbender.utils.variant.GATKVCFConstants;
 import java.util.*;
 import java.util.stream.IntStream;
@@ -207,10 +208,12 @@ public class Mutect2FilteringEngine {
 
         // VCF must contain: reference context
         final Nucleotide allele = Nucleotide.valueOf(vc.getAlternateAllele(0).toString());
-        final String referenceContext = "CGA"; // vc.getAttribute(REFERENCE_CONTEXT);
-        final int depth = 3; // or is allele count a genotype field? vc.getAttributeAsInt(GATKVCFConstants.MLE_ALLELE_COUNT_KEY);
-        final int altDepth = 2;
-        final int altF1R2Depth = 2;
+        final String referenceContext = vc.getAttributeAsString(GATKVCFConstants.REFERENCE_CONTEXT_KEY, "");
+        Utils.validate(referenceContext.length() == 3, String.format("reference context must be of length 3 but got %s", referenceContext));
+        final Genotype tumorGenotype = vc.getGenotype(tumorSample);
+        final int depth = tumorGenotype.getDP();
+        final int altDepth = tumorGenotype.getAD()[1]; // what about multiple alleles?
+        final int altF1R2Depth = 3; // f1r2 genotype field, vc.getAttributeAsIntList()
 
         final Hyperparameters hyps = Hyperparameters.readHyperparameter(MTFAC.readOrientationHyperparameters, referenceContext);
 
@@ -224,9 +227,8 @@ public class Mutect2FilteringEngine {
         // a vector of length K, the probability of drawing an F1R2 alt read given z
         final double[] theta = hyps.getTheta();
 
-        int NUM_STATUSES = 5;
         // May have to do this in log space
-        final double[] unnormalizedPosteriorProbabilities = IntStream.range(0, NUM_STATUSES)
+        final double[] unnormalizedPosteriorProbabilities = IntStream.range(0, ContextDependentArtifactFilterEngine.NUM_STATUSES)
                 .mapToDouble(k -> pi[allele.ordinal()][k] * MathUtils.binomialProbability(depth, altDepth, f[k]) * MathUtils.binomialProbability(altDepth, altF1R2Depth, theta[k]))
                 .toArray();
         final double[] posteriorProbabilties = MathUtils.normalizeFromRealSpace(unnormalizedPosteriorProbabilities);
