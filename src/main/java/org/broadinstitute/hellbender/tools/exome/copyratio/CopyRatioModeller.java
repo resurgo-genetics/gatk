@@ -52,7 +52,7 @@ public final class CopyRatioModeller {
         final double coverageMin = data.getCoverageMin();
         final double coverageMax = data.getCoverageMax();
         final double varianceEstimate = Math.max(data.estimateVariance(), VARIANCE_MIN);
-        final double varianceSliceSamplingWidth = Math.sqrt(2. * varianceEstimate / data.getNumTargets()) / 10.;    //take the width down an order of magnitude to account for inflation by outliers
+        final double varianceSliceSamplingWidth = 2. * varianceEstimate;
         final double varianceMax = Math.max(10. * varianceEstimate, Math.abs(coverageMax - coverageMin) * Math.abs(coverageMax - coverageMin));
         final double meanSliceSamplingWidth = Math.sqrt(varianceEstimate * data.getNumSegments() / data.getNumTargets());
 

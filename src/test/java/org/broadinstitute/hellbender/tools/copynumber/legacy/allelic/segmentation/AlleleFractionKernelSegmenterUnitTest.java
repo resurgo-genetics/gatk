@@ -98,6 +98,5 @@ public final class AlleleFractionKernelSegmenterUnitTest extends BaseTest {
                 .findSegmentation(maxNumChangepointsPerChromosome, kernelVariance, kernelApproximationDimension,
                         windowSizes, numChangepointsPenaltyLinearFactor, numChangepointsPenaltyLogLinearFactor);
         Assert.assertEquals(segments, segmentsExpected);
-        System.out.println(segments.getRecords().stream().map(AlleleFractionSegment::getMeanMinorAlleleFraction).collect(Collectors.toList()));
     }
 }

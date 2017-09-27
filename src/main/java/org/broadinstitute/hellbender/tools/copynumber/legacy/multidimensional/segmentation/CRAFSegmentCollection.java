@@ -27,8 +27,6 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
- * Represents a legacy allele-fraction segmentation.
- *
  * @author Samuel Lee &lt;slee@broadinstitute.org&gt;
  */
 public final class CRAFSegmentCollection extends TSVLocatableCollection<CRAFSegment> {
@@ -40,8 +38,7 @@ public final class CRAFSegmentCollection extends TSVLocatableCollection<CRAFSegm
         END,
         NUM_POINTS_COPY_RATIO,
         NUM_POINTS_ALLELE_FRACTION,
-        MEAN_LOG2_COPY_RATIO,
-        MEAN_MINOR_ALLELE_FRACTION;
+        MEAN_LOG2_COPY_RATIO;
 
         static final TableColumnCollection COLUMNS = new TableColumnCollection((Object[]) values());
     }
@@ -53,9 +50,8 @@ public final class CRAFSegmentCollection extends TSVLocatableCollection<CRAFSegm
         final int numPointsCopyRatio = dataLine.getInt(CRAFSegmentTableColumn.NUM_POINTS_COPY_RATIO);
         final int numPointsAlleleFraction = dataLine.getInt(CRAFSegmentTableColumn.NUM_POINTS_ALLELE_FRACTION);
         final double meanLog2CopyRatio = dataLine.getDouble(CRAFSegmentTableColumn.MEAN_LOG2_COPY_RATIO);
-        final double meanMinorAlleleFraction = dataLine.getDouble(CRAFSegmentTableColumn.MEAN_MINOR_ALLELE_FRACTION);
         final SimpleInterval interval = new SimpleInterval(contig, start, end);
-        return new CRAFSegment(interval, numPointsCopyRatio, numPointsAlleleFraction, meanLog2CopyRatio, meanMinorAlleleFraction);
+        return new CRAFSegment(interval, numPointsCopyRatio, numPointsAlleleFraction, meanLog2CopyRatio);
     };
 
     private static final BiConsumer<CRAFSegment, DataLine> CRAF_SEGMENT_RECORD_AND_DATA_LINE_BI_CONSUMER = (alleleFractionSegment, dataLine) ->
@@ -64,8 +60,7 @@ public final class CRAFSegmentCollection extends TSVLocatableCollection<CRAFSegm
                     .append(alleleFractionSegment.getEnd())
                     .append(alleleFractionSegment.getNumPointsCopyRatio())
                     .append(alleleFractionSegment.getNumPointsAlleleFraction())
-                    .append(alleleFractionSegment.getMeanLog2CopyRatio())
-                    .append(alleleFractionSegment.getMeanMinorAlleleFraction());
+                    .append(alleleFractionSegment.getMeanLog2CopyRatio());
 
     public CRAFSegmentCollection(final File inputFile) {
         super(inputFile, CRAFSegmentTableColumn.COLUMNS, CRAF_SEGMENT_DATA_LINE_TO_RECORD_FUNCTION, CRAF_SEGMENT_RECORD_AND_DATA_LINE_BI_CONSUMER);
@@ -93,13 +88,13 @@ public final class CRAFSegmentCollection extends TSVLocatableCollection<CRAFSegm
             Utils.nonNull(denoisedCopyRatios);
             sampleName = copyRatioSegments.getSampleName();
             crafSegments = copyRatioSegments.getRecords().stream()
-                    .map(s -> new CRAFSegment(s.getInterval(), s.getNumPoints(), 0, s.getMeanLog2CopyRatio(), Double.NaN))
+                    .map(s -> new CRAFSegment(s.getInterval(), s.getNumPoints(), 0, s.getMeanLog2CopyRatio()))
                     .collect(Collectors.toList());
         } else if (copyRatioSegments == null) {
             Utils.nonNull(allelicCounts);
             sampleName = alleleFractionSegments.getSampleName();
             crafSegments = alleleFractionSegments.getRecords().stream()
-                    .map(s -> new CRAFSegment(s.getInterval(), 0, s.getNumPoints(), Double.NaN, s.getMeanMinorAlleleFraction()))
+                    .map(s -> new CRAFSegment(s.getInterval(), 0, s.getNumPoints(), Double.NaN))
                     .collect(Collectors.toList());
         } else {
             Utils.validateArg(copyRatioSegments.getSampleName().equals(alleleFractionSegments.getSampleName()),
@@ -128,5 +123,11 @@ public final class CRAFSegmentCollection extends TSVLocatableCollection<CRAFSegm
             logger.info(String.format("After small-segment merging, %d segments remain...", crafSegments.size()));
         }
         return new CRAFSegmentCollection(sampleName, crafSegments);
+    }
+
+    public SegmentedGenome convertToSegmentedGenome(final CopyRatioCollection denoisedCopyRatios,
+                                                    final AllelicCountCollection allelicCounts) {
+        final Genome genome = new Genome(denoisedCopyRatios, allelicCounts);
+        return new SegmentedGenome(getIntervals(), genome);
     }
 }

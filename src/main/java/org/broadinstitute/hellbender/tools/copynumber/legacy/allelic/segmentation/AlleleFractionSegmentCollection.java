@@ -20,8 +20,7 @@ public final class AlleleFractionSegmentCollection extends TSVLocatableCollectio
         CONTIG,
         START,
         END,
-        NUM_POINTS_ALLELE_FRACTION,
-        MEAN_MINOR_ALLELE_FRACTION;
+        NUM_POINTS_ALLELE_FRACTION;
 
         static final TableColumnCollection COLUMNS = new TableColumnCollection((Object[]) values());
     }
@@ -31,17 +30,15 @@ public final class AlleleFractionSegmentCollection extends TSVLocatableCollectio
         final int start = dataLine.getInt(AlleleFractionSegmentTableColumn.START);
         final int end = dataLine.getInt(AlleleFractionSegmentTableColumn.END);
         final int numPoints = dataLine.getInt(AlleleFractionSegmentTableColumn.NUM_POINTS_ALLELE_FRACTION);
-        final double meanMinorAlleleFraction = dataLine.getDouble(AlleleFractionSegmentTableColumn.MEAN_MINOR_ALLELE_FRACTION);
         final SimpleInterval interval = new SimpleInterval(contig, start, end);
-        return new AlleleFractionSegment(interval, numPoints, meanMinorAlleleFraction);
+        return new AlleleFractionSegment(interval, numPoints);
     };
 
     private static final BiConsumer<AlleleFractionSegment, DataLine> ALLELE_FRACTION_SEGMENT_RECORD_AND_DATA_LINE_BI_CONSUMER = (alleleFractionSegment, dataLine) ->
             dataLine.append(alleleFractionSegment.getContig())
                     .append(alleleFractionSegment.getStart())
                     .append(alleleFractionSegment.getEnd())
-                    .append(alleleFractionSegment.getNumPoints())
-                    .append(alleleFractionSegment.getMeanMinorAlleleFraction());
+                    .append(alleleFractionSegment.getNumPoints());
 
     public AlleleFractionSegmentCollection(final File inputFile) {
         super(inputFile, AlleleFractionSegmentTableColumn.COLUMNS, ALLELE_FRACTION_SEGMENT_DATA_LINE_TO_RECORD_FUNCTION, ALLELE_FRACTION_SEGMENT_RECORD_AND_DATA_LINE_BI_CONSUMER);

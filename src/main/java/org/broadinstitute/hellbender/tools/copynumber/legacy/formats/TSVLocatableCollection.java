@@ -147,11 +147,7 @@ public abstract class TSVLocatableCollection<T extends Locatable> {
         @Override
         protected T createRecord(final DataLine dataLine) {
             Utils.nonNull(dataLine);
-            try {
-                return dataLineToRecordFunction.apply(dataLine);
-            } catch (final IllegalArgumentException e) {
-                throw new UserException.BadInput("TSV file must have all columns specified.");
-            }
+            return dataLineToRecordFunction.apply(dataLine);
         }
     }
 

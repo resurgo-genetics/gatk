@@ -7,7 +7,6 @@ import org.broadinstitute.hellbender.tools.exome.ReadCountRecord;
 import org.broadinstitute.hellbender.tools.exome.SegmentedGenome;
 import org.broadinstitute.hellbender.tools.exome.TargetCollection;
 import org.broadinstitute.hellbender.utils.SimpleInterval;
-import org.broadinstitute.hellbender.utils.Utils;
 import org.broadinstitute.hellbender.utils.mcmc.DataCollection;
 
 import java.util.ArrayList;
@@ -22,6 +21,10 @@ import java.util.stream.IntStream;
  * @author Samuel Lee &lt;slee@broadinstitute.org&gt;
  */
 public final class CopyRatioData implements DataCollection {
+    private static final double DEFAULT_VARIANCE = 1E-2;
+    private static final double COVERAGE_MIN = -100.;
+    private static final double COVERAGE_MAX = 100.;
+
     private final int numSegments;
     private final int numTargets;
     private final double coverageMin;
@@ -31,7 +34,6 @@ public final class CopyRatioData implements DataCollection {
 
     public CopyRatioData(final SegmentedGenome segmentedGenome) {
         final TargetCollection<ReadCountRecord.SingleSampleRecord> targetCoverages = segmentedGenome.getGenome().getTargets();
-        Utils.validateArg(targetCoverages.targetCount() > 0, "Cannot construct CopyRatioData with no target-coverage data.");
         //construct list of coverages (in order corresponding to that of segments in SegmentedGenome;
         //this may not be in genomic order, depending on how the segments are sorted in the segment file,
         //so we cannot simply take the list of coverages in the order from TargetCollection.targets()
@@ -42,8 +44,8 @@ public final class CopyRatioData implements DataCollection {
                 .map(ReadCountRecord.SingleSampleRecord::getCount)
                 .collect(Collectors.toList());
         numTargets = coverages.size();
-        coverageMin = Collections.min(coverages);
-        coverageMax = Collections.max(coverages);
+        coverageMin = numTargets == 0 ? COVERAGE_MIN : Collections.min(coverages);
+        coverageMax = numTargets == 0 ? COVERAGE_MAX : Collections.max(coverages);
         //partition coverages with target indices by segment
         int targetIndex = 0;
         for (final SimpleInterval segment : segments) {
@@ -81,7 +83,8 @@ public final class CopyRatioData implements DataCollection {
     public double estimateVariance() {
         return IntStream.range(0, numSegments)
                 .mapToDouble(s -> new Variance().evaluate(Doubles.toArray(getIndexedCoveragesInSegment(s).stream().map(IndexedCoverage::getCoverage).collect(Collectors.toList()))))
-                .average().getAsDouble();
+                .filter(v -> !Double.isNaN(v))
+                .average().orElse(DEFAULT_VARIANCE);
     }
 
     //estimate segment means empirically by taking averages of coverages in each segment

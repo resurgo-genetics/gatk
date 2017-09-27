@@ -15,13 +15,11 @@ public class CRAFSegment implements Locatable {
     private final int numPointsCopyRatio;
     private final int numPointsAlleleFraction;
     private final double meanLog2CopyRatio;
-    private final double meanMinorAlleleFraction;
 
     public CRAFSegment(final SimpleInterval interval,
                        final int numPointsCopyRatio,
                        final int numPointsAlleleFraction,
-                       final double meanLog2CopyRatio,
-                       final double meanMinorAlleleFraction) {
+                       final double meanLog2CopyRatio) {
         Utils.nonNull(interval);
         Utils.validateArg(numPointsCopyRatio > 0 || numPointsAlleleFraction > 0,
                 "Number of copy-ratio points or number of allele-fraction points must be positive.");
@@ -29,7 +27,6 @@ public class CRAFSegment implements Locatable {
         this.numPointsCopyRatio = numPointsCopyRatio;
         this.numPointsAlleleFraction = numPointsAlleleFraction;
         this.meanLog2CopyRatio = meanLog2CopyRatio;
-        this.meanMinorAlleleFraction = meanMinorAlleleFraction;
     }
 
     public CRAFSegment(final SimpleInterval interval,
@@ -42,7 +39,6 @@ public class CRAFSegment implements Locatable {
         numPointsCopyRatio = denoisedLog2CopyRatios.size();
         numPointsAlleleFraction = allelicCounts.size();
         meanLog2CopyRatio = new CopyRatioSegment(interval, denoisedLog2CopyRatios).getMeanLog2CopyRatio();
-        meanMinorAlleleFraction = new AlleleFractionSegment(interval, allelicCounts).getMeanMinorAlleleFraction();
     }
 
     @Override
@@ -76,10 +72,6 @@ public class CRAFSegment implements Locatable {
         return meanLog2CopyRatio;
     }
 
-    public double getMeanMinorAlleleFraction() {
-        return meanMinorAlleleFraction;
-    }
-
     @Override
     public boolean equals(Object o) {
         if (this == o) {
@@ -94,7 +86,6 @@ public class CRAFSegment implements Locatable {
         return numPointsCopyRatio == that.numPointsCopyRatio &&
                 numPointsAlleleFraction == that.numPointsAlleleFraction &&
                 Double.compare(that.meanLog2CopyRatio, meanLog2CopyRatio) == 0 &&
-                Double.compare(that.meanMinorAlleleFraction, meanMinorAlleleFraction) == 0 &&
                 interval.equals(that.interval);
     }
 
@@ -106,8 +97,6 @@ public class CRAFSegment implements Locatable {
         result = 31 * result + numPointsCopyRatio;
         result = 31 * result + numPointsAlleleFraction;
         temp = Double.doubleToLongBits(meanLog2CopyRatio);
-        result = 31 * result + (int) (temp ^ (temp >>> 32));
-        temp = Double.doubleToLongBits(meanMinorAlleleFraction);
         result = 31 * result + (int) (temp ^ (temp >>> 32));
         return result;
     }
