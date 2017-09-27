@@ -187,6 +187,7 @@ task ModelSegments {
     Array[Int]? window_sizes = [8, 16, 32, 64, 128, 256]
     Float? num_changepoints_penalty_factor_copy_ratio
     Float? num_changepoints_penalty_factor_allele_fraction
+    String? output_dir
     String gatk_jar
 
     # Runtime parameters
@@ -195,18 +196,22 @@ task ModelSegments {
     Int? preemptible_attempts
     Int? disk_space_gb
 
+    # If optional output_dir not specified, use "."
+    String output_dir_ = select_first([output_dir, "."])
+
     command {
         java -Xmx${default="4" mem}g -jar ${gatk_jar} ModelSegments \
             --denoisedCopyRatios ${denoised_copy_ratios} \
             --allelicCounts ${allelic_counts} \
-            --maxNumSegmentsPerChromosome ${default="50" max_num_segments_per_chromosome} \
+            --maxNumSegmentsPerChromosome ${default="500" max_num_segments_per_chromosome} \
             --minTotalAlleleCount ${default="10" min_total_allele_count} \
             --kernelVarianceCopyRatio ${default="0.0" kernel_variance_copy_ratio} \
-            --kernelVarianceAlleleFraction ${default="0.1" kernel_variance_allele_fraction} \
+            --kernelVarianceAlleleFraction ${default="0.01" kernel_variance_allele_fraction} \
             --kernelApproximationDimension ${default="100" kernel_approximation_dimension} \
             --windowSizes ${sep= " --windowSizes " window_sizes} \
             --numChangepointsPenaltyFactorCopyRatio ${default="1.0" num_changepoints_penalty_factor_copy_ratio} \
-            --numChangepointsPenaltyFactorAlleleFraction ${default="1.0" num_changepoints_penalty_factor_allele_fraction} \
+            --numChangepointsPenaltyFactorAlleleFraction ${default="10.0" num_changepoints_penalty_factor_allele_fraction} \
+            --output ${output_dir} \
             --outputPrefix ${entity_id}
     }
 

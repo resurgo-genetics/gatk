@@ -1,6 +1,7 @@
 package org.broadinstitute.hellbender.tools.copynumber.legacy;
 
 import com.google.common.collect.ImmutableSet;
+import htsjdk.samtools.util.OverlapDetector;
 import org.apache.commons.math3.stat.inference.AlternativeHypothesis;
 import org.apache.commons.math3.stat.inference.BinomialTest;
 import org.apache.spark.api.java.JavaSparkContext;
@@ -12,15 +13,20 @@ import org.broadinstitute.hellbender.cmdline.StandardArgumentDefinitions;
 import org.broadinstitute.hellbender.cmdline.programgroups.CopyNumberProgramGroup;
 import org.broadinstitute.hellbender.engine.spark.SparkCommandLineProgram;
 import org.broadinstitute.hellbender.exceptions.UserException;
+import org.broadinstitute.hellbender.tools.copynumber.allelic.alleliccount.AllelicCount;
 import org.broadinstitute.hellbender.tools.copynumber.allelic.alleliccount.AllelicCountCollection;
 import org.broadinstitute.hellbender.tools.copynumber.legacy.allelic.segmentation.AlleleFractionKernelSegmenter;
 import org.broadinstitute.hellbender.tools.copynumber.legacy.allelic.segmentation.AlleleFractionSegmentCollection;
+import org.broadinstitute.hellbender.tools.copynumber.legacy.coverage.copyratio.CopyRatio;
 import org.broadinstitute.hellbender.tools.copynumber.legacy.coverage.copyratio.CopyRatioCollection;
 import org.broadinstitute.hellbender.tools.copynumber.legacy.coverage.segmentation.CopyRatioKernelSegmenter;
 import org.broadinstitute.hellbender.tools.copynumber.legacy.coverage.segmentation.CopyRatioSegmentCollection;
 import org.broadinstitute.hellbender.tools.copynumber.legacy.formats.CopyNumberStandardArgument;
 import org.broadinstitute.hellbender.tools.copynumber.legacy.formats.TSVLocatableCollection;
+import org.broadinstitute.hellbender.tools.copynumber.legacy.multidimensional.model.ModeledSegment;
+import org.broadinstitute.hellbender.tools.copynumber.legacy.multidimensional.model.ModeledSegmentCollection;
 import org.broadinstitute.hellbender.tools.copynumber.legacy.multidimensional.segmentation.CRAFSegmentCollection;
+import org.broadinstitute.hellbender.tools.exome.ACNVModeledSegment;
 import org.broadinstitute.hellbender.tools.exome.ACNVModeller;
 import org.broadinstitute.hellbender.utils.Utils;
 import org.broadinstitute.hellbender.utils.io.IOUtils;
@@ -231,13 +237,15 @@ public final class ModelSegments extends SparkCommandLineProgram {
 
     @Argument(
             doc = "Threshold number of copy-ratio intervals for small-segment merging. " +
-                    "If a segment contains strictly less than this number of copy-ratio intervals, " +
-                    "it is considered small and will be merged with an adjacent segment.",
+                    "If a segment contains strictly less than this number of copy-ratio intervals" +
+                    "after combining copy-ratio and allele-fraction segments, " +
+                    "it is considered small and will be merged with an adjacent segment.  " +
+                    "Ignored unless both denoised copy ratios and allelic counts are provided.",
             fullName = NUM_COPY_RATIO_INTERVALS_SMALL_SEGMENT_THRESHOLD_LONG_NAME,
             shortName = NUM_COPY_RATIO_INTERVALS_SMALL_SEGMENT_THRESHOLD_SHORT_NAME,
             optional = true
     )
-    private int numCopyRatioIntervalsSmallSegmentThreshold = 3;
+    private int numCopyRatioIntervalsSmallSegmentThreshold = 0;
 
     @Argument(
             doc = "Total number of MCMC samples for copy-ratio model.",
@@ -336,14 +344,15 @@ public final class ModelSegments extends SparkCommandLineProgram {
             writeSegments(alleleFractionSegments, ALLELE_FRACTION_SEGMENTS_FILE_SUFFIX);
         }
 
+        //if one of the data sources is unavailable, create a corresponding empty collection using the sample name from the available source
         if (denoisedCopyRatios == null) {
             denoisedCopyRatios = new CopyRatioCollection(hetAllelicCounts.getSampleName(), Collections.emptyList());
         }
-
         if (hetAllelicCounts == null) {
             hetAllelicCounts = new AllelicCountCollection(denoisedCopyRatios.getSampleName(), Collections.emptyList());
         }
 
+        //TODO replace/improve old code used below for performing segment union and model fitting
         logger.info("Combining available copy-ratio and allele-fraction segments...");
         final CRAFSegmentCollection crafSegments = CRAFSegmentCollection.unionAndMergeSmallSegments(
                 copyRatioSegments, denoisedCopyRatios, alleleFractionSegments, hetAllelicCounts, numCopyRatioIntervalsSmallSegmentThreshold);
@@ -354,13 +363,13 @@ public final class ModelSegments extends SparkCommandLineProgram {
                 numSamplesCopyRatio, numBurnInCopyRatio, numSamplesAlleleFraction, numBurnInAlleleFraction, ctx);
 
         //write initial segments and parameters to file
-        writeACNVModeledSegmentAndParameterFiles(modeller, BEGIN_FIT_FILE_TAG);
+        writeACNVModeledSegmentAndParameterFiles(crafSegments.getSampleName(), modeller, BEGIN_FIT_FILE_TAG);
 
         //similar-segment merging (segment files are output for each merge iteration)
         performSimilarSegmentMergingStep(modeller);
 
         //write final segments and parameters to file
-        writeACNVModeledSegmentAndParameterFiles(modeller, FINAL_FIT_FILE_TAG);
+        writeACNVModeledSegmentAndParameterFiles(crafSegments.getSampleName(), modeller, FINAL_FIT_FILE_TAG);
 
         ctx.setLogLevel(originalLogLevel);
         logger.info("SUCCESS: ModelSegments run complete.");
@@ -458,10 +467,20 @@ public final class ModelSegments extends SparkCommandLineProgram {
     }
 
     //write modeled segments and global parameters to file
-    private void writeACNVModeledSegmentAndParameterFiles(final ACNVModeller modeller, final String fileTag) {
-        final File modeledSegmentsFile = new File(outputDir, outputPrefix + fileTag + SEGMENTS_FILE_SUFFIX);
-        modeller.writeACNVModeledSegmentFile(modeledSegmentsFile);
-        logger.info(String.format("Segments written to %s.", modeledSegmentsFile));
+    private void writeACNVModeledSegmentAndParameterFiles(final String sampleName,
+                                                          final ACNVModeller modeller,
+                                                          final String fileTag) {
+        final List<ACNVModeledSegment> acnvModeledSegments = modeller.getACNVModeledSegments();
+        final OverlapDetector<CopyRatio> copyRatioOverlapDetector = OverlapDetector.create(denoisedCopyRatios.getRecords());
+        final OverlapDetector<AllelicCount> allelicCountOverlapDetector = OverlapDetector.create(hetAllelicCounts.getRecords());
+        final List<ModeledSegment> modeledSegmentsList = acnvModeledSegments.stream()
+                .map(s -> new ModeledSegment(
+                        copyRatioOverlapDetector.getOverlaps(s).size(),
+                        allelicCountOverlapDetector.getOverlaps(s).size(),
+                        s))
+                .collect(Collectors.toList());
+        final ModeledSegmentCollection modeledSegments = new ModeledSegmentCollection(sampleName, modeledSegmentsList);
+        writeSegments(modeledSegments, fileTag + SEGMENTS_FILE_SUFFIX);
         final File copyRatioParameterFile = new File(outputDir, outputPrefix + fileTag + CR_PARAMETER_FILE_SUFFIX);
         final File alleleFractionParameterFile = new File(outputDir, outputPrefix + fileTag + AF_PARAMETER_FILE_SUFFIX);
         modeller.writeACNVModelParameterFiles(copyRatioParameterFile, alleleFractionParameterFile);

@@ -28,7 +28,7 @@ import java.util.stream.Collectors;
  * @author Samuel Lee &lt;slee@broadinstitute.org&gt;
  */
 public final class ACNVModeller {
-    public static final String ACNV_DOUBLE_FORMAT = "%6.8f";
+    public static final String ACNV_DOUBLE_FORMAT = "%6.6f";
 
     //use 95% HPD interval to construct {@link PosteriorSummary} for segment means and minor allele fractions
     private static final double CREDIBLE_INTERVAL_ALPHA = 0.05;
