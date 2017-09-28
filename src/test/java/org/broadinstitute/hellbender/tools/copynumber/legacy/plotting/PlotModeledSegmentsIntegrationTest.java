@@ -64,7 +64,7 @@ public class PlotModeledSegmentsIntegrationTest extends CommandLineProgramTest {
     }
 
     @Test(expectedExceptions = UserException.class)
-    public void testOutputDirExists() throws IOException {
+    public void testOutputDirExists() {
         final String[] arguments = {
                 "-" + ExomeStandardArgumentDefinitions.ALLELIC_COUNTS_FILE_SHORT_NAME, SNP_COUNTS_FILE.getAbsolutePath(),
                 "-" + ExomeStandardArgumentDefinitions.TANGENT_NORMALIZED_COUNTS_FILE_SHORT_NAME, TANGENT_NORMALIZED_COUNTS_FILE.getAbsolutePath(),
@@ -77,7 +77,7 @@ public class PlotModeledSegmentsIntegrationTest extends CommandLineProgramTest {
     }
 
     @Test(expectedExceptions = UserException.class)
-    public void testMissingSNPCountsFile() throws IOException {
+    public void testMissingSNPCountsFile() {
         final File outputDir = createTempDir("testDir");
         final String[] arguments = {
                 "-" + ExomeStandardArgumentDefinitions.ALLELIC_COUNTS_FILE_SHORT_NAME, "Non-existent-file",
@@ -91,7 +91,7 @@ public class PlotModeledSegmentsIntegrationTest extends CommandLineProgramTest {
     }
 
     @Test(expectedExceptions = UserException.class)
-    public void testMissingTangentFile() throws IOException {
+    public void testMissingTangentFile() {
         final File outputDir = createTempDir("testDir");
         final String[] arguments = {
                 "-" + ExomeStandardArgumentDefinitions.ALLELIC_COUNTS_FILE_SHORT_NAME, SNP_COUNTS_FILE.getAbsolutePath(),
@@ -105,7 +105,7 @@ public class PlotModeledSegmentsIntegrationTest extends CommandLineProgramTest {
     }
 
     @Test(expectedExceptions = UserException.class)
-    public void testMissingSegmentsFile() throws IOException {
+    public void testMissingSegmentsFile() {
         final File outputDir = createTempDir("testDir");
         final String[] arguments = {
                 "-" + ExomeStandardArgumentDefinitions.ALLELIC_COUNTS_FILE_SHORT_NAME, SNP_COUNTS_FILE.getAbsolutePath(),
@@ -119,7 +119,7 @@ public class PlotModeledSegmentsIntegrationTest extends CommandLineProgramTest {
     }
 
     @Test(expectedExceptions = UserException.class)
-    public void testMissingSequenceDictionaryFile() throws IOException {
+    public void testMissingSequenceDictionaryFile() {
         final File outputDir = createTempDir("testDir");
         final String[] arguments = {
                 "-" + ExomeStandardArgumentDefinitions.ALLELIC_COUNTS_FILE_SHORT_NAME, SNP_COUNTS_FILE.getAbsolutePath(),
@@ -133,7 +133,7 @@ public class PlotModeledSegmentsIntegrationTest extends CommandLineProgramTest {
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
-    public void testTangentSampleNameMismatch() throws IOException {
+    public void testTangentSampleNameMismatch() {
         final File outputDir = createTempDir("testDir");
         final String[] arguments = {
                 "-" + ExomeStandardArgumentDefinitions.ALLELIC_COUNTS_FILE_SHORT_NAME, SNP_COUNTS_FILE.getAbsolutePath(),
@@ -147,7 +147,7 @@ public class PlotModeledSegmentsIntegrationTest extends CommandLineProgramTest {
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
-    public void testSegmentsSampleNameMismatch() throws IOException {
+    public void testSegmentsSampleNameMismatch() {
         final File outputDir = createTempDir("testDir");
         final String[] arguments = {
                 "-" + ExomeStandardArgumentDefinitions.ALLELIC_COUNTS_FILE_SHORT_NAME, SNP_COUNTS_FILE.getAbsolutePath(),
@@ -161,7 +161,7 @@ public class PlotModeledSegmentsIntegrationTest extends CommandLineProgramTest {
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
-    public void testSNPCountsDataOutOfBounds() throws IOException {
+    public void testSNPCountsDataOutOfBounds() {
         final File outputDir = createTempDir("testDir");
         final String[] arguments = {
                 "-" + ExomeStandardArgumentDefinitions.ALLELIC_COUNTS_FILE_SHORT_NAME, SNP_COUNTS_DATA_OUT_OF_BOUNDS_FILE.getAbsolutePath(),
@@ -175,7 +175,7 @@ public class PlotModeledSegmentsIntegrationTest extends CommandLineProgramTest {
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
-    public void testTangentDataOutOfBounds() throws IOException {
+    public void testTangentDataOutOfBounds() {
         final File outputDir = createTempDir("testDir");
         final String[] arguments = {
                 "-" + ExomeStandardArgumentDefinitions.ALLELIC_COUNTS_FILE_SHORT_NAME, SNP_COUNTS_FILE.getAbsolutePath(),
@@ -191,7 +191,7 @@ public class PlotModeledSegmentsIntegrationTest extends CommandLineProgramTest {
     
 
     @Test(expectedExceptions = IllegalArgumentException.class)
-    public void testSegmentsDataOutOfBounds() throws IOException {
+    public void testSegmentsDataOutOfBounds() {
         final File outputDir = createTempDir("testDir");
         final String[] arguments = {
                 "-" + ExomeStandardArgumentDefinitions.ALLELIC_COUNTS_FILE_SHORT_NAME, SNP_COUNTS_FILE.getAbsolutePath(),

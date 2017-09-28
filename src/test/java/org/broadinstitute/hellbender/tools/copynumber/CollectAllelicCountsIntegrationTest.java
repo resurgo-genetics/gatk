@@ -30,7 +30,7 @@ public final class CollectAllelicCountsIntegrationTest extends CommandLineProgra
     private static final String TUMOR_SAMPLE_NAME_EXPECTED = "20";
 
     @DataProvider(name = "testData")
-    public Object[][] testData() throws IOException {
+    public Object[][] testData() {
         //counts from IGV with minMQ = 30 and minBQ = 20
         final AllelicCountCollection normalCountsExpected = new AllelicCountCollection(
                 NORMAL_SAMPLE_NAME_EXPECTED,

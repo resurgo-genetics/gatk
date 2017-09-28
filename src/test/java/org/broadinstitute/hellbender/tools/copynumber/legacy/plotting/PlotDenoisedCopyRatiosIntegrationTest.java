@@ -74,7 +74,7 @@ public final class PlotDenoisedCopyRatiosIntegrationTest extends CommandLineProg
     }
 
     @Test(expectedExceptions = UserException.class)
-    public void testOutputDirExists() throws IOException {
+    public void testOutputDirExists() {
         final String[] arguments = {
                 "-" + CopyNumberStandardArgument.STANDARDIZED_COPY_RATIOS_FILE_SHORT_NAME, STANDARDIZED_COPY_RATIOS_FILE.getAbsolutePath(),
                 "-" + CopyNumberStandardArgument.DENOISED_COPY_RATIOS_FILE_SHORT_NAME,  DENOISED_COPY_RATIOS_FILE.getAbsolutePath(),
@@ -86,7 +86,7 @@ public final class PlotDenoisedCopyRatiosIntegrationTest extends CommandLineProg
     }
 
     @Test(expectedExceptions = UserException.class)
-    public void testMissingStandardizedFile() throws IOException {
+    public void testMissingStandardizedFile() {
         final File outputDir = createTempDir("testDir");
         final String[] arguments = {
                 "-" + CopyNumberStandardArgument.STANDARDIZED_COPY_RATIOS_FILE_SHORT_NAME, "Non-existent-file",
@@ -99,7 +99,7 @@ public final class PlotDenoisedCopyRatiosIntegrationTest extends CommandLineProg
     }
 
     @Test(expectedExceptions = UserException.class)
-    public void testMissingDenoisedFile() throws IOException {
+    public void testMissingDenoisedFile() {
         final File outputDir = createTempDir("testDir");
         final String[] arguments = {
                 "-" + CopyNumberStandardArgument.STANDARDIZED_COPY_RATIOS_FILE_SHORT_NAME, STANDARDIZED_COPY_RATIOS_FILE.getAbsolutePath(),
@@ -112,7 +112,7 @@ public final class PlotDenoisedCopyRatiosIntegrationTest extends CommandLineProg
     }
 
     @Test(expectedExceptions = UserException.class)
-    public void testMissingSequenceDictionaryFile() throws IOException {
+    public void testMissingSequenceDictionaryFile() {
         final File outputDir = createTempDir("testDir");
         final String[] arguments = {
                 "-" + CopyNumberStandardArgument.STANDARDIZED_COPY_RATIOS_FILE_SHORT_NAME, STANDARDIZED_COPY_RATIOS_FILE.getAbsolutePath(),
@@ -125,7 +125,20 @@ public final class PlotDenoisedCopyRatiosIntegrationTest extends CommandLineProg
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
-    public void testStandardizedSampleNameMismatch() throws IOException {
+    public void testOutOfDictionaryBounds() {
+        final File outputDir = createTempDir("testDir");
+        final String[] arguments = {
+                "-" + CopyNumberStandardArgument.STANDARDIZED_COPY_RATIOS_FILE_SHORT_NAME, COPY_RATIOS_OUT_OF_DICTIONARY_BOUNDS_FILE.getAbsolutePath(),
+                "-" + CopyNumberStandardArgument.DENOISED_COPY_RATIOS_FILE_SHORT_NAME, COPY_RATIOS_OUT_OF_DICTIONARY_BOUNDS_FILE.getAbsolutePath(),
+                "-" + StandardArgumentDefinitions.SEQUENCE_DICTIONARY_SHORT_NAME, SEQUENCE_DICTIONARY_FILE.getAbsolutePath(),
+                "-" + StandardArgumentDefinitions.OUTPUT_SHORT_NAME, outputDir.getAbsolutePath(),
+                "-" + CopyNumberStandardArgument.OUTPUT_PREFIX_SHORT_NAME, OUTPUT_PREFIX
+        };
+        runCommandLine(arguments);
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class)
+    public void testStandardizedSampleNameMismatch() {
         final File outputDir = createTempDir("testDir");
         final String[] arguments = {
                 "-" + CopyNumberStandardArgument.STANDARDIZED_COPY_RATIOS_FILE_SHORT_NAME, COPY_RATIOS_WITH_SAMPLE_NAME_MISMATCH_FILE.getAbsolutePath(),
@@ -138,20 +151,7 @@ public final class PlotDenoisedCopyRatiosIntegrationTest extends CommandLineProg
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
-    public void testStandardizedOutOfDictionaryBounds() throws IOException {
-        final File outputDir = createTempDir("testDir");
-        final String[] arguments = {
-                "-" + CopyNumberStandardArgument.STANDARDIZED_COPY_RATIOS_FILE_SHORT_NAME, COPY_RATIOS_OUT_OF_DICTIONARY_BOUNDS_FILE.getAbsolutePath(),
-                "-" + CopyNumberStandardArgument.DENOISED_COPY_RATIOS_FILE_SHORT_NAME, DENOISED_COPY_RATIOS_FILE.getAbsolutePath(),
-                "-" + StandardArgumentDefinitions.SEQUENCE_DICTIONARY_SHORT_NAME, SEQUENCE_DICTIONARY_FILE.getAbsolutePath(),
-                "-" + StandardArgumentDefinitions.OUTPUT_SHORT_NAME, outputDir.getAbsolutePath(),
-                "-" + CopyNumberStandardArgument.OUTPUT_PREFIX_SHORT_NAME, OUTPUT_PREFIX
-        };
-        runCommandLine(arguments);
-    }
-
-    @Test(expectedExceptions = IllegalArgumentException.class)
-    public void testStandardizedMissingIntervals() throws IOException {
+    public void testStandardizedMissingIntervals() {
         final File outputDir = createTempDir("testDir");
         final String[] arguments = {
                 "-" + CopyNumberStandardArgument.STANDARDIZED_COPY_RATIOS_FILE_SHORT_NAME, COPY_RATIOS_WITH_MISSING_INTERVALS_FILE.getAbsolutePath(),
@@ -164,7 +164,7 @@ public final class PlotDenoisedCopyRatiosIntegrationTest extends CommandLineProg
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
-    public void testDenoisedSampleNameMismatch() throws IOException {
+    public void testDenoisedSampleNameMismatch() {
         final File outputDir = createTempDir("testDir");
         final String[] arguments = {
                 "-" + CopyNumberStandardArgument.STANDARDIZED_COPY_RATIOS_FILE_SHORT_NAME, STANDARDIZED_COPY_RATIOS_FILE.getAbsolutePath(),
@@ -177,20 +177,7 @@ public final class PlotDenoisedCopyRatiosIntegrationTest extends CommandLineProg
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
-    public void testDenoisedOutOfDictionaryBounds() throws IOException {
-        final File outputDir = createTempDir("testDir");
-        final String[] arguments = {
-                "-" + CopyNumberStandardArgument.STANDARDIZED_COPY_RATIOS_FILE_SHORT_NAME, STANDARDIZED_COPY_RATIOS_FILE.getAbsolutePath(),
-                "-" + CopyNumberStandardArgument.DENOISED_COPY_RATIOS_FILE_SHORT_NAME, COPY_RATIOS_OUT_OF_DICTIONARY_BOUNDS_FILE.getAbsolutePath(),
-                "-" + StandardArgumentDefinitions.SEQUENCE_DICTIONARY_SHORT_NAME, SEQUENCE_DICTIONARY_FILE.getAbsolutePath(),
-                "-" + StandardArgumentDefinitions.OUTPUT_SHORT_NAME, outputDir.getAbsolutePath(),
-                "-" + CopyNumberStandardArgument.OUTPUT_PREFIX_SHORT_NAME, OUTPUT_PREFIX
-        };
-        runCommandLine(arguments);
-    }
-
-    @Test(expectedExceptions = IllegalArgumentException.class)
-    public void testDenoisedMissingIntervals() throws IOException {
+    public void testDenoisedMissingIntervals() {
         final File outputDir = createTempDir("testDir");
         final String[] arguments = {
                 "-" + CopyNumberStandardArgument.STANDARDIZED_COPY_RATIOS_FILE_SHORT_NAME, STANDARDIZED_COPY_RATIOS_FILE.getAbsolutePath(),
