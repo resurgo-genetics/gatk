@@ -23,3 +23,59 @@ PlotCopyRatio = function(copy_ratio_df, color, contig_names, contig_starts) {
     genomic_coordinates = contig_starts[match(copy_ratio_df$CONTIG, contig_names)] + copy_ratio_df$END
     points(x=genomic_coordinates, y=copy_ratio_df$COPY_RATIO, col=color, pch=16, cex=0.2)
 }
+
+PlotCopyRatioWithModeledSegments = function(coverage_df, segments_df, contig_names, contig_starts, is_ACNV, point_size=0.2) {
+#    for (s in 1:nrow(segments_df)) {
+#        contig = segments_df[s, "Chromosome"]
+#        segment_start = segments_df[s, "Start"]
+#        segment_end = segments_df[s, "End"]
+#
+#        target_indices = which(coverage_df[, "contig"] == contig & coverage_df[, "stop"] > segment_start & coverage_df[, "stop"] < segment_end)
+#
+#        offset = contig_starts[match(contig, contig_names)]
+#        genomic_coordinates = offset + coverage_df[target_indices, "stop"]
+#
+#        colors = c("coral", "dodgerblue")
+#        points(x=genomic_coordinates, y=coverage_df[target_indices, "VALUE"], col=colors[s %% 2 + 1], pch=16, cex=point_size)
+#
+#        if (is_ACNV) {
+#            segment_mode = 2^segments_df[s, "Segment_Mean_Post_Mode"]
+#            segment_high = 2^segments_df[s, "Segment_Mean_Post_Hi"]
+#            segment_low = 2^segments_df[s, "Segment_Mean_Post_Lo"]
+#            segments(x0=min(genomic_coordinates), y0=segment_mode, x1=max(genomic_coordinates), y1=segment_mode, col="black", lwd=2, lty=1)
+#            rect(xleft=min(genomic_coordinates), ybottom=segment_low, xright=max(genomic_coordinates), ytop=segment_high, lwd=1, lty=1)
+#        } else {
+#            segment_mean = segments_df[s, "Segment_Mean"]
+#            segments(x0=min(genomic_coordinates), y0=segment_mean, x1=max(genomic_coordinates), y1=segment_mean, col="black", lwd=2, lty=1)
+#        }
+#    }
+}
+
+PlotAlternateAlleleFractionWithModeledSegments = function(snp_df, segments_df, contig_names, contig_starts, point_size=0.2) {
+#    for (s in 1:nrow(segments_df)) {
+#        #skip segments with no SNPs
+#        if (segments_df[s, "Num_SNPs"] == 0) {
+#            next
+#        }
+#        contig = segments_df[s, "Chromosome"]
+#        segment_start = segments_df[s, "Start"]
+#        segment_end = segments_df[s, "End"]
+#        snp_indices = which(snp_df[, "CONTIG"] == contig & snp_df[,"POSITION"] > segment_start & snp_df[, "POSITION"] < segment_end)
+#
+#        offset = contig_starts[match(contig, contig_names)]
+#        genomic_coordinates = offset + snp_df[snp_indices, "POSITION"]
+#
+#        ref_counts = snp_df[snp_indices, "REF_COUNT"]
+#        alt_counts = snp_df[snp_indices, "ALT_COUNT"]
+#        MAF = ifelse(alt_counts < ref_counts, alt_counts / (alt_counts + ref_counts), ref_counts / (alt_counts + ref_counts))
+#
+#        colors = c("coral", "dodgerblue")
+#        points(x=genomic_coordinates, y=MAF, col=colors[s %% 2 + 1], pch=16, cex=point_size)
+#
+#        segment_mode = segments_df[s, "MAF_Post_Mode"]
+#        segment_high = segments_df[s, "MAF_Post_Hi"]
+#        segment_low = segments_df[s, "MAF_Post_Lo"]
+#        segments(x0=min(genomic_coordinates), y0=segment_mode, x1=max(genomic_coordinates), y1=segment_mode, col="black", lwd=2, lty=1)
+#        rect(xleft=min(genomic_coordinates), ybottom=segment_low, xright=max(genomic_coordinates), ytop=segment_high, lwd=1, lty=1)
+#    }
+}

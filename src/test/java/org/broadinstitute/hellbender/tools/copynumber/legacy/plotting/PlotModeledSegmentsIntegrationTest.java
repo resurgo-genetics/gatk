@@ -1,7 +1,6 @@
 package org.broadinstitute.hellbender.tools.copynumber.legacy.plotting;
 
 import org.broadinstitute.hellbender.CommandLineProgramTest;
-import org.broadinstitute.hellbender.cmdline.ExomeStandardArgumentDefinitions;
 import org.broadinstitute.hellbender.cmdline.StandardArgumentDefinitions;
 import org.broadinstitute.hellbender.exceptions.UserException;
 import org.broadinstitute.hellbender.tools.copynumber.legacy.formats.CopyNumberStandardArgument;
@@ -9,24 +8,24 @@ import org.testng.Assert;
 import org.testng.annotations.Test;
 
 import java.io.File;
-import java.io.IOException;
 
-public class PlotModeledSegmentsIntegrationTest extends CommandLineProgramTest {
-    private static final String TEST_SUB_DIR = publicTestDir + "org/broadinstitute/hellbender/tools/exome/";
+public final class PlotModeledSegmentsIntegrationTest extends CommandLineProgramTest {
+    private static final String TEST_SUB_DIR = toolsTestDir + "copynumber/legacy/plotting/";
 
     //test files
-    private static final File SNP_COUNTS_FILE = new File(TEST_SUB_DIR, "snps-for-plotting.tsv");
-    private static final File TANGENT_NORMALIZED_COUNTS_FILE = new File(TEST_SUB_DIR, "coverages-for-plotting.tsv");
-    private static final File SEGMENTS_FILE = new File(TEST_SUB_DIR, "acnv-segments-for-plotting.seg");
-    private static final File SEQUENCE_DICTIONARY_FILE = new File(TEST_SUB_DIR, "sequence-dictionary-for-plotting.dict");
+    private static final File DENOISED_COPY_RATIOS_FILE = new File(TEST_SUB_DIR, "plotting-copy-ratios.tsv");
+    private static final File ALLELIC_COUNTS_FILE = new File(TEST_SUB_DIR, "plotting-allelic-counts.tsv");
+    private static final File MODELED_SEGMENTS_FILE = new File(TEST_SUB_DIR, "plotting-modeled-segments.seg");
+    private static final File SEQUENCE_DICTIONARY_FILE = new File(TEST_SUB_DIR, "plotting-sequence-dictionary.dict");
 
     //test files for invalid configurations
-    private static final File SEQUENCE_DICTIONARY_NO_CONTIGS_ABOVE_MINIMUM_LENGTH_FILE = new File(TEST_SUB_DIR, "sequence-dictionary-for-plotting-no-contigs-above-minimum-length.dict");
-    private static final File COUNTS_BAD_SAMPLE_NAME_FILE = new File(TEST_SUB_DIR, "coverages-for-plotting-bad-sample-name.tsv");
-    private static final File SEGMENTS_BAD_SAMPLE_NAME_FILE = new File(TEST_SUB_DIR, "acnv-segments-for-plotting-bad-sample-name.seg");
-    private static final File SNP_COUNTS_DATA_OUT_OF_BOUNDS_FILE = new File(TEST_SUB_DIR, "snps-for-plotting-data-out-of-bounds.tsv");
-    private static final File COUNTS_DATA_OUT_OF_BOUNDS_FILE = new File(TEST_SUB_DIR, "coverages-for-plotting-data-out-of-bounds.tsv");
-    private static final File SEGMENTS_DATA_OUT_OF_BOUNDS_FILE = new File(TEST_SUB_DIR, "acnv-segments-for-plotting-data-out-of-bounds.seg");
+    private static final File SEQUENCE_DICTIONARY_WITH_NO_CONTIGS_ABOVE_MINIMUM_LENGTH_FILE = new File(TEST_SUB_DIR, "plotting-sequence-dictionary-with-no-contigs-above-minimum-length.dict");
+    private static final File DENOISED_COPY_RATIOS_WITH_SAMPLE_NAME_MISMATCH_FILE = new File(TEST_SUB_DIR, "plotting-copy-ratios-with-sample-name-mismatch.tsv");
+    private static final File DENOISED_COPY_RATIOS_OUT_OF_DICTIONARY_BOUNDS_FILE = new File(TEST_SUB_DIR, "plotting-copy-ratios-out-of-dictionary-bounds.tsv");
+    private static final File ALLELIC_COUNTS_WITH_SAMPLE_NAME_MISMATCH_FILE = new File(TEST_SUB_DIR, "plotting-allelic-counts-with-sample-name-mismatch.tsv");
+    private static final File ALLELIC_COUNTS_OUT_OF_DICTIONARY_BOUNDS_FILE = new File(TEST_SUB_DIR, "plotting-allelic-counts-out-of-dictionary-bounds.tsv");
+    private static final File MODELED_SEGMENTS_WITH_SAMPLE_NAME_MISMATCH_FILE = new File(TEST_SUB_DIR, "plotting-modeled-segments-with-sample-name-mismatch.seg");
+    private static final File MODELED_SEGMENTS_OUT_OF_DICTIONARY_BOUNDS_FILE = new File(TEST_SUB_DIR, "plotting-modeled-segments-out-of-dictionary-bounds.seg");
     
     private static final String OUTPUT_PREFIX = "test";
     private static final int THRESHOLD_PLOT_FILE_SIZE_IN_BYTES = 50000;  //test that data points are plotted (not just background/axes)
@@ -36,27 +35,56 @@ public class PlotModeledSegmentsIntegrationTest extends CommandLineProgramTest {
     public void testPlotting() {
         final File outputDir = createTempDir("testDir");
         final String[] arguments = {
-                "-" + ExomeStandardArgumentDefinitions.ALLELIC_COUNTS_FILE_SHORT_NAME, SNP_COUNTS_FILE.getAbsolutePath(),
-                "-" + ExomeStandardArgumentDefinitions.TANGENT_NORMALIZED_COUNTS_FILE_SHORT_NAME, TANGENT_NORMALIZED_COUNTS_FILE.getAbsolutePath(),
-                "-" + ExomeStandardArgumentDefinitions.SEGMENT_FILE_SHORT_NAME, SEGMENTS_FILE.getAbsolutePath(),
+                "-" + CopyNumberStandardArgument.DENOISED_COPY_RATIOS_FILE_SHORT_NAME, DENOISED_COPY_RATIOS_FILE.getAbsolutePath(),
+                "-" + CopyNumberStandardArgument.ALLELIC_COUNTS_FILE_SHORT_NAME, ALLELIC_COUNTS_FILE.getAbsolutePath(),
+                "-" + CopyNumberStandardArgument.SEGMENTS_FILE_SHORT_NAME, MODELED_SEGMENTS_FILE.getAbsolutePath(),
                 "-" + StandardArgumentDefinitions.SEQUENCE_DICTIONARY_SHORT_NAME, SEQUENCE_DICTIONARY_FILE.getAbsolutePath(),
                 "-" + StandardArgumentDefinitions.OUTPUT_SHORT_NAME, outputDir.getAbsolutePath(),
-                "-" + CopyNumberStandardArgument.OUTPUT_PREFIX_SHORT_NAME, OUTPUT_PREFIX,
-                "--verbosity", "INFO"
+                "-" + CopyNumberStandardArgument.OUTPUT_PREFIX_SHORT_NAME, OUTPUT_PREFIX
         };
         runCommandLine(arguments);
-        Assert.assertTrue(new File(outputDir, OUTPUT_PREFIX + "_ACNV.png").exists());
-        Assert.assertTrue(new File(outputDir, OUTPUT_PREFIX + "_ACNV.png").length() > THRESHOLD_PLOT_FILE_SIZE_IN_BYTES);
+        Assert.assertTrue(new File(outputDir, OUTPUT_PREFIX + "_modeled_segments.png").exists());
+        Assert.assertTrue(new File(outputDir, OUTPUT_PREFIX + "_modeled_segments.png").length() > THRESHOLD_PLOT_FILE_SIZE_IN_BYTES);
+    }
+
+    @Test
+    public void testPlottingDenoisedCopyRatiosOnly() {
+        final File outputDir = createTempDir("testDir");
+        final String[] arguments = {
+                "-" + CopyNumberStandardArgument.DENOISED_COPY_RATIOS_FILE_SHORT_NAME, DENOISED_COPY_RATIOS_FILE.getAbsolutePath(),
+                "-" + CopyNumberStandardArgument.SEGMENTS_FILE_SHORT_NAME, MODELED_SEGMENTS_FILE.getAbsolutePath(),
+                "-" + StandardArgumentDefinitions.SEQUENCE_DICTIONARY_SHORT_NAME, SEQUENCE_DICTIONARY_FILE.getAbsolutePath(),
+                "-" + StandardArgumentDefinitions.OUTPUT_SHORT_NAME, outputDir.getAbsolutePath(),
+                "-" + CopyNumberStandardArgument.OUTPUT_PREFIX_SHORT_NAME, OUTPUT_PREFIX
+        };
+        runCommandLine(arguments);
+        Assert.assertTrue(new File(outputDir, OUTPUT_PREFIX + "_modeled_segments.png").exists());
+        Assert.assertTrue(new File(outputDir, OUTPUT_PREFIX + "_modeled_segments.png").length() > THRESHOLD_PLOT_FILE_SIZE_IN_BYTES);
+    }
+
+    @Test
+    public void testPlottingAllelicCountsOnly() {
+        final File outputDir = createTempDir("testDir");
+        final String[] arguments = {
+                "-" + CopyNumberStandardArgument.ALLELIC_COUNTS_FILE_SHORT_NAME, ALLELIC_COUNTS_FILE.getAbsolutePath(),
+                "-" + CopyNumberStandardArgument.SEGMENTS_FILE_SHORT_NAME, MODELED_SEGMENTS_FILE.getAbsolutePath(),
+                "-" + StandardArgumentDefinitions.SEQUENCE_DICTIONARY_SHORT_NAME, SEQUENCE_DICTIONARY_FILE.getAbsolutePath(),
+                "-" + StandardArgumentDefinitions.OUTPUT_SHORT_NAME, outputDir.getAbsolutePath(),
+                "-" + CopyNumberStandardArgument.OUTPUT_PREFIX_SHORT_NAME, OUTPUT_PREFIX
+        };
+        runCommandLine(arguments);
+        Assert.assertTrue(new File(outputDir, OUTPUT_PREFIX + "_modeled_segments.png").exists());
+        Assert.assertTrue(new File(outputDir, OUTPUT_PREFIX + "_modeled_segments.png").length() > THRESHOLD_PLOT_FILE_SIZE_IN_BYTES);
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
     public void testMinimumContigLength() {
         final File outputDir = createTempDir("testDir");
         final String[] arguments = {
-                "-" + ExomeStandardArgumentDefinitions.ALLELIC_COUNTS_FILE_SHORT_NAME, SNP_COUNTS_FILE.getAbsolutePath(),
-                "-" + ExomeStandardArgumentDefinitions.TANGENT_NORMALIZED_COUNTS_FILE_SHORT_NAME, TANGENT_NORMALIZED_COUNTS_FILE.getAbsolutePath(),
-                "-" + ExomeStandardArgumentDefinitions.SEGMENT_FILE_SHORT_NAME, SEGMENTS_FILE.getAbsolutePath(),
-                "-" + StandardArgumentDefinitions.SEQUENCE_DICTIONARY_SHORT_NAME, SEQUENCE_DICTIONARY_NO_CONTIGS_ABOVE_MINIMUM_LENGTH_FILE.getAbsolutePath(),
+                "-" + CopyNumberStandardArgument.DENOISED_COPY_RATIOS_FILE_SHORT_NAME, DENOISED_COPY_RATIOS_FILE.getAbsolutePath(),
+                "-" + CopyNumberStandardArgument.ALLELIC_COUNTS_FILE_SHORT_NAME, ALLELIC_COUNTS_FILE.getAbsolutePath(),
+                "-" + CopyNumberStandardArgument.SEGMENTS_FILE_SHORT_NAME, MODELED_SEGMENTS_FILE.getAbsolutePath(),
+                "-" + StandardArgumentDefinitions.SEQUENCE_DICTIONARY_SHORT_NAME, SEQUENCE_DICTIONARY_WITH_NO_CONTIGS_ABOVE_MINIMUM_LENGTH_FILE.getAbsolutePath(),
                 "-" + StandardArgumentDefinitions.OUTPUT_SHORT_NAME, outputDir.getAbsolutePath(),
                 "-" + CopyNumberStandardArgument.OUTPUT_PREFIX_SHORT_NAME, OUTPUT_PREFIX
         };
@@ -66,9 +94,9 @@ public class PlotModeledSegmentsIntegrationTest extends CommandLineProgramTest {
     @Test(expectedExceptions = UserException.class)
     public void testOutputDirExists() {
         final String[] arguments = {
-                "-" + ExomeStandardArgumentDefinitions.ALLELIC_COUNTS_FILE_SHORT_NAME, SNP_COUNTS_FILE.getAbsolutePath(),
-                "-" + ExomeStandardArgumentDefinitions.TANGENT_NORMALIZED_COUNTS_FILE_SHORT_NAME, TANGENT_NORMALIZED_COUNTS_FILE.getAbsolutePath(),
-                "-" + ExomeStandardArgumentDefinitions.SEGMENT_FILE_SHORT_NAME, SEGMENTS_FILE.getAbsolutePath(),
+                "-" + CopyNumberStandardArgument.DENOISED_COPY_RATIOS_FILE_SHORT_NAME, DENOISED_COPY_RATIOS_FILE.getAbsolutePath(),
+                "-" + CopyNumberStandardArgument.ALLELIC_COUNTS_FILE_SHORT_NAME, ALLELIC_COUNTS_FILE.getAbsolutePath(),
+                "-" + CopyNumberStandardArgument.SEGMENTS_FILE_SHORT_NAME, MODELED_SEGMENTS_FILE.getAbsolutePath(),
                 "-" + StandardArgumentDefinitions.SEQUENCE_DICTIONARY_SHORT_NAME, SEQUENCE_DICTIONARY_FILE.getAbsolutePath(),
                 "-" + StandardArgumentDefinitions.OUTPUT_SHORT_NAME, "Non-existent-path",
                 "-" + CopyNumberStandardArgument.OUTPUT_PREFIX_SHORT_NAME, OUTPUT_PREFIX
@@ -77,12 +105,12 @@ public class PlotModeledSegmentsIntegrationTest extends CommandLineProgramTest {
     }
 
     @Test(expectedExceptions = UserException.class)
-    public void testMissingSNPCountsFile() {
+    public void testNonExistentDenoisedCopyRatiosFile() {
         final File outputDir = createTempDir("testDir");
         final String[] arguments = {
-                "-" + ExomeStandardArgumentDefinitions.ALLELIC_COUNTS_FILE_SHORT_NAME, "Non-existent-file",
-                "-" + ExomeStandardArgumentDefinitions.TANGENT_NORMALIZED_COUNTS_FILE_SHORT_NAME, TANGENT_NORMALIZED_COUNTS_FILE.getAbsolutePath(),
-                "-" + ExomeStandardArgumentDefinitions.SEGMENT_FILE_SHORT_NAME, SEGMENTS_FILE.getAbsolutePath(),
+                "-" + CopyNumberStandardArgument.DENOISED_COPY_RATIOS_FILE_SHORT_NAME,  "Non-existent-file",
+                "-" + CopyNumberStandardArgument.ALLELIC_COUNTS_FILE_SHORT_NAME, ALLELIC_COUNTS_FILE.getAbsolutePath(),
+                "-" + CopyNumberStandardArgument.SEGMENTS_FILE_SHORT_NAME, MODELED_SEGMENTS_FILE.getAbsolutePath(),
                 "-" + StandardArgumentDefinitions.SEQUENCE_DICTIONARY_SHORT_NAME, SEQUENCE_DICTIONARY_FILE.getAbsolutePath(),
                 "-" + StandardArgumentDefinitions.OUTPUT_SHORT_NAME, outputDir.getAbsolutePath(),
                 "-" + CopyNumberStandardArgument.OUTPUT_PREFIX_SHORT_NAME, OUTPUT_PREFIX
@@ -91,12 +119,12 @@ public class PlotModeledSegmentsIntegrationTest extends CommandLineProgramTest {
     }
 
     @Test(expectedExceptions = UserException.class)
-    public void testMissingTangentFile() {
+    public void testNonExistentAllelicCountsFile() {
         final File outputDir = createTempDir("testDir");
         final String[] arguments = {
-                "-" + ExomeStandardArgumentDefinitions.ALLELIC_COUNTS_FILE_SHORT_NAME, SNP_COUNTS_FILE.getAbsolutePath(),
-                "-" + ExomeStandardArgumentDefinitions.TANGENT_NORMALIZED_COUNTS_FILE_SHORT_NAME,  "Non-existent-file",
-                "-" + ExomeStandardArgumentDefinitions.SEGMENT_FILE_SHORT_NAME, SEGMENTS_FILE.getAbsolutePath(),
+                "-" + CopyNumberStandardArgument.DENOISED_COPY_RATIOS_FILE_SHORT_NAME, DENOISED_COPY_RATIOS_FILE.getAbsolutePath(),
+                "-" + CopyNumberStandardArgument.ALLELIC_COUNTS_FILE_SHORT_NAME, "Non-existent-file",
+                "-" + CopyNumberStandardArgument.SEGMENTS_FILE_SHORT_NAME, MODELED_SEGMENTS_FILE.getAbsolutePath(),
                 "-" + StandardArgumentDefinitions.SEQUENCE_DICTIONARY_SHORT_NAME, SEQUENCE_DICTIONARY_FILE.getAbsolutePath(),
                 "-" + StandardArgumentDefinitions.OUTPUT_SHORT_NAME, outputDir.getAbsolutePath(),
                 "-" + CopyNumberStandardArgument.OUTPUT_PREFIX_SHORT_NAME, OUTPUT_PREFIX
@@ -105,12 +133,12 @@ public class PlotModeledSegmentsIntegrationTest extends CommandLineProgramTest {
     }
 
     @Test(expectedExceptions = UserException.class)
-    public void testMissingSegmentsFile() {
+    public void testNonExistentModeledSegmentsFile() {
         final File outputDir = createTempDir("testDir");
         final String[] arguments = {
-                "-" + ExomeStandardArgumentDefinitions.ALLELIC_COUNTS_FILE_SHORT_NAME, SNP_COUNTS_FILE.getAbsolutePath(),
-                "-" + ExomeStandardArgumentDefinitions.TANGENT_NORMALIZED_COUNTS_FILE_SHORT_NAME, TANGENT_NORMALIZED_COUNTS_FILE.getAbsolutePath(),
-                "-" + ExomeStandardArgumentDefinitions.SEGMENT_FILE_SHORT_NAME,  "Non-existent-file",
+                "-" + CopyNumberStandardArgument.DENOISED_COPY_RATIOS_FILE_SHORT_NAME, DENOISED_COPY_RATIOS_FILE.getAbsolutePath(),
+                "-" + CopyNumberStandardArgument.ALLELIC_COUNTS_FILE_SHORT_NAME, ALLELIC_COUNTS_FILE.getAbsolutePath(),
+                "-" + CopyNumberStandardArgument.SEGMENTS_FILE_SHORT_NAME,  "Non-existent-file",
                 "-" + StandardArgumentDefinitions.SEQUENCE_DICTIONARY_SHORT_NAME, SEQUENCE_DICTIONARY_FILE.getAbsolutePath(),
                 "-" + StandardArgumentDefinitions.OUTPUT_SHORT_NAME, outputDir.getAbsolutePath(),
                 "-" + CopyNumberStandardArgument.OUTPUT_PREFIX_SHORT_NAME, OUTPUT_PREFIX
@@ -119,12 +147,12 @@ public class PlotModeledSegmentsIntegrationTest extends CommandLineProgramTest {
     }
 
     @Test(expectedExceptions = UserException.class)
-    public void testMissingSequenceDictionaryFile() {
+    public void testNonExistentSequenceDictionaryFile() {
         final File outputDir = createTempDir("testDir");
         final String[] arguments = {
-                "-" + ExomeStandardArgumentDefinitions.ALLELIC_COUNTS_FILE_SHORT_NAME, SNP_COUNTS_FILE.getAbsolutePath(),
-                "-" + ExomeStandardArgumentDefinitions.TANGENT_NORMALIZED_COUNTS_FILE_SHORT_NAME, TANGENT_NORMALIZED_COUNTS_FILE.getAbsolutePath(),
-                "-" + ExomeStandardArgumentDefinitions.SEGMENT_FILE_SHORT_NAME, SEGMENTS_FILE.getAbsolutePath(),
+                "-" + CopyNumberStandardArgument.DENOISED_COPY_RATIOS_FILE_SHORT_NAME, DENOISED_COPY_RATIOS_FILE.getAbsolutePath(),
+                "-" + CopyNumberStandardArgument.ALLELIC_COUNTS_FILE_SHORT_NAME, ALLELIC_COUNTS_FILE.getAbsolutePath(),
+                "-" + CopyNumberStandardArgument.SEGMENTS_FILE_SHORT_NAME, MODELED_SEGMENTS_FILE.getAbsolutePath(),
                 "-" + StandardArgumentDefinitions.SEQUENCE_DICTIONARY_SHORT_NAME,  "Non-existent-file",
                 "-" + StandardArgumentDefinitions.OUTPUT_SHORT_NAME, outputDir.getAbsolutePath(),
                 "-" + CopyNumberStandardArgument.OUTPUT_PREFIX_SHORT_NAME, OUTPUT_PREFIX
@@ -133,73 +161,85 @@ public class PlotModeledSegmentsIntegrationTest extends CommandLineProgramTest {
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
-    public void testTangentSampleNameMismatch() {
+    public void testDenoisedCopyRatiosSampleNameMismatch() {
         final File outputDir = createTempDir("testDir");
         final String[] arguments = {
-                "-" + ExomeStandardArgumentDefinitions.ALLELIC_COUNTS_FILE_SHORT_NAME, SNP_COUNTS_FILE.getAbsolutePath(),
-                "-" + ExomeStandardArgumentDefinitions.TANGENT_NORMALIZED_COUNTS_FILE_SHORT_NAME, COUNTS_BAD_SAMPLE_NAME_FILE.getAbsolutePath(),
-                "-" + ExomeStandardArgumentDefinitions.SEGMENT_FILE_SHORT_NAME, SEGMENTS_FILE.getAbsolutePath(),
+                "-" + CopyNumberStandardArgument.DENOISED_COPY_RATIOS_FILE_SHORT_NAME, DENOISED_COPY_RATIOS_WITH_SAMPLE_NAME_MISMATCH_FILE.getAbsolutePath(),
+                "-" + CopyNumberStandardArgument.ALLELIC_COUNTS_FILE_SHORT_NAME, ALLELIC_COUNTS_FILE.getAbsolutePath(),
+                "-" + CopyNumberStandardArgument.SEGMENTS_FILE_SHORT_NAME, MODELED_SEGMENTS_FILE.getAbsolutePath(),
                 "-" + StandardArgumentDefinitions.SEQUENCE_DICTIONARY_SHORT_NAME, SEQUENCE_DICTIONARY_FILE.getAbsolutePath(),
                 "-" + StandardArgumentDefinitions.OUTPUT_SHORT_NAME, outputDir.getAbsolutePath(),
-                "-" + CopyNumberStandardArgument.OUTPUT_PREFIX_LONG_NAME, OUTPUT_PREFIX
+                "-" + CopyNumberStandardArgument.OUTPUT_PREFIX_SHORT_NAME, OUTPUT_PREFIX
         };
         runCommandLine(arguments);
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
-    public void testSegmentsSampleNameMismatch() {
+    public void testAllelicCountsSampleNameMismatch() {
         final File outputDir = createTempDir("testDir");
         final String[] arguments = {
-                "-" + ExomeStandardArgumentDefinitions.ALLELIC_COUNTS_FILE_SHORT_NAME, SNP_COUNTS_FILE.getAbsolutePath(),
-                "-" + ExomeStandardArgumentDefinitions.TANGENT_NORMALIZED_COUNTS_FILE_SHORT_NAME, TANGENT_NORMALIZED_COUNTS_FILE.getAbsolutePath(),
-                "-" + ExomeStandardArgumentDefinitions.SEGMENT_FILE_SHORT_NAME, SEGMENTS_BAD_SAMPLE_NAME_FILE.getAbsolutePath(),
+                "-" + CopyNumberStandardArgument.DENOISED_COPY_RATIOS_FILE_SHORT_NAME, DENOISED_COPY_RATIOS_FILE.getAbsolutePath(),
+                "-" + CopyNumberStandardArgument.ALLELIC_COUNTS_FILE_SHORT_NAME, ALLELIC_COUNTS_WITH_SAMPLE_NAME_MISMATCH_FILE.getAbsolutePath(),
+                "-" + CopyNumberStandardArgument.SEGMENTS_FILE_SHORT_NAME, MODELED_SEGMENTS_FILE.getAbsolutePath(),
                 "-" + StandardArgumentDefinitions.SEQUENCE_DICTIONARY_SHORT_NAME, SEQUENCE_DICTIONARY_FILE.getAbsolutePath(),
                 "-" + StandardArgumentDefinitions.OUTPUT_SHORT_NAME, outputDir.getAbsolutePath(),
-                "-" + CopyNumberStandardArgument.OUTPUT_PREFIX_LONG_NAME, OUTPUT_PREFIX
+                "-" + CopyNumberStandardArgument.OUTPUT_PREFIX_SHORT_NAME, OUTPUT_PREFIX
         };
         runCommandLine(arguments);
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
-    public void testSNPCountsDataOutOfBounds() {
+    public void testModeledSegmentsSampleNameMismatch() {
         final File outputDir = createTempDir("testDir");
         final String[] arguments = {
-                "-" + ExomeStandardArgumentDefinitions.ALLELIC_COUNTS_FILE_SHORT_NAME, SNP_COUNTS_DATA_OUT_OF_BOUNDS_FILE.getAbsolutePath(),
-                "-" + ExomeStandardArgumentDefinitions.TANGENT_NORMALIZED_COUNTS_FILE_SHORT_NAME, TANGENT_NORMALIZED_COUNTS_FILE.getAbsolutePath(),
-                "-" + ExomeStandardArgumentDefinitions.SEGMENT_FILE_SHORT_NAME, SEGMENTS_FILE.getAbsolutePath(),
+                "-" + CopyNumberStandardArgument.DENOISED_COPY_RATIOS_FILE_SHORT_NAME, DENOISED_COPY_RATIOS_FILE.getAbsolutePath(),
+                "-" + CopyNumberStandardArgument.ALLELIC_COUNTS_FILE_SHORT_NAME, ALLELIC_COUNTS_FILE.getAbsolutePath(),
+                "-" + CopyNumberStandardArgument.SEGMENTS_FILE_SHORT_NAME, MODELED_SEGMENTS_WITH_SAMPLE_NAME_MISMATCH_FILE.getAbsolutePath(),
                 "-" + StandardArgumentDefinitions.SEQUENCE_DICTIONARY_SHORT_NAME, SEQUENCE_DICTIONARY_FILE.getAbsolutePath(),
                 "-" + StandardArgumentDefinitions.OUTPUT_SHORT_NAME, outputDir.getAbsolutePath(),
-                "-" + CopyNumberStandardArgument.OUTPUT_PREFIX_LONG_NAME, OUTPUT_PREFIX
+                "-" + CopyNumberStandardArgument.OUTPUT_PREFIX_SHORT_NAME, OUTPUT_PREFIX
         };
         runCommandLine(arguments);
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
-    public void testTangentDataOutOfBounds() {
+    public void testDenoisedCopyRatiosDataOutOfBounds() {
         final File outputDir = createTempDir("testDir");
         final String[] arguments = {
-                "-" + ExomeStandardArgumentDefinitions.ALLELIC_COUNTS_FILE_SHORT_NAME, SNP_COUNTS_FILE.getAbsolutePath(),
-                "-" + ExomeStandardArgumentDefinitions.TANGENT_NORMALIZED_COUNTS_FILE_SHORT_NAME, COUNTS_DATA_OUT_OF_BOUNDS_FILE.getAbsolutePath(),
-                "-" + ExomeStandardArgumentDefinitions.SEGMENT_FILE_SHORT_NAME, SEGMENTS_FILE.getAbsolutePath(),
+                "-" + CopyNumberStandardArgument.DENOISED_COPY_RATIOS_FILE_SHORT_NAME, DENOISED_COPY_RATIOS_OUT_OF_DICTIONARY_BOUNDS_FILE.getAbsolutePath(),
+                "-" + CopyNumberStandardArgument.ALLELIC_COUNTS_FILE_SHORT_NAME, ALLELIC_COUNTS_FILE.getAbsolutePath(),
+                "-" + CopyNumberStandardArgument.SEGMENTS_FILE_SHORT_NAME, MODELED_SEGMENTS_FILE.getAbsolutePath(),
                 "-" + StandardArgumentDefinitions.SEQUENCE_DICTIONARY_SHORT_NAME, SEQUENCE_DICTIONARY_FILE.getAbsolutePath(),
                 "-" + StandardArgumentDefinitions.OUTPUT_SHORT_NAME, outputDir.getAbsolutePath(),
-                "-" + CopyNumberStandardArgument.OUTPUT_PREFIX_LONG_NAME, OUTPUT_PREFIX
+                "-" + CopyNumberStandardArgument.OUTPUT_PREFIX_SHORT_NAME, OUTPUT_PREFIX
         };
         runCommandLine(arguments);
     }
 
-    
-
     @Test(expectedExceptions = IllegalArgumentException.class)
-    public void testSegmentsDataOutOfBounds() {
+    public void testAllelicCountsDataOutOfBounds() {
         final File outputDir = createTempDir("testDir");
         final String[] arguments = {
-                "-" + ExomeStandardArgumentDefinitions.ALLELIC_COUNTS_FILE_SHORT_NAME, SNP_COUNTS_FILE.getAbsolutePath(),
-                "-" + ExomeStandardArgumentDefinitions.TANGENT_NORMALIZED_COUNTS_FILE_SHORT_NAME, TANGENT_NORMALIZED_COUNTS_FILE.getAbsolutePath(),
-                "-" + ExomeStandardArgumentDefinitions.SEGMENT_FILE_SHORT_NAME, SEGMENTS_DATA_OUT_OF_BOUNDS_FILE.getAbsolutePath(),
+                "-" + CopyNumberStandardArgument.DENOISED_COPY_RATIOS_FILE_SHORT_NAME, DENOISED_COPY_RATIOS_FILE.getAbsolutePath(),
+                "-" + CopyNumberStandardArgument.ALLELIC_COUNTS_FILE_SHORT_NAME, ALLELIC_COUNTS_OUT_OF_DICTIONARY_BOUNDS_FILE.getAbsolutePath(),
+                "-" + CopyNumberStandardArgument.SEGMENTS_FILE_SHORT_NAME, MODELED_SEGMENTS_FILE.getAbsolutePath(),
                 "-" + StandardArgumentDefinitions.SEQUENCE_DICTIONARY_SHORT_NAME, SEQUENCE_DICTIONARY_FILE.getAbsolutePath(),
                 "-" + StandardArgumentDefinitions.OUTPUT_SHORT_NAME, outputDir.getAbsolutePath(),
-                "-" + CopyNumberStandardArgument.OUTPUT_PREFIX_LONG_NAME, OUTPUT_PREFIX
+                "-" + CopyNumberStandardArgument.OUTPUT_PREFIX_SHORT_NAME, OUTPUT_PREFIX
+        };
+        runCommandLine(arguments);
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class)
+    public void testModeledSegmentsDataOutOfBounds() {
+        final File outputDir = createTempDir("testDir");
+        final String[] arguments = {
+                "-" + CopyNumberStandardArgument.DENOISED_COPY_RATIOS_FILE_SHORT_NAME, DENOISED_COPY_RATIOS_FILE.getAbsolutePath(),
+                "-" + CopyNumberStandardArgument.ALLELIC_COUNTS_FILE_SHORT_NAME, ALLELIC_COUNTS_FILE.getAbsolutePath(),
+                "-" + CopyNumberStandardArgument.SEGMENTS_FILE_SHORT_NAME, MODELED_SEGMENTS_OUT_OF_DICTIONARY_BOUNDS_FILE.getAbsolutePath(),
+                "-" + StandardArgumentDefinitions.SEQUENCE_DICTIONARY_SHORT_NAME, SEQUENCE_DICTIONARY_FILE.getAbsolutePath(),
+                "-" + StandardArgumentDefinitions.OUTPUT_SHORT_NAME, outputDir.getAbsolutePath(),
+                "-" + CopyNumberStandardArgument.OUTPUT_PREFIX_SHORT_NAME, OUTPUT_PREFIX
         };
         runCommandLine(arguments);
     }

@@ -36,7 +36,7 @@ CalculateQc = function(dat) {
 }
 
 #plotting is extracted to a function for debugging purposes
-plot_denoised_copy_ratios = function(standardized_file, denoised_file, contig_names, output_dir, output_prefix) {
+write_denoising_plots = function(standardized_file, denoised_file, contig_names, output_dir, output_prefix) {
     #read in files and extract needed data
     standardized = read.table(standardized_file, sep="\t", stringsAsFactors=FALSE, header=TRUE, check.names=FALSE)
     denoised = read.table(denoised_file, sep="\t", stringsAsFactors=FALSE, header=TRUE, check.names=FALSE)
@@ -81,4 +81,4 @@ plot_denoised_copy_ratios = function(standardized_file, denoised_file, contig_na
     }
 }
 
-plot_denoised_copy_ratios(standardized_file, denoised_file, contig_names, output_dir, output_prefix)
+write_denoising_plots(standardized_file, denoised_file, contig_names, output_dir, output_prefix)

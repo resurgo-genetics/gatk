@@ -119,7 +119,7 @@ public final class ModelSegments extends SparkCommandLineProgram {
 
     @Argument(
             doc = "Input file containing denoised copy-ratio profile (output of DenoiseReadCounts).",
-            fullName = CopyNumberStandardArgument.DENOISED_COPY_RATIOS_FILE_FULL_NAME,
+            fullName = CopyNumberStandardArgument.DENOISED_COPY_RATIOS_FILE_LONG_NAME,
             shortName = CopyNumberStandardArgument.DENOISED_COPY_RATIOS_FILE_SHORT_NAME,
             optional = true
     )
@@ -127,7 +127,7 @@ public final class ModelSegments extends SparkCommandLineProgram {
 
     @Argument(
             doc = "Input file containing allelic counts (output of CollectAllelicCounts).",
-            fullName = CopyNumberStandardArgument.ALLELIC_COUNTS_FILE_FULL_NAME,
+            fullName = CopyNumberStandardArgument.ALLELIC_COUNTS_FILE_LONG_NAME,
             shortName = CopyNumberStandardArgument.ALLELIC_COUNTS_FILE_SHORT_NAME,
             optional = true
     )
@@ -327,10 +327,6 @@ public final class ModelSegments extends SparkCommandLineProgram {
         final String originalLogLevel =
                 (ctx.getLocalProperty("logLevel") != null) ? ctx.getLocalProperty("logLevel") : "INFO";
         ctx.setLogLevel("WARN");
-
-        if (inputDenoisedCopyRatiosFile == null && inputAllelicCountsFile == null) {
-            throw new UserException("Must provide at least a denoised copy-ratio file or an allelic-counts file.");
-        }
 
         if (inputDenoisedCopyRatiosFile != null) {
             readDenoisedCopyRatios();

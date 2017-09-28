@@ -40,14 +40,14 @@ public final class CallCopyRatioSegments extends CommandLineProgram {
 
     @Argument(
             doc = "Input file containing denoised copy-ratio profile (output of DenoiseReadCounts).",
-            fullName = CopyNumberStandardArgument.DENOISED_COPY_RATIOS_FILE_FULL_NAME,
+            fullName = CopyNumberStandardArgument.DENOISED_COPY_RATIOS_FILE_LONG_NAME,
             shortName = CopyNumberStandardArgument.DENOISED_COPY_RATIOS_FILE_SHORT_NAME
     )
     private File inputDenoisedCopyRatiosFile;
 
     @Argument(
             doc = "Input file containing copy-ratio segments (output of ModelSegments).",
-            fullName = CopyNumberStandardArgument.SEGMENTS_FILE_FULL_NAME,
+            fullName = CopyNumberStandardArgument.SEGMENTS_FILE_LONG_NAME,
             shortName = CopyNumberStandardArgument.SEGMENTS_FILE_SHORT_NAME
     )
     protected File segmentsFile;

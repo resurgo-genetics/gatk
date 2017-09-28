@@ -102,7 +102,7 @@ public class CreateReadCountPanelOfNormals extends SparkCommandLineProgram {
             doc = "Input annotated-interval file containing annotations for GC content in genomic intervals (output of AnnotateTargets).  " +
                     "If provided, explicit GC correction will be performed before performing SVD.  " +
                     "Intervals must be identical to and in the same order as those in the input read-count files.",
-            fullName = CopyNumberStandardArgument.ANNOTATED_INTERVALS_FILE_FULL_NAME,
+            fullName = CopyNumberStandardArgument.ANNOTATED_INTERVALS_FILE_LONG_NAME,
             shortName = CopyNumberStandardArgument.ANNOTATED_INTERVALS_FILE_SHORT_NAME,
             optional = true
     )
