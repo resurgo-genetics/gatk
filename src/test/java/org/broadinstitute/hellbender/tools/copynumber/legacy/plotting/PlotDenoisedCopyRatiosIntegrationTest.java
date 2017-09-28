@@ -40,10 +40,10 @@ public final class PlotDenoisedCopyRatiosIntegrationTest extends CommandLineProg
                 "-" + CopyNumberStandardArgument.OUTPUT_PREFIX_SHORT_NAME, OUTPUT_PREFIX
         };
         runCommandLine(arguments);
-        Assert.assertTrue(new File(outputDir, OUTPUT_PREFIX + "_Before_After_CR_Lim_4.png").exists());
-        Assert.assertTrue(new File(outputDir, OUTPUT_PREFIX + "_Before_After_CR_Lim_4.png").length() > THRESHOLD_PLOT_FILE_SIZE_IN_BYTES);
-        Assert.assertTrue(new File(outputDir, OUTPUT_PREFIX + "_Before_After.png").exists());
-        Assert.assertTrue(new File(outputDir, OUTPUT_PREFIX + "_Before_After.png").length() > THRESHOLD_PLOT_FILE_SIZE_IN_BYTES);
+        Assert.assertTrue(new File(outputDir, OUTPUT_PREFIX + ".denoisingLimit4.png").exists());
+        Assert.assertTrue(new File(outputDir, OUTPUT_PREFIX + ".denoisingLimit4.png").length() > THRESHOLD_PLOT_FILE_SIZE_IN_BYTES);
+        Assert.assertTrue(new File(outputDir, OUTPUT_PREFIX + ".denoising.png").exists());
+        Assert.assertTrue(new File(outputDir, OUTPUT_PREFIX + ".denoising.png").length() > THRESHOLD_PLOT_FILE_SIZE_IN_BYTES);
         Assert.assertTrue(new File(outputDir, OUTPUT_PREFIX + "_preQc.txt").exists());
         Assert.assertTrue(new File(outputDir, OUTPUT_PREFIX + "_preQc.txt").length() > 0);
         Assert.assertTrue(new File(outputDir, OUTPUT_PREFIX + "_postQc.txt").exists());

@@ -33,6 +33,23 @@ public final class PlotModeledSegmentsIntegrationTest extends CommandLineProgram
     //checks that output files with reasonable file sizes are generated, but correctness of output is not checked
     @Test
     public void testPlotting() {
+        final File outputDir = new File("/home/slee/working/gatk"); //createTempDir("testDir");
+        final String[] arguments = {
+                "-" + CopyNumberStandardArgument.DENOISED_COPY_RATIOS_FILE_SHORT_NAME, DENOISED_COPY_RATIOS_FILE.getAbsolutePath(),
+                "-" + CopyNumberStandardArgument.ALLELIC_COUNTS_FILE_SHORT_NAME, ALLELIC_COUNTS_FILE.getAbsolutePath(),
+                "-" + CopyNumberStandardArgument.SEGMENTS_FILE_SHORT_NAME, MODELED_SEGMENTS_FILE.getAbsolutePath(),
+                "-" + StandardArgumentDefinitions.SEQUENCE_DICTIONARY_SHORT_NAME, SEQUENCE_DICTIONARY_FILE.getAbsolutePath(),
+                "-" + StandardArgumentDefinitions.OUTPUT_SHORT_NAME, outputDir.getAbsolutePath(),
+                "-" + CopyNumberStandardArgument.OUTPUT_PREFIX_SHORT_NAME, OUTPUT_PREFIX
+        };
+        runCommandLine(arguments);
+        Assert.assertTrue(new File(outputDir, OUTPUT_PREFIX + ".modeledSegments.png").exists());
+        Assert.assertTrue(new File(outputDir, OUTPUT_PREFIX + ".modeledSegments.png").length() > THRESHOLD_PLOT_FILE_SIZE_IN_BYTES);
+    }
+
+    //checks that output files with reasonable file sizes are generated, but correctness of output is not checked
+    @Test
+    public void testPlottingWGS() {
         final File outputDir = createTempDir("testDir");
         final String[] arguments = {
                 "-" + CopyNumberStandardArgument.DENOISED_COPY_RATIOS_FILE_SHORT_NAME, DENOISED_COPY_RATIOS_FILE.getAbsolutePath(),
@@ -43,8 +60,8 @@ public final class PlotModeledSegmentsIntegrationTest extends CommandLineProgram
                 "-" + CopyNumberStandardArgument.OUTPUT_PREFIX_SHORT_NAME, OUTPUT_PREFIX
         };
         runCommandLine(arguments);
-        Assert.assertTrue(new File(outputDir, OUTPUT_PREFIX + "_modeled_segments.png").exists());
-        Assert.assertTrue(new File(outputDir, OUTPUT_PREFIX + "_modeled_segments.png").length() > THRESHOLD_PLOT_FILE_SIZE_IN_BYTES);
+        Assert.assertTrue(new File(outputDir, OUTPUT_PREFIX + ".modeledSegments.png").exists());
+        Assert.assertTrue(new File(outputDir, OUTPUT_PREFIX + ".modeledSegments.png").length() > THRESHOLD_PLOT_FILE_SIZE_IN_BYTES);
     }
 
     @Test
@@ -58,8 +75,8 @@ public final class PlotModeledSegmentsIntegrationTest extends CommandLineProgram
                 "-" + CopyNumberStandardArgument.OUTPUT_PREFIX_SHORT_NAME, OUTPUT_PREFIX
         };
         runCommandLine(arguments);
-        Assert.assertTrue(new File(outputDir, OUTPUT_PREFIX + "_modeled_segments.png").exists());
-        Assert.assertTrue(new File(outputDir, OUTPUT_PREFIX + "_modeled_segments.png").length() > THRESHOLD_PLOT_FILE_SIZE_IN_BYTES);
+        Assert.assertTrue(new File(outputDir, OUTPUT_PREFIX + ".modeledSegments.png").exists());
+        Assert.assertTrue(new File(outputDir, OUTPUT_PREFIX + ".modeledSegments.png").length() > THRESHOLD_PLOT_FILE_SIZE_IN_BYTES);
     }
 
     @Test
@@ -73,8 +90,8 @@ public final class PlotModeledSegmentsIntegrationTest extends CommandLineProgram
                 "-" + CopyNumberStandardArgument.OUTPUT_PREFIX_SHORT_NAME, OUTPUT_PREFIX
         };
         runCommandLine(arguments);
-        Assert.assertTrue(new File(outputDir, OUTPUT_PREFIX + "_modeled_segments.png").exists());
-        Assert.assertTrue(new File(outputDir, OUTPUT_PREFIX + "_modeled_segments.png").length() > THRESHOLD_PLOT_FILE_SIZE_IN_BYTES);
+        Assert.assertTrue(new File(outputDir, OUTPUT_PREFIX + ".modeledSegments.png").exists());
+        Assert.assertTrue(new File(outputDir, OUTPUT_PREFIX + ".modeledSegments.png").length() > THRESHOLD_PLOT_FILE_SIZE_IN_BYTES);
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)

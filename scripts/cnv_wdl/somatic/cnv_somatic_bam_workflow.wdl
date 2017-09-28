@@ -290,7 +290,7 @@ task PlotDenoisedCopyRatios {
     }
 
     output {
-        File denoised_copy_ratios_plot = "${output_dir_}/${entity_id}_Before_After.png"
-        File denoised_copy_ratios_lim_4_plot = "${output_dir_}/${entity_id}_Before_After_CR_Lim_4.png"
+        File denoised_copy_ratios_plot = "${output_dir_}/${entity_id}.denoising.png"
+        File denoised_copy_ratios_lim_4_plot = "${output_dir_}/${entity_id}.denoisingLimit4.png"
     }
 }

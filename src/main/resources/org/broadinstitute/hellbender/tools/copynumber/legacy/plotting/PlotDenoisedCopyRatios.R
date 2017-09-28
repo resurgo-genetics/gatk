@@ -57,26 +57,26 @@ write_denoising_plots = function(standardized_file, denoised_file, contig_names,
     pre_color_blue="#3B5DFF"
     post_color_green="#4FC601"
     #plot over full range
-    plot_before_after_full_file = file.path(output_dir, paste(output_prefix, "_Before_After.png", sep=""))
-    png(plot_before_after_full_file, 12, 7, units="in", type="cairo", res=300, bg="white")
+    denoising_plot_file = file.path(output_dir, paste(output_prefix, ".denoising.png", sep=""))
+    png(denoising_plot_file, 12, 7, units="in", type="cairo", res=300, bg="white")
     par(mfrow=c(2,1), cex=0.75, las=1)
     SetUpPlot("Standardized copy ratio", 0, max(standardized$COPY_RATIO), paste("After standardization, QC = ", round(preQc, 3), sep=""), contig_names, contig_starts, contig_ends, FALSE)
-    PlotCopyRatio(standardized, pre_color_blue, contig_names, contig_starts)
+    PlotCopyRatios(standardized, pre_color_blue, contig_names, contig_starts)
     SetUpPlot("Denoised copy ratio", 0, max(denoised$COPY_RATIO), paste("After denoising, QC = ", round(postQc, 3), sep=""), contig_names, contig_starts, contig_ends, TRUE)
-    PlotCopyRatio(denoised, post_color_green, contig_names, contig_starts)
+    PlotCopyRatios(denoised, post_color_green, contig_names, contig_starts)
     dev.off()
     #plot up to CR = 4
-    plot_before_after_CR_lim_file = file.path(output_dir, paste(output_prefix, "_Before_After_CR_Lim_4.png", sep=""))
-    png(plot_before_after_CR_lim_file, 12, 7, units="in", type="cairo", res=300, bg="white")
+    denoising_limit_plot_file = file.path(output_dir, paste(output_prefix, ".denoisingLimit4.png", sep=""))
+    png(denoising_limit_plot_file, 12, 7, units="in", type="cairo", res=300, bg="white")
     par(mfrow=c(2,1), cex=0.75, las=1)
     SetUpPlot("Standardized copy ratio", 0, 4, paste("After standardization, QC = ", round(preQc, 3), sep=""), contig_names, contig_starts, contig_ends, FALSE)
-    PlotCopyRatio(standardized, pre_color_blue, contig_names, contig_starts)
+    PlotCopyRatios(standardized, pre_color_blue, contig_names, contig_starts)
     SetUpPlot("Denoised copy ratio", 0, 4, paste("After denoising, QC = ", round(postQc, 3), sep=""), contig_names, contig_starts, contig_ends, TRUE)
-    PlotCopyRatio(denoised, post_color_green, contig_names, contig_starts)
+    PlotCopyRatios(denoised, post_color_green, contig_names, contig_starts)
     dev.off()
 
     #check for created files and quit with error code if not found
-    if (!all(file.exists(c(plot_before_after_full_file, plot_before_after_CR_lim_file)))) {
+    if (!all(file.exists(c(denoising_plot_file, denoising_limit_plot_file)))) {
         quit(save="no", status=1, runLast=FALSE)
     }
 }

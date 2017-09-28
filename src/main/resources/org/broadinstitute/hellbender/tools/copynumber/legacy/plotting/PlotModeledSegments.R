@@ -43,12 +43,12 @@ write_modeled_segments_plot = function(sample_name, allelic_counts_file, denoise
     copy_ratio$COPY_RATIO = 2^copy_ratio$LOG2_COPY_RATIO
 
     #plot CR and AAF data and segment posteriors
-    plot_file = file.path(output_dir, paste(output_prefix, "_modeled_segments.png", sep=""))
+    plot_file = file.path(output_dir, paste(output_prefix, ".modeledSegments.png", sep=""))
     png(plot_file, 12, 7, units="in", type="cairo", res=300, bg="white")
     par(mfrow=c(2,1), cex=0.75, las=1)
     SetUpPlot("Denoised copy ratio", 0, 4, "Contig", contig_names, contig_starts, contig_ends, TRUE)
-    PlotCopyRatioWithModeledSegments(copy_ratio, modeled_segments, contig_names, contig_starts, TRUE)
-    SetUpPlot("Alternate-allele fraction", 0, 0.5, "Contig", contig_names, contig_starts, contig_ends, TRUE)
+    PlotCopyRatioWithModeledSegments(copy_ratio, modeled_segments, contig_names, contig_starts)
+    SetUpPlot("Alternate-allele fraction", 0, 1.0, "Contig", contig_names, contig_starts, contig_ends, TRUE)
     PlotAlternateAlleleFractionWithModeledSegments(allelic_counts, modeled_segments, contig_names, contig_starts)
     dev.off()
 

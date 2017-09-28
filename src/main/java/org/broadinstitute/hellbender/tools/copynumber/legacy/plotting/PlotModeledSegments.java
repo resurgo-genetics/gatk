@@ -10,6 +10,7 @@ import org.broadinstitute.hellbender.exceptions.UserException;
 import org.broadinstitute.hellbender.tools.copynumber.allelic.alleliccount.AllelicCountCollection;
 import org.broadinstitute.hellbender.tools.copynumber.legacy.coverage.copyratio.CopyRatioCollection;
 import org.broadinstitute.hellbender.tools.copynumber.legacy.formats.CopyNumberStandardArgument;
+import org.broadinstitute.hellbender.tools.copynumber.legacy.multidimensional.model.ModeledSegment;
 import org.broadinstitute.hellbender.tools.copynumber.legacy.multidimensional.model.ModeledSegmentCollection;
 import org.broadinstitute.hellbender.utils.R.RScriptExecutor;
 import org.broadinstitute.hellbender.utils.Utils;
@@ -127,6 +128,9 @@ public final class PlotModeledSegments extends CommandLineProgram {
         //get sample name from input files (consistency check is performed)
         final String sampleName = getSampleName();
 
+        //check that the number of copy-ratio/allele-fraction points in each segment are correct
+        validateNumPoints();
+
         //load contig names and lengths from the sequence dictionary into a LinkedHashMap
         final Map<String, Integer> contigLengthMap = PlottingUtils.getContigLengthMap(sequenceDictionaryFile, minContigLength, logger);
 
@@ -169,6 +173,17 @@ public final class PlotModeledSegments extends CommandLineProgram {
                     "Sample names in input files do not all match.");
         }
         return modeledSegments.getSampleName();
+    }
+
+    private void validateNumPoints() {
+        if (inputDenoisedCopyRatiosFile != null) {
+            Utils.validateArg(denoisedCopyRatios.getRecords().size() == modeledSegments.getRecords().stream().mapToDouble(ModeledSegment::getNumPointsCopyRatio).sum(),
+                    "Number of denoised copy-ratio points in input segments is inconsistent with that in input denoised copy-ratio file.");
+        }
+        if (inputAllelicCountsFile != null) {
+            Utils.validateArg(allelicCounts.getRecords().size() == modeledSegments.getRecords().stream().mapToDouble(ModeledSegment::getNumPointsAlleleFraction).sum(),
+                    "Number of allele-fraction points in input segments is inconsistent with that in input allelic-counts file.");
+        }
     }
 
     /**
