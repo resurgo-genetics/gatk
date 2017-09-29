@@ -12,7 +12,6 @@ import org.broadinstitute.barclay.help.DocumentedFeature;
 import org.broadinstitute.hellbender.cmdline.StandardArgumentDefinitions;
 import org.broadinstitute.hellbender.cmdline.programgroups.CopyNumberProgramGroup;
 import org.broadinstitute.hellbender.engine.spark.SparkCommandLineProgram;
-import org.broadinstitute.hellbender.exceptions.UserException;
 import org.broadinstitute.hellbender.tools.copynumber.allelic.alleliccount.AllelicCount;
 import org.broadinstitute.hellbender.tools.copynumber.allelic.alleliccount.AllelicCountCollection;
 import org.broadinstitute.hellbender.tools.copynumber.legacy.allelic.segmentation.AlleleFractionKernelSegmenter;
@@ -55,8 +54,8 @@ public final class ModelSegments extends SparkCommandLineProgram {
     private static final double GENOTYPING_P_VALUE_THRESHOLD = 0.01;
 
     //filename tags for output
-    public static final String FILTERED_ALLELIC_COUNTS_FILE_SUFFIX = ".filtered.allelicCounts.tsv";
-    public static final String HET_ALLELIC_COUNTS_FILE_SUFFIX = ".het.allelicCounts.tsv";
+    public static final String FILTERED_ALLELIC_COUNTS_FILE_SUFFIX = ".filtered.tsv";
+    public static final String HET_ALLELIC_COUNTS_FILE_SUFFIX = ".het.tsv";
     public static final String SEGMENTS_FILE_SUFFIX = ".seg";
     public static final String COPY_RATIO_SEGMENTS_FILE_SUFFIX = ".cr" + SEGMENTS_FILE_SUFFIX;
     public static final String ALLELE_FRACTION_SEGMENTS_FILE_SUFFIX = ".af" + SEGMENTS_FILE_SUFFIX;
@@ -406,11 +405,8 @@ public final class ModelSegments extends SparkCommandLineProgram {
                 unfilteredAllelicCounts.getRecords().stream()
                         .filter(ac -> ac.getRefReadCount() + ac.getAltReadCount() >= minTotalAlleleCount)
                         .collect(Collectors.toList()));
-        final File filteredAllelicCountsFile = new File(outputDir, outputPrefix + FILTERED_ALLELIC_COUNTS_FILE_SUFFIX);
-        filteredAllelicCounts.write(filteredAllelicCountsFile);
         logger.info(String.format("Retained %d / %d sites after filtering on total count...",
                 filteredAllelicCounts.getRecords().size(), unfilteredAllelicCounts.getRecords().size()));
-        logger.info(String.format("Filtered allelic counts written to %s.", filteredAllelicCountsFile));
 
         hetAllelicCounts = new AllelicCountCollection(
                 unfilteredAllelicCounts.getSampleName(),
@@ -467,7 +463,10 @@ public final class ModelSegments extends SparkCommandLineProgram {
                                                           final ACNVModeller modeller,
                                                           final String fileTag) {
         final List<ACNVModeledSegment> acnvModeledSegments = modeller.getACNVModeledSegments();
-        final OverlapDetector<CopyRatio> copyRatioOverlapDetector = OverlapDetector.create(denoisedCopyRatios.getRecords());
+        final OverlapDetector<CopyRatio> copyRatioOverlapDetector = OverlapDetector.create(
+                denoisedCopyRatios.getRecords().stream()
+                        .map(cr -> new CopyRatio(cr.getMidpoint(), cr.getLog2CopyRatioValue())) //map copy-ratio intervals to their midpoints so that each will be uniquely contained in a single segment
+                        .collect(Collectors.toList()));
         final OverlapDetector<AllelicCount> allelicCountOverlapDetector = OverlapDetector.create(hetAllelicCounts.getRecords());
         final List<ModeledSegment> modeledSegmentsList = acnvModeledSegments.stream()
                 .map(s -> new ModeledSegment(

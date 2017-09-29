@@ -9,49 +9,49 @@ import org.junit.Test;
  * Created by slee on 9/6/17.
  */
 public class ModelSegmentsIntegrationTest extends CommandLineProgramTest {
-    @Test
-    public void testWGSChr21() {
-        final String[] arguments = {
-                "-" + CopyNumberStandardArgument.DENOISED_COPY_RATIOS_FILE_SHORT_NAME, "/home/slee/working/gatk/TCGA-05-4389-01A-01D-1931-08.chr21.denoisedCR.tsv",
-                "-" + CopyNumberStandardArgument.ALLELIC_COUNTS_FILE_SHORT_NAME, "/home/slee/working/gatk/TCGA-05-4389-01A-01D-1931-08.chr21.allelicCounts.tsv",
-                "-" + CopyNumberStandardArgument.OUTPUT_PREFIX_SHORT_NAME, "TCGA-05-4389-01A-01D-1931-08.chr21",
-                "-" + StandardArgumentDefinitions.OUTPUT_SHORT_NAME, "/home/slee/working/gatk",
-                "-" + ModelSegments.NUM_SAMPLES_COPY_RATIO_SHORT_NAME, "25",
-                "-" + ModelSegments.NUM_BURN_IN_COPY_RATIO_SHORT_NAME, "10",
-                "-" + ModelSegments.NUM_SAMPLES_ALLELE_FRACTION_SHORT_NAME, "25",
-                "-" +ModelSegments. NUM_BURN_IN_ALLELE_FRACTION_SHORT_NAME, "10",
-                "-" + StandardArgumentDefinitions.VERBOSITY_NAME, "INFO"
-        };
-        runCommandLine(arguments);
-    }
-
-    @Test
-    public void testWGSChr20Chr21() {
-        final String[] arguments = {
-                "-" + CopyNumberStandardArgument.DENOISED_COPY_RATIOS_FILE_SHORT_NAME, "/home/slee/working/gatk/TCGA-05-4389-01A-01D-1931-08.chr20-chr21.denoisedCR.tsv",
-                "-" + CopyNumberStandardArgument.ALLELIC_COUNTS_FILE_SHORT_NAME, "/home/slee/working/gatk/TCGA-05-4389-01A-01D-1931-08.chr20-chr21.allelicCounts.tsv",
-                "-" + CopyNumberStandardArgument.OUTPUT_PREFIX_SHORT_NAME, "TCGA-05-4389-01A-01D-1931-08.chr20-chr21",
-                "-" + StandardArgumentDefinitions.OUTPUT_SHORT_NAME, "/home/slee/working/gatk",
-                "-" + ModelSegments.NUM_SAMPLES_COPY_RATIO_SHORT_NAME, "25",
-                "-" + ModelSegments.NUM_BURN_IN_COPY_RATIO_SHORT_NAME, "10",
-                "-" + ModelSegments.NUM_SAMPLES_ALLELE_FRACTION_SHORT_NAME, "25",
-                "-" +ModelSegments. NUM_BURN_IN_ALLELE_FRACTION_SHORT_NAME, "10",
-                "-" + StandardArgumentDefinitions.VERBOSITY_NAME, "INFO"
-        };
-        runCommandLine(arguments);
-    }
-
-    @Test
-    public void testWGS() {
-        final String[] arguments = {
-                "-" + CopyNumberStandardArgument.DENOISED_COPY_RATIOS_FILE_SHORT_NAME, "/home/slee/working/gatk/TCGA-05-4389-01A-01D-1931-08.denoisedCR.tsv",
-                "-" + CopyNumberStandardArgument.ALLELIC_COUNTS_FILE_SHORT_NAME, "/home/slee/working/gatk/TCGA-05-4389-01A-01D-1931-08.allelicCounts.tsv",
-                "-" + CopyNumberStandardArgument.OUTPUT_PREFIX_SHORT_NAME, "TCGA-05-4389-01A-01D-1931-08",
-                "-" + StandardArgumentDefinitions.OUTPUT_SHORT_NAME, "/home/slee/working/gatk",
-                "-" + StandardArgumentDefinitions.VERBOSITY_NAME, "INFO"
-        };
-        runCommandLine(arguments);
-    }
+//    @Test
+//    public void testWGSChr21() {
+//        final String[] arguments = {
+//                "-" + CopyNumberStandardArgument.DENOISED_COPY_RATIOS_FILE_SHORT_NAME, "/home/slee/working/gatk/TCGA-05-4389-01A-01D-1931-08.chr21.denoisedCR.tsv",
+//                "-" + CopyNumberStandardArgument.ALLELIC_COUNTS_FILE_SHORT_NAME, "/home/slee/working/gatk/TCGA-05-4389-01A-01D-1931-08.chr21.allelicCounts.tsv",
+//                "-" + CopyNumberStandardArgument.OUTPUT_PREFIX_SHORT_NAME, "TCGA-05-4389-01A-01D-1931-08.chr21",
+//                "-" + StandardArgumentDefinitions.OUTPUT_SHORT_NAME, "/home/slee/working/gatk",
+//                "-" + ModelSegments.NUM_SAMPLES_COPY_RATIO_SHORT_NAME, "25",
+//                "-" + ModelSegments.NUM_BURN_IN_COPY_RATIO_SHORT_NAME, "10",
+//                "-" + ModelSegments.NUM_SAMPLES_ALLELE_FRACTION_SHORT_NAME, "25",
+//                "-" +ModelSegments. NUM_BURN_IN_ALLELE_FRACTION_SHORT_NAME, "10",
+//                "-" + StandardArgumentDefinitions.VERBOSITY_NAME, "INFO"
+//        };
+//        runCommandLine(arguments);
+//    }
+//
+//    @Test
+//    public void testWGSChr20Chr21() {
+//        final String[] arguments = {
+//                "-" + CopyNumberStandardArgument.DENOISED_COPY_RATIOS_FILE_SHORT_NAME, "/home/slee/working/gatk/TCGA-05-4389-01A-01D-1931-08.chr20-chr21.denoisedCR.tsv",
+//                "-" + CopyNumberStandardArgument.ALLELIC_COUNTS_FILE_SHORT_NAME, "/home/slee/working/gatk/TCGA-05-4389-01A-01D-1931-08.chr20-chr21.allelicCounts.tsv",
+//                "-" + CopyNumberStandardArgument.OUTPUT_PREFIX_SHORT_NAME, "TCGA-05-4389-01A-01D-1931-08.chr20-chr21",
+//                "-" + StandardArgumentDefinitions.OUTPUT_SHORT_NAME, "/home/slee/working/gatk",
+//                "-" + ModelSegments.NUM_SAMPLES_COPY_RATIO_SHORT_NAME, "25",
+//                "-" + ModelSegments.NUM_BURN_IN_COPY_RATIO_SHORT_NAME, "10",
+//                "-" + ModelSegments.NUM_SAMPLES_ALLELE_FRACTION_SHORT_NAME, "25",
+//                "-" +ModelSegments. NUM_BURN_IN_ALLELE_FRACTION_SHORT_NAME, "10",
+//                "-" + StandardArgumentDefinitions.VERBOSITY_NAME, "INFO"
+//        };
+//        runCommandLine(arguments);
+//    }
+//
+//    @Test
+//    public void testWGS() {
+//        final String[] arguments = {
+//                "-" + CopyNumberStandardArgument.DENOISED_COPY_RATIOS_FILE_SHORT_NAME, "/home/slee/working/gatk/TCGA-05-4389-01A-01D-1931-08.denoisedCR.tsv",
+//                "-" + CopyNumberStandardArgument.ALLELIC_COUNTS_FILE_SHORT_NAME, "/home/slee/working/gatk/TCGA-05-4389-01A-01D-1931-08.allelicCounts.tsv",
+//                "-" + CopyNumberStandardArgument.OUTPUT_PREFIX_SHORT_NAME, "TCGA-05-4389-01A-01D-1931-08",
+//                "-" + StandardArgumentDefinitions.OUTPUT_SHORT_NAME, "/home/slee/working/gatk",
+//                "-" + StandardArgumentDefinitions.VERBOSITY_NAME, "INFO"
+//        };
+//        runCommandLine(arguments);
+//    }
 
 //    @Test
 //    public void testWES() {

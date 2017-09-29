@@ -110,7 +110,10 @@ public final class CRAFSegmentCollection extends TSVLocatableCollection<CRAFSegm
             logger.info(String.format("Merging segments with less than %d copy-ratio intervals...", numCopyRatioIntervalsSmallSegmentThreshold));
             final SegmentedGenome segmentedGenomeWithSmallSegments = new SegmentedGenome(unionedSegments, genome);
             final SegmentedGenome segmentedGenome = segmentedGenomeWithSmallSegments.mergeSmallSegments(numCopyRatioIntervalsSmallSegmentThreshold);
-            final OverlapDetector<CopyRatio> copyRatioOverlapDetector = OverlapDetector.create(denoisedCopyRatios.getRecords());
+            final OverlapDetector<CopyRatio> copyRatioOverlapDetector = OverlapDetector.create(
+                    denoisedCopyRatios.getRecords().stream()
+                            .map(cr -> new CopyRatio(cr.getMidpoint(), cr.getLog2CopyRatioValue())) //map copy-ratio intervals to their midpoints so that each will be uniquely contained in a single segment
+                            .collect(Collectors.toList()));
             final OverlapDetector<AllelicCount> allelicCountOverlapDetector = OverlapDetector.create(allelicCounts.getRecords());
             crafSegments = segmentedGenome.getSegments().stream()
                     .map(s -> new CRAFSegment(

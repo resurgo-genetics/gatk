@@ -9,7 +9,6 @@ import org.testng.Assert;
 import org.testng.annotations.Test;
 
 import java.io.File;
-import java.io.IOException;
 
 public final class PlotDenoisedCopyRatiosIntegrationTest extends CommandLineProgramTest {
     private static final String TEST_SUB_DIR = toolsTestDir + "copynumber/legacy/plotting/";

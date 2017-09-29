@@ -2,10 +2,12 @@
 options(error = quote({dump.frames(dumpto = "plotting_dump", to.file = TRUE); q(status = 1)}))    # Useful for debugging
 
 library(optparse)
+library(data.table)
+
 option_list = list(
     make_option(c("--sample_name", "-sample_name"), dest="sample_name", action="store"),
-    make_option(c("--standardized_file", "-standardized_file"), dest="standardized_file", action="store"),
-    make_option(c("--denoised_file", "-denoised_file"), dest="denoised_file", action="store"),
+    make_option(c("--standardized_copy_ratios_file", "-standardized_copy_ratios_file"), dest="standardized_copy_ratios_file", action="store"),
+    make_option(c("--denoised_copy_ratios_file", "-denoised_copy_ratios_file"), dest="denoised_copy_ratios_file", action="store"),
     make_option(c("--contig_names", "-contig_names"), dest="contig_names", action="store"),         #string with elements separated by "CONTIG_DELIMITER"
     make_option(c("--contig_lengths", "-contig_lengths"), dest="contig_lengths", action="store"),   #string with elements separated by "CONTIG_DELIMITER"
     make_option(c("--output_dir", "-output_dir"), dest="output_dir", action="store"),
@@ -14,15 +16,15 @@ option_list = list(
 opt = parse_args(OptionParser(option_list=option_list))
 
 sample_name = opt[["sample_name"]]
-standardized_file = opt[["standardized_file"]]
-denoised_file = opt[["denoised_file"]]
+standardized_copy_ratios_file = opt[["standardized_copy_ratios_file"]]
+denoised_copy_ratios_file = opt[["denoised_copy_ratios_file"]]
 contig_names_string = opt[["contig_names"]]
 contig_lengths_string = opt[["contig_lengths"]]
 output_dir = opt[["output_dir"]]
 output_prefix = opt[["output_prefix"]]
 
 #check that input files exist; if not, quit with error code that GATK will pick up
-if (!all(file.exists(c(standardized_file, denoised_file)))) {
+if (!all(file.exists(c(standardized_copy_ratios_file, denoised_copy_ratios_file)))) {
     quit(save="no", status=1, runLast=FALSE)
 }
 
@@ -36,18 +38,17 @@ CalculateQc = function(dat) {
 }
 
 #plotting is extracted to a function for debugging purposes
-write_denoising_plots = function(standardized_file, denoised_file, contig_names, output_dir, output_prefix) {
-    #read in files and extract needed data
-    standardized = read.table(standardized_file, sep="\t", stringsAsFactors=FALSE, header=TRUE, check.names=FALSE)
-    denoised = read.table(denoised_file, sep="\t", stringsAsFactors=FALSE, header=TRUE, check.names=FALSE)
+write_denoising_plots = function(standardized_copy_ratios_file, denoised_copy_ratios_file, contig_names, output_dir, output_prefix) {
+    standardized_copy_ratios_df = suppressWarnings(fread(standardized_copy_ratios_file, sep="\t", stringsAsFactors=FALSE, header=TRUE, check.names=FALSE, data.table=FALSE, showProgress=FALSE, verbose=FALSE))
+    denoised_copy_ratios_df = suppressWarnings(fread(denoised_copy_ratios_file, sep="\t", stringsAsFactors=FALSE, header=TRUE, check.names=FALSE, data.table=FALSE, showProgress=FALSE, verbose=FALSE))
 
     #transform to linear copy ratio
-    standardized$COPY_RATIO = 2^standardized$LOG2_COPY_RATIO
-    denoised$COPY_RATIO = 2^denoised$LOG2_COPY_RATIO
+    standardized_copy_ratios_df$COPY_RATIO = 2^standardized_copy_ratios_df$LOG2_COPY_RATIO
+    denoised_copy_ratios_df$COPY_RATIO = 2^denoised_copy_ratios_df$LOG2_COPY_RATIO
 
     #write the QC files
-    preQc = CalculateQc(standardized$COPY_RATIO)
-    postQc = CalculateQc(denoised$COPY_RATIO)
+    preQc = CalculateQc(standardized_copy_ratios_df$COPY_RATIO)
+    postQc = CalculateQc(denoised_copy_ratios_df$COPY_RATIO)
     write.table(round(preQc, 3), file.path(output_dir, paste(output_prefix, "_preQc.txt", sep="")), col.names=FALSE, row.names=FALSE)
     write.table(round(postQc, 3), file.path(output_dir, paste(output_prefix, "_postQc.txt", sep="")), col.names=FALSE, row.names=FALSE)
     write.table(round(preQc - postQc, 3), file.path(output_dir, paste(output_prefix, "_dQc.txt", sep="")), col.names=FALSE, row.names=FALSE)
@@ -60,19 +61,19 @@ write_denoising_plots = function(standardized_file, denoised_file, contig_names,
     denoising_plot_file = file.path(output_dir, paste(output_prefix, ".denoising.png", sep=""))
     png(denoising_plot_file, 12, 7, units="in", type="cairo", res=300, bg="white")
     par(mfrow=c(2,1), cex=0.75, las=1)
-    SetUpPlot("Standardized copy ratio", 0, max(standardized$COPY_RATIO), paste("After standardization, QC = ", round(preQc, 3), sep=""), contig_names, contig_starts, contig_ends, FALSE)
-    PlotCopyRatios(standardized, pre_color_blue, contig_names, contig_starts)
-    SetUpPlot("Denoised copy ratio", 0, max(denoised$COPY_RATIO), paste("After denoising, QC = ", round(postQc, 3), sep=""), contig_names, contig_starts, contig_ends, TRUE)
-    PlotCopyRatios(denoised, post_color_green, contig_names, contig_starts)
+    SetUpPlot("Standardized copy ratio", 0, max(standardized_copy_ratios_df$COPY_RATIO), paste("After standardization, QC = ", round(preQc, 3), sep=""), contig_names, contig_starts, contig_ends, FALSE)
+    PlotCopyRatios(standardized_copy_ratios_df, pre_color_blue, contig_names, contig_starts)
+    SetUpPlot("Denoised copy ratio", 0, max(denoised_copy_ratios_df$COPY_RATIO), paste("After denoising, QC = ", round(postQc, 3), sep=""), contig_names, contig_starts, contig_ends, TRUE)
+    PlotCopyRatios(denoised_copy_ratios_df, post_color_green, contig_names, contig_starts)
     dev.off()
     #plot up to CR = 4
     denoising_limit_plot_file = file.path(output_dir, paste(output_prefix, ".denoisingLimit4.png", sep=""))
     png(denoising_limit_plot_file, 12, 7, units="in", type="cairo", res=300, bg="white")
     par(mfrow=c(2,1), cex=0.75, las=1)
     SetUpPlot("Standardized copy ratio", 0, 4, paste("After standardization, QC = ", round(preQc, 3), sep=""), contig_names, contig_starts, contig_ends, FALSE)
-    PlotCopyRatios(standardized, pre_color_blue, contig_names, contig_starts)
+    PlotCopyRatios(standardized_copy_ratios_df, pre_color_blue, contig_names, contig_starts)
     SetUpPlot("Denoised copy ratio", 0, 4, paste("After denoising, QC = ", round(postQc, 3), sep=""), contig_names, contig_starts, contig_ends, TRUE)
-    PlotCopyRatios(denoised, post_color_green, contig_names, contig_starts)
+    PlotCopyRatios(denoised_copy_ratios_df, post_color_green, contig_names, contig_starts)
     dev.off()
 
     #check for created files and quit with error code if not found
@@ -81,4 +82,4 @@ write_denoising_plots = function(standardized_file, denoised_file, contig_names,
     }
 }
 
-write_denoising_plots(standardized_file, denoised_file, contig_names, output_dir, output_prefix)
+write_denoising_plots(standardized_copy_ratios_file, denoised_copy_ratios_file, contig_names, output_dir, output_prefix)

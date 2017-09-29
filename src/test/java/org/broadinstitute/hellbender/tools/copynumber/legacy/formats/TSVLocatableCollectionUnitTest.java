@@ -25,8 +25,10 @@ import java.util.function.Function;
  */
 public final class TSVLocatableCollectionUnitTest extends BaseTest {
     private static final String TEST_SUB_DIR = toolsTestDir + "copynumber/legacy/formats";
-    private static final File SIMPLE_LOCATABLE_COLLECTION_FILE = new File(TEST_SUB_DIR, "tsv-locatable-collection-simple-locatable-collection.tsv");
-    private static final File SIMPLE_LOCATABLE_COLLECTION_BAD_ORDER_FILE = new File(TEST_SUB_DIR, "tsv-locatable-collection-simple-locatable-collection-bad-order.tsv");
+    private static final File SIMPLE_LOCATABLE_COLLECTION_FILE =
+            new File(TEST_SUB_DIR, "tsv-locatable-collection-simple-locatable-collection.tsv");
+    private static final File SIMPLE_LOCATABLE_COLLECTION_NON_LEXICOGRAPHICAL_ORDER_FILE =
+            new File(TEST_SUB_DIR, "tsv-locatable-collection-simple-locatable-collection-non-lexicographical-order.tsv");
     private static final String SAMPLE_NAME_EXPECTED = "test";
 
     //simple example of a record class
@@ -156,6 +158,6 @@ public final class TSVLocatableCollectionUnitTest extends BaseTest {
     
     @Test(expectedExceptions = UserException.BadInput.class)
     public void testBadOrderInput() {
-        new SimpleLocatableCollection(SIMPLE_LOCATABLE_COLLECTION_BAD_ORDER_FILE);
+        new SimpleLocatableCollection(SIMPLE_LOCATABLE_COLLECTION_NON_LEXICOGRAPHICAL_ORDER_FILE);
     }
 }

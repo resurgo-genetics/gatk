@@ -18,9 +18,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-import static org.broadinstitute.hellbender.tools.copynumber.legacy.coverage.caller.CalledCopyRatioSegment.Call.AMPLIFICATION_CALL;
-import static org.broadinstitute.hellbender.tools.copynumber.legacy.coverage.caller.CalledCopyRatioSegment.Call.DELETION_CALL;
-import static org.broadinstitute.hellbender.tools.copynumber.legacy.coverage.caller.CalledCopyRatioSegment.Call.NEUTRAL_CALL;
+import static org.broadinstitute.hellbender.tools.copynumber.legacy.coverage.caller.CalledCopyRatioSegment.Call.*;
 
 public final class ReCapSegCallerUnitTest extends BaseTest {
     @Test

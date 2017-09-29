@@ -2,13 +2,11 @@ package org.broadinstitute.hellbender.tools.copynumber.legacy.multidimensional.s
 
 import htsjdk.samtools.util.Locatable;
 import org.broadinstitute.hellbender.tools.copynumber.allelic.alleliccount.AllelicCount;
-import org.broadinstitute.hellbender.tools.copynumber.legacy.allelic.segmentation.AlleleFractionSegment;
 import org.broadinstitute.hellbender.tools.copynumber.legacy.coverage.segmentation.CopyRatioSegment;
 import org.broadinstitute.hellbender.utils.SimpleInterval;
 import org.broadinstitute.hellbender.utils.Utils;
 
 import java.util.List;
-import java.util.OptionalDouble;
 
 public class CRAFSegment implements Locatable {
     private final SimpleInterval interval;

@@ -2,9 +2,11 @@
 options(error = quote({dump.frames(dumpto = "plotting_dump", to.file = TRUE); q(status = 1)}))    # Useful for debugging
 
 library(optparse)
+library(data.table)
+
 option_list = list(
 make_option(c("--sample_name", "-sample_name"), dest="sample_name", action="store"),
-make_option(c("--denoised_file", "-denoised_file"), dest="denoised_file", action="store"),
+make_option(c("--denoised_copy_ratios_file", "-denoised_copy_ratios_file"), dest="denoised_copy_ratios_file", action="store"),
 make_option(c("--allelic_counts_file", "-allelic_counts_file"), dest="allelic_counts_file", action="store"),
 make_option(c("--modeled_segments_file", "-modeled_segments_file"), dest="modeled_segments_file", action="store"),
 make_option(c("--contig_names", "-contig_names"), dest="contig_names", action="store"),         #string with elements separated by "CONTIG_DELIMITER"
@@ -14,7 +16,7 @@ make_option(c("--output_prefix", "-output_prefix"), dest="output_prefix", action
 opt = parse_args(OptionParser(option_list=option_list))
 
 sample_name = opt[["sample_name"]]
-denoised_file = opt[["denoised_file"]]
+denoised_copy_ratios_file = opt[["denoised_copy_ratios_file"]]
 allelic_counts_file = opt[["allelic_counts_file"]]
 modeled_segments_file = opt[["modeled_segments_file"]]
 contig_names_string = opt[["contig_names"]]
@@ -22,8 +24,8 @@ contig_lengths_string = opt[["contig_lengths"]]
 output_dir = opt[["output_dir"]]
 output_prefix = opt[["output_prefix"]]
 
-#check that input files exist; if not, quit with error code that GATK will pick up
-if (!all(file.exists(c(allelic_counts_file, denoised_file, modeled_segments_file)))) {
+#check that required input files exist; if not, quit with error code that GATK will pick up
+if (!file.exists(modeled_segments_file)) {
     quit(save="no", status=1, runLast=FALSE)
 }
 
@@ -33,23 +35,32 @@ contig_ends = cumsum(contig_lengths)
 contig_starts = c(0, head(contig_ends, -1))
 
 #plotting is extracted to a function for debugging purposes
-write_modeled_segments_plot = function(sample_name, allelic_counts_file, denoised_file, modeled_segments_file, contig_names, contig_lengths, output_dir, output_prefix) {
-    #set up copy ratio, allelics, and modeled_segments data frames
-    copy_ratio = read.table(denoised_file, sep="\t", stringsAsFactors=FALSE, header=TRUE, check.names=FALSE)
-    allelic_counts = read.table(allelic_counts_file, sep="\t", stringsAsFactors=FALSE, header=TRUE, check.names=FALSE)
-    modeled_segments = read.table(modeled_segments_file, sep="\t", stringsAsFactors=FALSE, header=TRUE, check.names=FALSE)
+write_modeled_segments_plot = function(sample_name, allelic_counts_file, denoised_copy_ratios_file, modeled_segments_file, contig_names, contig_lengths, output_dir, output_prefix) {
+    modeled_segments_df = suppressWarnings(fread(modeled_segments_file, sep="\t", stringsAsFactors=FALSE, header=TRUE, check.names=FALSE, data.table=FALSE, showProgress=FALSE, verbose=FALSE))
 
-    #transform to linear copy ratio
-    copy_ratio$COPY_RATIO = 2^copy_ratio$LOG2_COPY_RATIO
-
-    #plot CR and AAF data and segment posteriors
     plot_file = file.path(output_dir, paste(output_prefix, ".modeledSegments.png", sep=""))
-    png(plot_file, 12, 7, units="in", type="cairo", res=300, bg="white")
-    par(mfrow=c(2,1), cex=0.75, las=1)
-    SetUpPlot("Denoised copy ratio", 0, 4, "Contig", contig_names, contig_starts, contig_ends, TRUE)
-    PlotCopyRatioWithModeledSegments(copy_ratio, modeled_segments, contig_names, contig_starts)
-    SetUpPlot("Alternate-allele fraction", 0, 1.0, "Contig", contig_names, contig_starts, contig_ends, TRUE)
-    PlotAlternateAlleleFractionWithModeledSegments(allelic_counts, modeled_segments, contig_names, contig_starts)
+
+    num_plots = ifelse(all(file.exists(c(denoised_copy_ratios_file, allelic_counts_file))), 2, 1)
+    png(plot_file, 12, 3.5 * num_plots, units="in", type="cairo", res=300, bg="white")
+    par(mfrow=c(num_plots, 1), cex=0.75, las=1)
+
+    if (file.exists(denoised_copy_ratios_file)) {
+        denoised_copy_ratios_df = suppressWarnings(fread(denoised_copy_ratios_file, sep="\t", stringsAsFactors=FALSE, header=TRUE, check.names=FALSE, data.table=FALSE, showProgress=FALSE, verbose=FALSE))
+
+        #transform to linear copy ratio
+        denoised_copy_ratios_df$COPY_RATIO = 2^denoised_copy_ratios_df$LOG2_COPY_RATIO
+
+        SetUpPlot("Denoised copy ratio", 0, 4, "Contig", contig_names, contig_starts, contig_ends, TRUE)
+        PlotCopyRatioWithModeledSegments(denoised_copy_ratios_df, modeled_segments_df, contig_names, contig_starts)
+    }
+
+    if (file.exists(allelic_counts_file)) {
+        allelic_counts_df = suppressWarnings(fread(allelic_counts_file, sep="\t", stringsAsFactors=FALSE, header=TRUE, check.names=FALSE, data.table=FALSE, showProgress=FALSE, verbose=FALSE))
+
+        SetUpPlot("Alternate-allele fraction", 0, 1.0, "Contig", contig_names, contig_starts, contig_ends, TRUE)
+        PlotAlternateAlleleFractionWithModeledSegments(allelic_counts_df, modeled_segments_df, contig_names, contig_starts)
+    }
+
     dev.off()
 
     #check for created file and quit with error code if not found
@@ -58,4 +69,4 @@ write_modeled_segments_plot = function(sample_name, allelic_counts_file, denoise
     }
 }
 
-write_modeled_segments_plot(sample_name, allelic_counts_file, denoised_file, modeled_segments_file, contig_names, contig_lengths, output_dir, output_prefix)
+write_modeled_segments_plot(sample_name, allelic_counts_file, denoised_copy_ratios_file, modeled_segments_file, contig_names, contig_lengths, output_dir, output_prefix)

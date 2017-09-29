@@ -2,7 +2,6 @@ package org.broadinstitute.hellbender.tools.copynumber.legacy.coverage.segmentat
 
 import htsjdk.samtools.util.Locatable;
 import org.broadinstitute.hellbender.utils.GATKProtectedMathUtils;
-import org.broadinstitute.hellbender.utils.MathUtils;
 import org.broadinstitute.hellbender.utils.SimpleInterval;
 import org.broadinstitute.hellbender.utils.Utils;
 import org.broadinstitute.hellbender.utils.param.ParamUtils;

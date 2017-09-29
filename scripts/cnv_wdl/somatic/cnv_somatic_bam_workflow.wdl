@@ -9,7 +9,7 @@
 # - If a target file is not provided, then the WGS workflow will be run instead and the specified value of
 #   wgs_bin_length (default 10000) will be used.
 #
-# - The sites file (common_sites) is must be a Picard interval list.
+# - The sites file (common_sites) must be a Picard interval list.
 #
 # - Example invocation:
 #    java -jar cromwell.jar run cnv_somatic_bam_workflow.wdl myParameters.json
@@ -115,6 +115,7 @@ workflow CNVSomaticBAMWorkflow {
         File allelic_counts = CollectAllelicCounts.allelic_counts
         File standardized_copy_ratios = DenoiseReadCounts.standardized_copy_ratios
         File denoised_copy_ratios = DenoiseReadCounts.denoised_copy_ratios
+        File het_allelic_counts = ModelSegments.het_allelic_counts
         File copy_ratio_segments = ModelSegments.copy_ratio_segments
         File allele_fraction_segments = ModelSegments.allele_fraction_segments
         File modeled_segments = ModelSegments.modeled_segments
@@ -211,6 +212,7 @@ task ModelSegments {
     }
 
     output {
+        File het_allelic_counts = "${output_dir_}/${entity_id}.het.tsv"
         File copy_ratio_segments = "${output_dir_}/${entity_id}.cr.seg"
         File allele_fraction_segments = "${output_dir_}/${entity_id}.af.seg"
         File combined_segments = "${output_dir_}/${entity_id}.craf.seg"

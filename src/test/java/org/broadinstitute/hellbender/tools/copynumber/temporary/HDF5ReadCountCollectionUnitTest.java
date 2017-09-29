@@ -1,10 +1,6 @@
 package org.broadinstitute.hellbender.tools.copynumber.temporary;
 
-import org.apache.commons.math3.linear.RealMatrix;
 import org.broadinstitute.hdf5.HDF5File;
-import org.broadinstitute.hellbender.tools.exome.ReadCountCollection;
-import org.broadinstitute.hellbender.tools.exome.ReadCountCollectionUtils;
-import org.broadinstitute.hellbender.tools.exome.Target;
 import org.broadinstitute.hellbender.utils.SimpleInterval;
 import org.broadinstitute.hellbender.utils.test.BaseTest;
 import org.testng.Assert;
@@ -14,7 +10,6 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.stream.IntStream;
 
 public class HDF5ReadCountCollectionUnitTest extends BaseTest {
 

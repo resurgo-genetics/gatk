@@ -38,6 +38,16 @@ public class CopyRatio implements Locatable {
         return log2CopyRatioValue;
     }
 
+    /**
+     * The midpoint is used to characterize the interval for the purposes of determining overlaps when combining
+     * copy-ratio and allele-fraction segmentations, so that each copy-ratio interval will be uniquely contained
+     * in a single segment.
+     */
+    public SimpleInterval getMidpoint() {
+        final int midPoint = (getStart() + getEnd()) / 2;
+        return new SimpleInterval(interval.getContig(), midPoint, midPoint);
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) {

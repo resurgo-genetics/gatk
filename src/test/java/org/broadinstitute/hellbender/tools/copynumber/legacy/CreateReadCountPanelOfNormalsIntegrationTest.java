@@ -1,12 +1,6 @@
 package org.broadinstitute.hellbender.tools.copynumber.legacy;
 
 import org.broadinstitute.hellbender.CommandLineProgramTest;
-import org.broadinstitute.hellbender.cmdline.StandardArgumentDefinitions;
-import org.broadinstitute.hellbender.tools.copynumber.legacy.formats.CopyNumberStandardArgument;
-import org.broadinstitute.hellbender.tools.exome.TargetArgumentCollection;
-import org.testng.annotations.Test;
-
-import java.io.File;
 
 /**
  * Integration test for {@link CreateReadCountPanelOfNormals}.

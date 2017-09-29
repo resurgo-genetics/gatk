@@ -1,8 +1,6 @@
 package org.broadinstitute.hellbender.tools.copynumber.legacy.allelic.segmentation;
 
 import htsjdk.samtools.util.Locatable;
-import org.apache.commons.math3.stat.inference.AlternativeHypothesis;
-import org.apache.commons.math3.stat.inference.BinomialTest;
 import org.broadinstitute.hellbender.tools.copynumber.allelic.alleliccount.AllelicCount;
 import org.broadinstitute.hellbender.utils.SimpleInterval;
 import org.broadinstitute.hellbender.utils.Utils;

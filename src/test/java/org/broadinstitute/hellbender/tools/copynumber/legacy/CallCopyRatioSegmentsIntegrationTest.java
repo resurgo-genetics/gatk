@@ -14,7 +14,7 @@ import java.io.File;
  */
 public final class CallCopyRatioSegmentsIntegrationTest extends CommandLineProgramTest {
     private static final File TEST_DIR = new File(toolsTestDir, "copynumber/legacy/coverage/caller");
-    private static final File TEST_DENOISED_COPY_RATIOS = new File(TEST_DIR, "call-copy-ratio-segments-denoised-copy-ratios.denoisedCR.tsv");
+    private static final File TEST_DENOISED_COPY_RATIOS = new File(TEST_DIR, "call-copy-ratio-segments-denoised-copy-ratios.tsv");
     private static final File TEST_SEGMENTS = new File(TEST_DIR, "call-copy-ratio-segments-segments.seg");
 
     @Test
@@ -30,15 +30,5 @@ public final class CallCopyRatioSegmentsIntegrationTest extends CommandLineProgr
 
         final CalledCopyRatioSegmentCollection calledCopyRatioSegments = new CalledCopyRatioSegmentCollection(outputFile);
         Assert.assertEquals(calledCopyRatioSegments.getRecords().stream().map(s -> s.getCall().getOutputString()).toArray(), new String[] {"+", "-", "0", "0"});
-    }
-
-    @Test
-    public void testCallSegmentsWGS() {
-        final String[] arguments = {
-                "-" + CopyNumberStandardArgument.DENOISED_COPY_RATIOS_FILE_SHORT_NAME, "/home/slee/working/gatk/TCGA-05-4389-01A-01D-1931-08.chr20-chr21.denoisedCR.tsv",
-                "-" + CopyNumberStandardArgument.SEGMENTS_FILE_SHORT_NAME, "/home/slee/working/gatk/TCGA-05-4389-01A-01D-1931-08.chr20-chr21.craf.seg",
-                "-" + StandardArgumentDefinitions.OUTPUT_SHORT_NAME, "/home/slee/working/gatk/TCGA-05-4389-01A-01D-1931-08.chr20-chr21.called.seg"
-        };
-        runCommandLine(arguments);
     }
 }

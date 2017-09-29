@@ -21,9 +21,9 @@ import java.util.List;
  */
 public final class DenoiseReadCountsIntegrationTest extends CommandLineProgramTest {
     private static final String TEST_SUB_DIR = toolsTestDir + "copynumber/legacy/coverage/denoising";
-    private static final File WGS_READ_COUNTS_TSV_FILE = new File(TEST_SUB_DIR, "denoise-read-counts-wgs-read-counts-HCC1143_BL-n1-chr20-downsampled-deduplicated.readCounts.tsv");
-    private static final File WGS_READ_COUNTS_HDF5_FILE = new File(TEST_SUB_DIR, "denoise-read-counts-wgs-read-counts-HCC1143_BL-n1-chr20-downsampled-deduplicated.readCounts.hdf5");
-    private static final File WGS_ANNOTATED_INTERVALS_FILE = new File(TEST_SUB_DIR, "denoise-read-counts-wgs-annotated-intervals.annotated.tsv");
+    private static final File WGS_READ_COUNTS_TSV_FILE = new File(TEST_SUB_DIR, "denoise-read-counts-wgs-read-counts-HCC1143_BL-n1-chr20-downsampled-deduplicated.tsv");
+    private static final File WGS_READ_COUNTS_HDF5_FILE = new File(TEST_SUB_DIR, "denoise-read-counts-wgs-read-counts-HCC1143_BL-n1-chr20-downsampled-deduplicated.hdf5");
+    private static final File WGS_ANNOTATED_INTERVALS_FILE = new File(TEST_SUB_DIR, "denoise-read-counts-wgs-annotated-intervals.tsv");
     private static final File WGS_NO_GC_PON_FILE = new File(largeFileTestDir, "cnv_somatic_workflows_test_files/wgs-no-gc.pon.hdf5");
     private static final File WGS_DO_GC_PON_FILE = new File(largeFileTestDir, "cnv_somatic_workflows_test_files/wgs-do-gc.pon.hdf5");
     private static final List<Integer> NUMBER_OF_EIGENVALUES_LIST = Arrays.asList(null, 1, 10);

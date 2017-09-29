@@ -9,7 +9,7 @@ optparseUrl="http://cran.r-project.org/src/contrib/Archive/optparse/optparse_1.3
 if (!("optparse" %in% rownames(installed.packages()))) {
   install.packages(optparseUrl, repos=NULL, type="source")
 }
-dependencies = c("naturalsort","ggplot2","gplots","reshape","gsalib")
+dependencies = c("naturalsort","ggplot2","gplots","reshape","gsalib","data.table")
 repos <- c("http://cran.cnr.Berkeley.edu", 
            "https://cran.mtu.edu", 
            "http://lib.stat.cmu.edu/R/CRAN/")

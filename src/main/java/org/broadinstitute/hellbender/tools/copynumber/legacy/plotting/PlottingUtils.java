@@ -53,6 +53,9 @@ final class PlottingUtils {
                                                       final TSVLocatableCollection<T> tsvLocatableCollection,
                                                       final File file,
                                                       final Logger logger) {
+        if (tsvLocatableCollection == null) {
+            return;
+        }
         final Set<String> contigNames = contigLengthMap.keySet();
         final Set<String> fileContigNames = tsvLocatableCollection.getRecords().stream().map(T::getContig).collect(Collectors.toSet());
         if (!contigNames.containsAll(fileContigNames)) {

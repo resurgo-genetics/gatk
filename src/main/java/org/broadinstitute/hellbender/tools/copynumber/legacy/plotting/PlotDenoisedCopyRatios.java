@@ -15,7 +15,9 @@ import org.broadinstitute.hellbender.utils.io.IOUtils;
 import org.broadinstitute.hellbender.utils.io.Resource;
 
 import java.io.File;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
@@ -102,7 +104,7 @@ public final class PlotDenoisedCopyRatios extends CommandLineProgram {
     protected Object doWork() {
         checkRegularReadableUserFiles();
 
-        //read input files
+        logger.info("Reading and validating input files...");
         final CopyRatioCollection standardizedCopyRatios = new CopyRatioCollection(inputStandardizedCopyRatiosFile);
         final CopyRatioCollection denoisedCopyRatios = new CopyRatioCollection(inputDenoisedCopyRatiosFile);
         Utils.validateArg(standardizedCopyRatios.getIntervals().equals(denoisedCopyRatios.getIntervals()),
@@ -118,7 +120,7 @@ public final class PlotDenoisedCopyRatios extends CommandLineProgram {
         PlottingUtils.validateContigs(contigLengthMap, standardizedCopyRatios, inputStandardizedCopyRatiosFile, logger);
         PlottingUtils.validateContigs(contigLengthMap, denoisedCopyRatios, inputDenoisedCopyRatiosFile, logger);
 
-        //generate the plots
+        logger.info("Generating plots...");
         final List<String> contigNames = new ArrayList<>(contigLengthMap.keySet());
         final List<Integer> contigLengths = new ArrayList<>(contigLengthMap.values());
         writeDenoisingPlots(sampleName, contigNames, contigLengths);
@@ -164,8 +166,8 @@ public final class PlotDenoisedCopyRatios extends CommandLineProgram {
         //--args is needed for Rscript to recognize other arguments properly
         executor.addArgs("--args",
                 "--sample_name=" + sampleName,
-                "--standardized_file=" + inputStandardizedCopyRatiosFile,
-                "--denoised_file=" + inputDenoisedCopyRatiosFile,
+                "--standardized_copy_ratios_file=" + inputStandardizedCopyRatiosFile,
+                "--denoised_copy_ratios_file=" + inputDenoisedCopyRatiosFile,
                 "--contig_names=" + contigNamesArg,
                 "--contig_lengths=" + contigLengthsArg,
                 "--output_dir=" + outputDirArg,

@@ -7,7 +7,9 @@ import org.broadinstitute.hellbender.cmdline.CommandLineProgram;
 import org.broadinstitute.hellbender.cmdline.StandardArgumentDefinitions;
 import org.broadinstitute.hellbender.cmdline.programgroups.CopyNumberProgramGroup;
 import org.broadinstitute.hellbender.exceptions.UserException;
+import org.broadinstitute.hellbender.tools.copynumber.allelic.alleliccount.AllelicCount;
 import org.broadinstitute.hellbender.tools.copynumber.allelic.alleliccount.AllelicCountCollection;
+import org.broadinstitute.hellbender.tools.copynumber.legacy.coverage.copyratio.CopyRatio;
 import org.broadinstitute.hellbender.tools.copynumber.legacy.coverage.copyratio.CopyRatioCollection;
 import org.broadinstitute.hellbender.tools.copynumber.legacy.formats.CopyNumberStandardArgument;
 import org.broadinstitute.hellbender.tools.copynumber.legacy.multidimensional.model.ModeledSegment;
@@ -62,7 +64,7 @@ public final class PlotModeledSegments extends CommandLineProgram {
     private File inputDenoisedCopyRatiosFile;
 
     @Argument(
-            doc = "Input file containing allelic counts (output of CollectAllelicCounts).",
+            doc = "Input file containing allelic counts at heterozygous sites (output of ModelSegments).",
             fullName =  CopyNumberStandardArgument.ALLELIC_COUNTS_FILE_LONG_NAME,
             shortName = CopyNumberStandardArgument.ALLELIC_COUNTS_FILE_SHORT_NAME,
             optional = true
@@ -120,7 +122,7 @@ public final class PlotModeledSegments extends CommandLineProgram {
     protected Object doWork() {
         checkRegularReadableUserFiles();
 
-        //read input files
+        logger.info("Reading and validating input files...");
         denoisedCopyRatios = inputDenoisedCopyRatiosFile == null ? null : new CopyRatioCollection(inputDenoisedCopyRatiosFile);
         allelicCounts = inputAllelicCountsFile == null ? null : new AllelicCountCollection(inputAllelicCountsFile);
         modeledSegments = new ModeledSegmentCollection(inputModeledSegmentsFile);
@@ -139,7 +141,7 @@ public final class PlotModeledSegments extends CommandLineProgram {
         PlottingUtils.validateContigs(contigLengthMap, allelicCounts, inputAllelicCountsFile, logger);
         PlottingUtils.validateContigs(contigLengthMap, modeledSegments, inputModeledSegmentsFile, logger);
 
-        //generate the plots
+        logger.info("Generating plot...");
         final List<String> contigNames = new ArrayList<>(contigLengthMap.keySet());
         final List<Integer> contigLengths = new ArrayList<>(contigLengthMap.values());
         writeModeledSegmentsPlot(sampleName, contigNames, contigLengths);
@@ -177,12 +179,20 @@ public final class PlotModeledSegments extends CommandLineProgram {
 
     private void validateNumPoints() {
         if (inputDenoisedCopyRatiosFile != null) {
-            Utils.validateArg(denoisedCopyRatios.getRecords().size() == modeledSegments.getRecords().stream().mapToDouble(ModeledSegment::getNumPointsCopyRatio).sum(),
-                    "Number of denoised copy-ratio points in input segments is inconsistent with that in input denoised copy-ratio file.");
+            final Map<String, Integer> denoisedCopyRatiosContigToNumPointsMap = denoisedCopyRatios.getRecords().stream()
+                    .collect(Collectors.groupingBy(CopyRatio::getContig, Collectors.summingInt(x -> 1)));
+            final Map<String, Integer> modeledSegmentsContigToNumPointsMap = modeledSegments.getRecords().stream()
+                    .collect(Collectors.groupingBy(ModeledSegment::getContig, Collectors.summingInt(ModeledSegment::getNumPointsCopyRatio)));
+            Utils.validateArg(denoisedCopyRatiosContigToNumPointsMap.equals(modeledSegmentsContigToNumPointsMap),
+                    "Number of denoised copy-ratio points in input modeled-segments file is inconsistent with that in input denoised copy-ratio file.");
         }
         if (inputAllelicCountsFile != null) {
-            Utils.validateArg(allelicCounts.getRecords().size() == modeledSegments.getRecords().stream().mapToDouble(ModeledSegment::getNumPointsAlleleFraction).sum(),
-                    "Number of allele-fraction points in input segments is inconsistent with that in input allelic-counts file.");
+            final Map<String, Integer> allelicCountsContigToNumPointsMap = allelicCounts.getRecords().stream()
+                    .collect(Collectors.groupingBy(AllelicCount::getContig, Collectors.summingInt(x -> 1)));
+            final Map<String, Integer> modeledSegmentsContigToNumPointsMap = modeledSegments.getRecords().stream()
+                    .collect(Collectors.groupingBy(ModeledSegment::getContig, Collectors.summingInt(ModeledSegment::getNumPointsAlleleFraction)));
+            Utils.validateArg(allelicCountsContigToNumPointsMap.equals(modeledSegmentsContigToNumPointsMap),
+                    "Number of allelic-count points in input modeled-segments file is inconsistent with that in input allelic-counts file.");
         }
     }
 
@@ -205,7 +215,7 @@ public final class PlotModeledSegments extends CommandLineProgram {
         //--args is needed for Rscript to recognize other arguments properly
         executor.addArgs("--args",
                 "--sample_name=" + sampleName,
-                "--denoised_file=" + inputDenoisedCopyRatiosFile,
+                "--denoised_copy_ratios_file=" + inputDenoisedCopyRatiosFile,
                 "--allelic_counts_file=" + inputAllelicCountsFile,
                 "--modeled_segments_file=" + inputModeledSegmentsFile,
                 "--contig_names=" + contigNamesArg,
