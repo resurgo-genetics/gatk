@@ -11,6 +11,9 @@ import org.broadinstitute.hellbender.utils.GenomeLocParser;
 import org.broadinstitute.hellbender.utils.LoggingUtils;
 import org.broadinstitute.hellbender.utils.fasta.CachingIndexedFastaSequenceFile;
 import org.broadinstitute.hellbender.utils.io.IOUtils;
+import org.broadinstitute.hellbender.utils.runtime.ProcessController;
+import org.broadinstitute.hellbender.utils.runtime.ProcessOutput;
+import org.broadinstitute.hellbender.utils.runtime.ProcessSettings;
 import org.testng.Assert;
 import org.testng.Reporter;
 import org.testng.annotations.BeforeClass;
@@ -36,6 +39,29 @@ public abstract class BaseTest {
         // set properties for the local Spark runner
         System.setProperty("dataflow.spark.test.reuseSparkContext", "true");
         SparkContextFactory.enableTestSparkContext();
+    }
+
+    /**
+     * run an external process and assert that it finishes with exit code 0
+     * @param processController a ProcessController to use
+     * @param command command to run, the 0th element must be the executable name
+     */
+    public static void runProcess(final ProcessController processController, final String[] command) {
+        runProcess(processController, command, "Process exited with non-zero value. Command: "+ Arrays.toString(command) + "\n");
+    }
+
+    /**
+     * run an external process and assert that it finishes with exit code 0
+     * @param processController a ProcessController to use
+     * @param command command to run, the 0th element must be the executable name
+     * @param message error message to display on failure
+     */
+    public static void runProcess(final ProcessController processController, final String[] command, final String message) {
+        final ProcessSettings prs = new ProcessSettings(command);
+        prs.getStderrSettings().printStandard(true);
+        prs.getStdoutSettings().printStandard(true);
+        final ProcessOutput output = processController.exec(prs);
+        Assert.assertEquals(output.getExitValue(), 0, message);
     }
 
     @BeforeSuite

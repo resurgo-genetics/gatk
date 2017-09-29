@@ -17,11 +17,9 @@ import org.broadinstitute.hellbender.engine.filters.ReadNameReadFilter;
 import org.broadinstitute.hellbender.exceptions.UserException;
 import org.broadinstitute.hellbender.utils.gcs.BucketUtils;
 import org.broadinstitute.hellbender.utils.read.GATKRead;
-import org.broadinstitute.hellbender.utils.test.ArgumentsBuilder;
-import org.broadinstitute.hellbender.utils.test.BaseTest;
-import org.broadinstitute.hellbender.utils.test.IntegrationTestSpec;
-import org.broadinstitute.hellbender.utils.test.SamAssertionUtils;
+import org.broadinstitute.hellbender.utils.test.*;
 import org.testng.Assert;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
@@ -30,6 +28,8 @@ import java.util.*;
 public final class PrintReadsSparkIntegrationTest extends CommandLineProgramTest {
 
     private static final File TEST_DATA_DIR = getTestDataDir();
+
+    private String clusterName;
 
     @Override
     public String getTestedClassName() {
@@ -55,9 +55,9 @@ public final class PrintReadsSparkIntegrationTest extends CommandLineProgramTest
     public Object[][] gcsTestingData() {
         return new Object[][]{
             {"org/broadinstitute/hellbender/engine/CEUTrio.HiSeq.WGS.b37.NA12878.20.21.10000000-10000020.with.unmapped.bam",
-                ".bam", false, null},
+                ".bam", false},
             {"org/broadinstitute/hellbender/engine/CEUTrio.HiSeq.WGS.b37.NA12878.20.21.10000000-10000020.with.unmapped.bam",
-                ".bam", true, null},
+                ".bam", true},
         };
     }
 

@@ -57,7 +57,10 @@ before_install:
     export BOTO_CONFIG=/dev/null;
     openssl aes-256-cbc -K $encrypted_29f3b7c4d8c3_key -iv $encrypted_29f3b7c4d8c3_iv  -in resources_for_CI/servicekey.json.enc -out servicekey.json -d;
     scripts/install_gcloud.sh;
-    printf 'y\n' | $GCLOUD/gcloud components update app;
+    printf 'y\n' | $GCLOUD/gcloud components update;
+    if [[ $TEST_TYPE == cloud ]]; then
+      printf 'y\n' | $GCLOUD/gcloud components install beta;
+    fi;
     $GCLOUD/gcloud config set project broad-dsde-dev;
     $GCLOUD/gcloud auth activate-service-account --key-file servicekey.json;
     openssl aes-256-cbc -K $encrypted_4823d58debd3_key -iv $encrypted_4823d58debd3_iv -in resources_for_CI/github_deploy_key.enc -out ~/.ssh/id_rsa -d;
@@ -102,7 +105,10 @@ install:
     if [[ $RUN_CNV_SOMATIC_WDL == true || $RUN_M2_WDL == true || $RUN_CNV_GERMLINE_WDL == true ]]; then
       echo "building a shadow jar for the wdl";
       ./gradlew shadowJar;
-    fi
+    elif [[ $TEST_TYPE == clout ]]; then
+      echo "building a spark jar for the dataproc tests";
+      ./gradlew sparkjar;
+    fi;
   fi
 script:
 # run a basic sanity check to be sure that gatk-launch doesn't explode
