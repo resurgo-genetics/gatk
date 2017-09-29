@@ -34,12 +34,13 @@ import java.util.stream.Collectors;
  * gatk-launch --javaOptions "-Xmx4g" CollectAllelicCounts \
  *   --input sample.bam \
  *   --reference ref_fasta.fa \
- *   --siteIntervals sites.interval_list \
+ *   -L sites.interval_list \
  *   --output allelic_counts.tsv
  * </pre>
  *
  * <p>
- *     The --siteIntervals is a Picard-style interval list, e.g.:
+ *     Use -L as usual to specify intervals for the sites of interest.  For example,
+ *     a Picard interval list can be used:
  * </p>
  *
  * <pre>

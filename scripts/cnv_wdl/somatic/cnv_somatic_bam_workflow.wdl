@@ -9,7 +9,7 @@
 # - If a target file is not provided, then the WGS workflow will be run instead and the specified value of
 #   wgs_bin_length (default 10000) will be used.
 #
-# - The sites file (common_sites) must be a Picard interval list.
+# - The sites file (common_sites) should be a Picard or GATK-style interval list.
 #
 # - Example invocation:
 #    java -jar cromwell.jar run cnv_somatic_bam_workflow.wdl myParameters.json
@@ -299,7 +299,7 @@ task PlotDenoisedCopyRatios {
         File denoised_copy_ratios_plot = "${output_dir_}/${entity_id}.denoising.png"
         File denoised_copy_ratios_lim_4_plot = "${output_dir_}/${entity_id}.denoisingLimit4.png"
     }
-
+}
 
 task PlotModeledSegments {
     String entity_id

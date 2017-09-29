@@ -37,7 +37,7 @@ Further explanation of other task-level parameters may be found by invoking the 
 The reference used must be the same between PoN and case samples.
 
 - ``CNVSomaticBAMWorkflow.targets`` -- (optional) Target file (NOT in bed format) that was used to describe the baits in capture (exome) samples.  Please run ``ConvertBedToTargetFile`` to convert a BED file to a target file.  If provided, then WES workflow will be run; otherwise, WGS workflow will be run.
-- ``CNVSomaticBAMWorkflow.common_sites`` -- List of common sites to use for collecting allelic counts.
+- ``CNVSomaticBAMWorkflow.common_sites`` -- Picard or GATK-style interval list of common sites to use for collecting allelic counts.
 - ``CNVSomaticBAMWorkflow.read_count_pon`` -- Path to read-count PoN created by the panel workflow. 
 - ``CNVSomaticBAMWorkflow.bam`` -- File path or storage location (depending on backend) of the BAM index.
 - ``CNVSomaticBAMWorkflow.bam_idx`` -- File path or storage location (depending on backend) of the BAM file index.
