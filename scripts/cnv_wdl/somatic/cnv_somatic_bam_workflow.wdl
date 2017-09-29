@@ -72,7 +72,7 @@ workflow CNVSomaticBAMWorkflow {
     call DenoiseReadCounts {
         input:
             entity_id = CollectReadCounts.entity_id,
-            read_counts = CollectReadCounts.read_counts,
+            read_counts = if is_wgs then CollectReadCounts.read_counts_hdf5 else CollectReadCounts.read_counts,,
             read_count_pon = read_count_pon,
             gatk_jar = gatk_jar,
             gatk_docker = gatk_docker
