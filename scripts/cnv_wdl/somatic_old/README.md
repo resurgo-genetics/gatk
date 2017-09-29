@@ -42,9 +42,9 @@ The reference used must be the same between PoN and case samples.
 - ``CNVSomaticPairWorkflow.gatk_jar`` -- Absolute path to gatk.jar.
 - ``CNVSomaticPairWorkflow.normal_bam_idx`` -- (optional, but required if ``normal_bam`` is provided)  File path or storage location (depending on backend) of the normal BAM file index.
 - ``CNVSomaticPairWorkflow.normal_bam`` -- (optional, but required if ``normal_bam_index``  is provided)  File path or storage location (depending on backend) of the normal BAM file.
-- ``CNVSomaticPanelWorkflow.ref_fasta_dict`` -- Path to reference dict file.
-- ``CNVSomaticPanelWorkflow.ref_fasta_fai`` -- Path to reference fasta fai file.
-- ``CNVSomaticPanelWorkflow.ref_fasta`` -- Path to reference fasta file.
+- ``CNVSomaticPairWorkflow.ref_fasta_dict`` -- Path to reference dict file.
+- ``CNVSomaticPairWorkflow.ref_fasta_fai`` -- Path to reference fasta fai file.
+- ``CNVSomaticPairWorkflow.ref_fasta`` -- Path to reference fasta file.
 - ``CNVSomaticPairWorkflow.targets`` -- (optional) Target file (NOT in bed format) that was used to describe the baits in capture (exome) samples.  Please run ``ConvertBedToTargetFile`` to convert a BED file to a target file.  If provided, then WES workflow will be run; otherwise, WGS workflow will be run.
 - ``CNVSomaticPairWorkflow.tumor_bam_idx`` -- File path or storage location (depending on backend) of the tumor BAM file index.
 - ``CNVSomaticPairWorkflow.tumor_bam`` -- File path or storage location (depending on backend) of the tumor BAM index.

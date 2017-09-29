@@ -35,11 +35,10 @@ contig_ends = cumsum(contig_lengths)
 contig_starts = c(0, head(contig_ends, -1))
 
 #plotting is extracted to a function for debugging purposes
-write_modeled_segments_plot = function(sample_name, allelic_counts_file, denoised_copy_ratios_file, modeled_segments_file, contig_names, contig_lengths, output_dir, output_prefix) {
+WriteModeledSegmentsPlot = function(sample_name, allelic_counts_file, denoised_copy_ratios_file, modeled_segments_file, contig_names, contig_lengths, output_dir, output_prefix) {
     modeled_segments_df = suppressWarnings(fread(modeled_segments_file, sep="\t", stringsAsFactors=FALSE, header=TRUE, check.names=FALSE, data.table=FALSE, showProgress=FALSE, verbose=FALSE))
 
     plot_file = file.path(output_dir, paste(output_prefix, ".modeledSegments.png", sep=""))
-
     num_plots = ifelse(all(file.exists(c(denoised_copy_ratios_file, allelic_counts_file))), 2, 1)
     png(plot_file, 12, 3.5 * num_plots, units="in", type="cairo", res=300, bg="white")
     par(mfrow=c(num_plots, 1), cex=0.75, las=1)
@@ -48,17 +47,17 @@ write_modeled_segments_plot = function(sample_name, allelic_counts_file, denoise
         denoised_copy_ratios_df = suppressWarnings(fread(denoised_copy_ratios_file, sep="\t", stringsAsFactors=FALSE, header=TRUE, check.names=FALSE, data.table=FALSE, showProgress=FALSE, verbose=FALSE))
 
         #transform to linear copy ratio
-        denoised_copy_ratios_df$COPY_RATIO = 2^denoised_copy_ratios_df$LOG2_COPY_RATIO
+        denoised_copy_ratios_df[["COPY_RATIO"]] = 2^denoised_copy_ratios_df[["LOG2_COPY_RATIO"]]
 
-        SetUpPlot("Denoised copy ratio", 0, 4, "Contig", contig_names, contig_starts, contig_ends, TRUE)
-        PlotCopyRatioWithModeledSegments(denoised_copy_ratios_df, modeled_segments_df, contig_names, contig_starts)
+        SetUpPlot(sample_name, "denoised copy ratio", 0, 4, "contig", contig_names, contig_starts, contig_ends, TRUE)
+        PlotCopyRatiosWithModeledSegments(denoised_copy_ratios_df, modeled_segments_df, contig_names, contig_starts)
     }
 
     if (file.exists(allelic_counts_file)) {
         allelic_counts_df = suppressWarnings(fread(allelic_counts_file, sep="\t", stringsAsFactors=FALSE, header=TRUE, check.names=FALSE, data.table=FALSE, showProgress=FALSE, verbose=FALSE))
 
-        SetUpPlot("Alternate-allele fraction", 0, 1.0, "Contig", contig_names, contig_starts, contig_ends, TRUE)
-        PlotAlternateAlleleFractionWithModeledSegments(allelic_counts_df, modeled_segments_df, contig_names, contig_starts)
+        SetUpPlot(sample_name, "alternate-allele fraction", 0, 1.0, "contig", contig_names, contig_starts, contig_ends, TRUE)
+        PlotAlternateAlleleFractionsWithModeledSegments(allelic_counts_df, modeled_segments_df, contig_names, contig_starts)
     }
 
     dev.off()
@@ -69,4 +68,4 @@ write_modeled_segments_plot = function(sample_name, allelic_counts_file, denoise
     }
 }
 
-write_modeled_segments_plot(sample_name, allelic_counts_file, denoised_copy_ratios_file, modeled_segments_file, contig_names, contig_lengths, output_dir, output_prefix)
+WriteModeledSegmentsPlot(sample_name, allelic_counts_file, denoised_copy_ratios_file, modeled_segments_file, contig_names, contig_lengths, output_dir, output_prefix)

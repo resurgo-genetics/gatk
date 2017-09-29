@@ -33,46 +33,48 @@ contig_lengths = as.list(strsplit(contig_lengths_string, "CONTIG_DELIMITER")[[1]
 contig_ends = cumsum(contig_lengths)
 contig_starts = c(0, head(contig_ends, -1))
 
-CalculateQc = function(dat) {
+CalculateMedianAbsoluteDeviation = function(dat) {
     return(median(abs(diff(dat))))
 }
 
 #plotting is extracted to a function for debugging purposes
-write_denoising_plots = function(standardized_copy_ratios_file, denoised_copy_ratios_file, contig_names, output_dir, output_prefix) {
+WriteDenoisingPlots = function(sample_name, standardized_copy_ratios_file, denoised_copy_ratios_file, contig_names, output_dir, output_prefix) {
     standardized_copy_ratios_df = suppressWarnings(fread(standardized_copy_ratios_file, sep="\t", stringsAsFactors=FALSE, header=TRUE, check.names=FALSE, data.table=FALSE, showProgress=FALSE, verbose=FALSE))
     denoised_copy_ratios_df = suppressWarnings(fread(denoised_copy_ratios_file, sep="\t", stringsAsFactors=FALSE, header=TRUE, check.names=FALSE, data.table=FALSE, showProgress=FALSE, verbose=FALSE))
 
     #transform to linear copy ratio
-    standardized_copy_ratios_df$COPY_RATIO = 2^standardized_copy_ratios_df$LOG2_COPY_RATIO
-    denoised_copy_ratios_df$COPY_RATIO = 2^denoised_copy_ratios_df$LOG2_COPY_RATIO
+    standardized_copy_ratios_df[["COPY_RATIO"]] = 2^standardized_copy_ratios_df[["LOG2_COPY_RATIO"]]
+    denoised_copy_ratios_df[["COPY_RATIO"]] = 2^denoised_copy_ratios_df[["LOG2_COPY_RATIO"]]
 
-    #write the QC files
-    preQc = CalculateQc(standardized_copy_ratios_df$COPY_RATIO)
-    postQc = CalculateQc(denoised_copy_ratios_df$COPY_RATIO)
-    write.table(round(preQc, 3), file.path(output_dir, paste(output_prefix, "_preQc.txt", sep="")), col.names=FALSE, row.names=FALSE)
-    write.table(round(postQc, 3), file.path(output_dir, paste(output_prefix, "_postQc.txt", sep="")), col.names=FALSE, row.names=FALSE)
-    write.table(round(preQc - postQc, 3), file.path(output_dir, paste(output_prefix, "_dQc.txt", sep="")), col.names=FALSE, row.names=FALSE)
-    write.table(round((preQc - postQc) / preQc, 3), file.path(output_dir, paste(output_prefix, "_scaled_dQc.txt", sep="")), col.names=FALSE, row.names=FALSE)
+    #write the MAD files
+    standardizedMAD = CalculateMedianAbsoluteDeviation(standardized_copy_ratios_df[["COPY_RATIO"]])
+    denoisedMAD = CalculateMedianAbsoluteDeviation(denoised_copy_ratios_df[["COPY_RATIO"]])
+    write.table(round(standardizedMAD, 3), file.path(output_dir, paste(output_prefix, ".standardizedMAD.txt", sep="")), col.names=FALSE, row.names=FALSE)
+    write.table(round(denoisedMAD, 3), file.path(output_dir, paste(output_prefix, ".denoisedMAD.txt", sep="")), col.names=FALSE, row.names=FALSE)
+    write.table(round(standardizedMAD - denoisedMAD, 3), file.path(output_dir, paste(output_prefix, ".deltaMAD.txt", sep="")), col.names=FALSE, row.names=FALSE)
+    write.table(round((standardizedMAD - denoisedMAD) / standardizedMAD, 3), file.path(output_dir, paste(output_prefix, ".scaledDeltaMAD.txt", sep="")), col.names=FALSE, row.names=FALSE)
 
     #plot standardized and denoised copy ratio on top of each other
     pre_color_blue="#3B5DFF"
     post_color_green="#4FC601"
+
     #plot over full range
     denoising_plot_file = file.path(output_dir, paste(output_prefix, ".denoising.png", sep=""))
     png(denoising_plot_file, 12, 7, units="in", type="cairo", res=300, bg="white")
-    par(mfrow=c(2,1), cex=0.75, las=1)
-    SetUpPlot("Standardized copy ratio", 0, max(standardized_copy_ratios_df$COPY_RATIO), paste("After standardization, QC = ", round(preQc, 3), sep=""), contig_names, contig_starts, contig_ends, FALSE)
+    par(mfrow=c(2, 1), cex=0.75, las=1)
+    SetUpPlot(sample_name, "standardized copy ratio", 0, max(standardized_copy_ratios_df[["COPY_RATIO"]]), paste("median absolute deviation = ", round(standardizedMAD, 3), sep=""), contig_names, contig_starts, contig_ends, FALSE)
     PlotCopyRatios(standardized_copy_ratios_df, pre_color_blue, contig_names, contig_starts)
-    SetUpPlot("Denoised copy ratio", 0, max(denoised_copy_ratios_df$COPY_RATIO), paste("After denoising, QC = ", round(postQc, 3), sep=""), contig_names, contig_starts, contig_ends, TRUE)
+    SetUpPlot(sample_name, "denoised copy ratio", 0, max(denoised_copy_ratios_df[["COPY_RATIO"]]), paste("median absolute deviation = ", round(denoisedMAD, 3), sep=""), contig_names, contig_starts, contig_ends, TRUE)
     PlotCopyRatios(denoised_copy_ratios_df, post_color_green, contig_names, contig_starts)
     dev.off()
+
     #plot up to CR = 4
     denoising_limit_plot_file = file.path(output_dir, paste(output_prefix, ".denoisingLimit4.png", sep=""))
     png(denoising_limit_plot_file, 12, 7, units="in", type="cairo", res=300, bg="white")
-    par(mfrow=c(2,1), cex=0.75, las=1)
-    SetUpPlot("Standardized copy ratio", 0, 4, paste("After standardization, QC = ", round(preQc, 3), sep=""), contig_names, contig_starts, contig_ends, FALSE)
+    par(mfrow=c(2, 1), cex=0.75, las=1)
+    SetUpPlot(sample_name, "standardized copy ratio", 0, 4, paste("median absolute deviation = ", round(standardizedMAD, 3), sep=""), contig_names, contig_starts, contig_ends, FALSE)
     PlotCopyRatios(standardized_copy_ratios_df, pre_color_blue, contig_names, contig_starts)
-    SetUpPlot("Denoised copy ratio", 0, 4, paste("After denoising, QC = ", round(postQc, 3), sep=""), contig_names, contig_starts, contig_ends, TRUE)
+    SetUpPlot(sample_name, "denoised copy ratio", 0, 4, paste("median absolute deviation = ", round(denoisedMAD, 3), sep=""), contig_names, contig_starts, contig_ends, TRUE)
     PlotCopyRatios(denoised_copy_ratios_df, post_color_green, contig_names, contig_starts)
     dev.off()
 
@@ -82,4 +84,4 @@ write_denoising_plots = function(standardized_copy_ratios_file, denoised_copy_ra
     }
 }
 
-write_denoising_plots(standardized_copy_ratios_file, denoised_copy_ratios_file, contig_names, output_dir, output_prefix)
+WriteDenoisingPlots(sample_name, standardized_copy_ratios_file, denoised_copy_ratios_file, contig_names, output_dir, output_prefix)

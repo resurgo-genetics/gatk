@@ -21,7 +21,6 @@
 import "cnv_common_tasks.wdl" as CNVTasks
 
 workflow CNVSomaticBAMWorkflow {
-    # Workflow input files
     File? targets
     File common_sites
     File bam
@@ -35,13 +34,11 @@ workflow CNVSomaticBAMWorkflow {
     # If no target file is input, then do WGS workflow
     Boolean is_wgs = select_first([targets, ""]) == ""
 
-    # docker images
     String gatk_docker
 
     if (!is_wgs) {
         call CNVTasks.PadTargets {
             input:
-                # The task will fail if targets is not defined when it gets here, but that should not be allowed to happen.
                 targets = select_first([targets, ""]),
                 gatk_jar = gatk_jar,
                 gatk_docker = gatk_docker
@@ -99,11 +96,21 @@ workflow CNVSomaticBAMWorkflow {
             gatk_docker = gatk_docker
     }
 
-    call PlotDenoisedCopyRatios  {
+    call PlotDenoisedCopyRatios {
         input:
             entity_id = CollectReadCounts.entity_id,
             standardized_copy_ratios = DenoiseReadCounts.standardized_copy_ratios,
             denoised_copy_ratios = DenoiseReadCounts.denoised_copy_ratios,
+            ref_fasta_dict = ref_fasta_dict,
+            gatk_jar = gatk_jar,
+            gatk_docker = gatk_docker
+    }
+
+    call PlotModeledSegments {
+        input:
+            entity_id = CollectReadCounts.entity_id,
+            denoised_copy_ratios = DenoiseReadCounts.denoised_copy_ratios,
+            het_allelic_counts = ModelSegments.het_allelic_counts,
             ref_fasta_dict = ref_fasta_dict,
             gatk_jar = gatk_jar,
             gatk_docker = gatk_docker
@@ -124,10 +131,10 @@ workflow CNVSomaticBAMWorkflow {
         File called_copy_ratio_segments = CallCopyRatioSegments.called_copy_ratio_segments
         File denoised_copy_ratios_plot = PlotDenoisedCopyRatios.denoised_copy_ratios_plot
         File denoised_copy_ratios_lim_4_plot = PlotDenoisedCopyRatios.denoised_copy_ratios_lim_4_plot
+        File denoised_copy_ratios_lim_4_plot = PlotModeledSegments.modeled_segments_plot
     }
 }
 
-# Denoise the coverage
 task DenoiseReadCounts {
     String entity_id
     File read_counts
@@ -163,7 +170,6 @@ task DenoiseReadCounts {
     }
 }
 
-# Segment the denoised copy-ratio profile
 task ModelSegments {
     String entity_id
     File denoised_copy_ratios
@@ -222,7 +228,6 @@ task ModelSegments {
     }
 }
 
-# Make calls (amplified, neutral, or deleted) on each segment
 task CallCopyRatioSegments {
     String entity_id
     File denoised_copy_ratios
@@ -254,7 +259,6 @@ task CallCopyRatioSegments {
     }
 }
 
-# Create plots of denoised copy ratios
 task PlotDenoisedCopyRatios {
     String entity_id
     File standardized_copy_ratios
@@ -294,5 +298,46 @@ task PlotDenoisedCopyRatios {
     output {
         File denoised_copy_ratios_plot = "${output_dir_}/${entity_id}.denoising.png"
         File denoised_copy_ratios_lim_4_plot = "${output_dir_}/${entity_id}.denoisingLimit4.png"
+    }
+
+
+task PlotModeledSegments {
+    String entity_id
+    File denoised_copy_ratios
+    File het_allelic_counts
+    File ref_fasta_dict
+    Int? minimum_contig_length
+    String? output_dir
+    String gatk_jar
+
+    # Runtime parameters
+    Int? mem
+    String gatk_docker
+    Int? preemptible_attempts
+    Int? disk_space_gb
+
+    # If optional output_dir not specified, use "."
+    String output_dir_ = select_first([output_dir, "."])
+
+    command {
+        mkdir -p ${output_dir_}; \
+        java -Xmx${default="4" mem}g -jar ${gatk_jar} PlotModeledSegments \
+            --denoisedCopyRatios ${denoised_copy_ratios} \
+            --allelicCounts ${het_allelic_counts} \
+            -SD ${ref_fasta_dict} \
+            --minimumContigLength ${default="1000000" minimum_contig_length} \
+            --output ${output_dir_} \
+            --outputPrefix ${entity_id}
+    }
+
+    runtime {
+        docker: "${gatk_docker}"
+        memory: select_first([mem, 5]) + " GB"
+        disks: "local-disk " + select_first([disk_space_gb, 100]) + " HDD"
+        preemptible: select_first([preemptible_attempts, 2])
+    }
+
+    output {
+        File modeled_segments_plot = "${output_dir_}/${entity_id}.modeledSegments.png"
     }
 }

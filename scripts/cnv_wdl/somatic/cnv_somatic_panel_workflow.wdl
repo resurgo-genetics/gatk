@@ -24,7 +24,6 @@
 import "cnv_common_tasks.wdl" as CNVTasks
 
 workflow CNVSomaticPanelWorkflow {
-    # Workflow input files
     File? targets
     File normal_bams_list
     Array[Array[String]]+ normal_bams = read_tsv(normal_bams_list)
@@ -47,7 +46,6 @@ workflow CNVSomaticPanelWorkflow {
     if (!is_wgs) {
         call CNVTasks.PadTargets {
             input:
-                # The task will fail if targets is not defined when it gets here, but that should not be allowed to happen.
                 targets = select_first([targets, ""]),
                 gatk_jar = gatk_jar,
                 gatk_docker = gatk_docker
@@ -68,8 +66,8 @@ workflow CNVSomaticPanelWorkflow {
         }
     }
 
-	if (select_first([do_explicit_gc_correction, false])) {
-		call CNVTasks.AnnotateIntervals {
+    if (select_first([do_explicit_gc_correction, false])) {
+        call CNVTasks.AnnotateIntervals {
             input:
                 entity_id = pon_entity_id,
                 intervals = CollectReadCounts.intervals[0],
@@ -79,7 +77,7 @@ workflow CNVSomaticPanelWorkflow {
                 gatk_jar = gatk_jar,
                 gatk_docker = gatk_docker
         }
-	}
+    }
 
     call CreateReadCountPanelOfNormals {
         input:
@@ -95,7 +93,6 @@ workflow CNVSomaticPanelWorkflow {
     }
 }
 
-# Create read-count panel of normals
 task CreateReadCountPanelOfNormals {
     String pon_entity_id
     Array[File] read_count_files

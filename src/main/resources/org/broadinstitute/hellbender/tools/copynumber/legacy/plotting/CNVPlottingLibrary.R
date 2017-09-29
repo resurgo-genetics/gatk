@@ -1,10 +1,10 @@
 ## Contig Background for data
-SetUpPlot = function(y.lab, y.min, y.max, x.lab, contig_names, contig_starts, contig_ends, do_label_contigs) {
+SetUpPlot = function(sample_name, y.lab, y.min, y.max, x.lab, contig_names, contig_starts, contig_ends, do_label_contigs) {
     num_contigs = length(contig_names)
     contig_centers = (contig_starts + contig_ends) / 2
     genome_length = contig_ends[num_contigs]
-    suppressWarnings(par(mar=c(3.1, 3.6, 0.1, 0), mgp=c(2, -0.2, -1.1)))
-    plot(0, type="n", bty="n", xlim=c(0, genome_length), ylim=c(0, y.max), xlab="", ylab="", main="", xaxt="n")
+    suppressWarnings(par(mar=c(3.1, 3.6, 3.6, 0), mgp=c(2, -0.2, -1.1)))
+    plot(0, type="n", bty="n", xlim=c(0, genome_length), ylim=c(0, y.max), xlab="", ylab="", main=sample_name, xaxt="n")
     mtext(side=1, line=1.5, x.lab, cex=0.75, outer=FALSE)
     mtext(side=2.2, line=1.5, y.lab, cex=0.75, las=FALSE, outer=FALSE)
 
@@ -20,11 +20,11 @@ SetUpPlot = function(y.lab, y.min, y.max, x.lab, contig_names, contig_starts, co
 }
 
 PlotCopyRatios = function(copy_ratios_df, color, contig_names, contig_starts) {
-    genomic_coordinates = contig_starts[match(copy_ratios_df$CONTIG, contig_names)] + copy_ratios_df$END
-    points(x=genomic_coordinates, y=copy_ratios_df$COPY_RATIO, col=color, pch=".", cex=0.2)
+    genomic_coordinates = contig_starts[match(copy_ratios_df[["CONTIG"]], contig_names)] + copy_ratios_df[["END"]]
+    points(x=genomic_coordinates, y=copy_ratios_df[["COPY_RATIO"]], col=color, pch=".", cex=0.2)
 }
 
-PlotCopyRatioWithModeledSegments = function(denoised_copy_ratios_df, modeled_segments_df, contig_names, contig_starts, point_size=0.2) {
+PlotCopyRatiosWithModeledSegments = function(denoised_copy_ratios_df, modeled_segments_df, contig_names, contig_starts, point_size=0.2) {
    points_start_index = 1
    for (s in 1:nrow(modeled_segments_df)) {
        #skip segments with no points
@@ -55,7 +55,7 @@ PlotCopyRatioWithModeledSegments = function(denoised_copy_ratios_df, modeled_seg
    }
 }
 
-PlotAlternateAlleleFractionWithModeledSegments = function(allelic_counts_df, modeled_segments_df, contig_names, contig_starts, point_size=0.2) {
+PlotAlternateAlleleFractionsWithModeledSegments = function(allelic_counts_df, modeled_segments_df, contig_names, contig_starts, point_size=0.2) {
    points_start_index = 1
    for (s in 1:nrow(modeled_segments_df)) {
        #skip segments with no points

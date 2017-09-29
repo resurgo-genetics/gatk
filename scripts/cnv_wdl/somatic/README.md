@@ -2,10 +2,7 @@
 
 ### Which WDL should you use?
 - Building a panel of normals (PoN): ``cnv_somatic_panel_workflow.wdl``
-- Running one pair (or one sample in tumor-only mode): ``cnv_somatic_pair_workflow.wdl``
-- Create a method (or method configuration) in Workbench or FireCloud: ``cnv_somatic_pair_workflow.wdl`` and set it for entity type of pair (for pairs) or sample (for tumor-only).
-- (Advanced) Single-BAM copy-ratio subworkflow: ``cnv_somatic_copy_ratio_bam_workflow.wdl``
-- (Advanced) Pair (or sample in tumor-only mode) allele-fraction subworkflow: ``cnv_somatic_allele_fraction_pair_workflow.wdl``
+- Running a single case sample: ``cnv_somatic_bam_workflow.wdl``
 
 #### Setting up parameter json file for a run
 
@@ -18,13 +15,15 @@ To get started, copy the relevant ``*.template.json`` for the workflow you wish 
 
 The reference used must be the same between PoN and case samples.
 
-- ``CNVSomaticPanelWorkflow.gatk_jar`` -- Absolute path to gatk.jar.
+- ``CNVSomaticPanelWorkflow.targets`` -- (optional) Target file (NOT in bed format) that was used to describe the baits in capture (exome) samples.  Please run ``ConvertBedToTargetFile`` to convert a BED file to a target file.  If provided, then WES workflow will be run; otherwise, WGS workflow will be run.
 - ``CNVSomaticPanelWorkflow.normal_bams_list`` -- TSV file consisting of corresponding bam and corresponding index files as described in cnv_somatic_panel_workflow.wdl.
 - ``CNVSomaticPanelWorkflow.pon_entity_id`` -- Name of the final PoN file.
-- ``CNVSomaticPanelWorkflow.ref_fasta_dict`` -- Path to reference dict file.
-- ``CNVSomaticPanelWorkflow.ref_fasta_fai`` -- Path to reference fasta fai file.
 - ``CNVSomaticPanelWorkflow.ref_fasta`` -- Path to reference fasta file.
-- ``CNVSomaticPanelWorkflow.targets`` -- (optional) Target file (NOT in bed format) that was used to describe the baits in capture (exome) samples.  Please run ``ConvertBedToTargetFile`` to convert a BED file to a target file.  If provided, then WES workflow will be run; otherwise, WGS workflow will be run.
+- ``CNVSomaticPanelWorkflow.ref_fasta_fai`` -- Path to reference fasta fai file.
+- ``CNVSomaticPanelWorkflow.ref_fasta_dict`` -- Path to reference dict file.
+- ``CNVSomaticPanelWorkflow.do_explicit_gc_correction`` -- (optional) If true, perform explicit GC-bias correction when creating PoN and in subsequent denoising of case samples.  If false, rely on PCA-based denoising to correct for GC bias.
+- ``CNVSomaticPanelWorkflow.gatk_jar`` -- Absolute path to gatk.jar.
+- ``CNVSomaticPanelWorkflow.gatk_docker`` -- GATK Docker image (e.g., ``broadinstitute/gatk:x.beta.x``).
 
 In additional, there are several task-level parameters that may be set by advanced users; for example:
 
@@ -33,24 +32,21 @@ In additional, there are several task-level parameters that may be set by advanc
 
 Further explanation of other task-level parameters may be found by invoking the ``--help`` documentation available in the gatk.jar for each tool.  
 
-#### Explanation of fields in the somatic pair workflow
+#### Explanation of fields in the somatic case workflow
 
 The reference used must be the same between PoN and case samples.
 
-- ``CNVSomaticPairWorkflow.read_count_pon`` -- Path to read-count PoN created by the panel workflow. 
-- ``CNVSomaticPairWorkflow.common_sites`` -- (optional) List of common SNP sites to use in ``GetBayesianHetCoverage``.  If not provided, the allele-fraction subworkflow will not be run.
-- ``CNVSomaticPairWorkflow.gatk_jar`` -- Absolute path to gatk.jar.
-- ``CNVSomaticPairWorkflow.normal_bam_idx`` -- (optional, but required if ``normal_bam`` is provided)  File path or storage location (depending on backend) of the normal BAM file index.
-- ``CNVSomaticPairWorkflow.normal_bam`` -- (optional, but required if ``normal_bam_index``  is provided)  File path or storage location (depending on backend) of the normal BAM file.
-- ``CNVSomaticPanelWorkflow.ref_fasta_dict`` -- Path to reference dict file.
-- ``CNVSomaticPanelWorkflow.ref_fasta_fai`` -- Path to reference fasta fai file.
-- ``CNVSomaticPanelWorkflow.ref_fasta`` -- Path to reference fasta file.
-- ``CNVSomaticPairWorkflow.targets`` -- (optional) Target file (NOT in bed format) that was used to describe the baits in capture (exome) samples.  Please run ``ConvertBedToTargetFile`` to convert a BED file to a target file.  If provided, then WES workflow will be run; otherwise, WGS workflow will be run.
-- ``CNVSomaticPairWorkflow.tumor_bam_idx`` -- File path or storage location (depending on backend) of the tumor BAM file index.
-- ``CNVSomaticPairWorkflow.tumor_bam`` -- File path or storage location (depending on backend) of the tumor BAM index.
+- ``CNVSomaticBAMWorkflow.targets`` -- (optional) Target file (NOT in bed format) that was used to describe the baits in capture (exome) samples.  Please run ``ConvertBedToTargetFile`` to convert a BED file to a target file.  If provided, then WES workflow will be run; otherwise, WGS workflow will be run.
+- ``CNVSomaticBAMWorkflow.common_sites`` -- List of common sites to use for collecting allelic counts.
+- ``CNVSomaticBAMWorkflow.read_count_pon`` -- Path to read-count PoN created by the panel workflow. 
+- ``CNVSomaticBAMWorkflow.bam`` -- File path or storage location (depending on backend) of the BAM index.
+- ``CNVSomaticBAMWorkflow.bam_idx`` -- File path or storage location (depending on backend) of the BAM file index.
+- ``CNVSomaticBAMWorkflow.ref_fasta`` -- Path to reference fasta file.
+- ``CNVSomaticBAMWorkflow.ref_fasta_fai`` -- Path to reference fasta fai file.
+- ``CNVSomaticBAMWorkflow.ref_fasta_dict`` -- Path to reference dict file.
+- ``CNVSomaticBAMWorkflow.gatk_jar`` -- Absolute path to gatk.jar.
+- ``CNVSomaticBAMWorkflow.gatk_docker`` -- GATK Docker image (e.g., "broadinstitute/gatk:x.beta.x").
 
-In additional, there are several task-level parameters (for tasks in the subworkflows ``CNVSomaticPairWorkflow.NormalCopyRatioWorkflow``, ``CNVSomaticPairWorkflow.TumorCopyRatioWorkflow``, and ``CNVSomaticPairWorkflow.TumorAlleleFractionWorkflow``) that may be set by advanced users as above.  Be sure to set copy-ratio parameters identically for both the normal and tumor when appropriate.
+In additional, there are several task-level parameters that may be set by advanced users as above.
 
 Further explanation of these task-level parameters may be found by invoking the ``--help`` documentation available in the gatk.jar for each tool.
-
-*For the ``PerformSegmentation`` task-level parameters, see pgs. 11-12 of https://bioconductor.org/packages/release/bioc/manuals/DNAcopy/man/DNAcopy.pdf*

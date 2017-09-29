@@ -28,7 +28,7 @@ public final class PlotDenoisedCopyRatiosIntegrationTest extends CommandLineProg
     private static final int THRESHOLD_PLOT_FILE_SIZE_IN_BYTES = 50000;  //test that data points are plotted (not just background/axes)
 
     //checks that output files with reasonable file sizes are generated, but correctness of output is not checked
-    @Test()
+    @Test
     public void testPlotting() {
         final File outputDir = createTempDir("testDir");
         final String[] arguments = {
@@ -43,20 +43,20 @@ public final class PlotDenoisedCopyRatiosIntegrationTest extends CommandLineProg
         Assert.assertTrue(new File(outputDir, OUTPUT_PREFIX + ".denoisingLimit4.png").length() > THRESHOLD_PLOT_FILE_SIZE_IN_BYTES);
         Assert.assertTrue(new File(outputDir, OUTPUT_PREFIX + ".denoising.png").exists());
         Assert.assertTrue(new File(outputDir, OUTPUT_PREFIX + ".denoising.png").length() > THRESHOLD_PLOT_FILE_SIZE_IN_BYTES);
-        Assert.assertTrue(new File(outputDir, OUTPUT_PREFIX + "_preQc.txt").exists());
-        Assert.assertTrue(new File(outputDir, OUTPUT_PREFIX + "_preQc.txt").length() > 0);
-        Assert.assertTrue(new File(outputDir, OUTPUT_PREFIX + "_postQc.txt").exists());
-        Assert.assertTrue(new File(outputDir, OUTPUT_PREFIX + "_postQc.txt").length() > 0);
-        Assert.assertTrue(new File(outputDir, OUTPUT_PREFIX + "_dQc.txt").exists());
-        Assert.assertTrue(new File(outputDir, OUTPUT_PREFIX + "_dQc.txt").length() > 0);
-        Assert.assertTrue(new File(outputDir, OUTPUT_PREFIX + "_scaled_dQc.txt").exists());
-        Assert.assertTrue(new File(outputDir, OUTPUT_PREFIX + "_scaled_dQc.txt").length() > 0);
-        final double postQc = ParamUtils.readValuesFromFile(new File(outputDir, OUTPUT_PREFIX + "_preQc.txt"))[0];
-        final double preQc = ParamUtils.readValuesFromFile(new File(outputDir, OUTPUT_PREFIX + "_postQc.txt"))[0];
-        final double dQc = ParamUtils.readValuesFromFile(new File(outputDir, OUTPUT_PREFIX + "_dQc.txt"))[0];
-        final double scaled_dQc = ParamUtils.readValuesFromFile(new File(outputDir, OUTPUT_PREFIX + "_scaled_dQc.txt"))[0];
-        Assert.assertEquals(dQc, preQc - postQc);
-        Assert.assertEquals(scaled_dQc, (preQc - postQc) / preQc);
+        Assert.assertTrue(new File(outputDir, OUTPUT_PREFIX + ".standardizedMAD.txt").exists());
+        Assert.assertTrue(new File(outputDir, OUTPUT_PREFIX + ".standardizedMAD.txt").length() > 0);
+        Assert.assertTrue(new File(outputDir, OUTPUT_PREFIX + ".denoisedMAD.txt").exists());
+        Assert.assertTrue(new File(outputDir, OUTPUT_PREFIX + ".denoisedMAD.txt").length() > 0);
+        Assert.assertTrue(new File(outputDir, OUTPUT_PREFIX + ".deltaMAD.txt").exists());
+        Assert.assertTrue(new File(outputDir, OUTPUT_PREFIX + ".deltaMAD.txt").length() > 0);
+        Assert.assertTrue(new File(outputDir, OUTPUT_PREFIX + ".scaledDeltaMAD.txt").exists());
+        Assert.assertTrue(new File(outputDir, OUTPUT_PREFIX + ".scaledDeltaMAD.txt").length() > 0);
+        final double standardizedMAD = ParamUtils.readValuesFromFile(new File(outputDir, OUTPUT_PREFIX + ".standardizedMAD.txt"))[0];
+        final double denoisedMAD = ParamUtils.readValuesFromFile(new File(outputDir, OUTPUT_PREFIX + ".denoisedMAD.txt"))[0];
+        final double deltaMAD = ParamUtils.readValuesFromFile(new File(outputDir, OUTPUT_PREFIX + ".deltaMAD.txt"))[0];
+        final double scaledDeltaMAD = ParamUtils.readValuesFromFile(new File(outputDir, OUTPUT_PREFIX + ".scaledDeltaMAD.txt"))[0];
+        Assert.assertEquals(deltaMAD, standardizedMAD - denoisedMAD);
+        Assert.assertEquals(scaledDeltaMAD, (standardizedMAD - denoisedMAD) / standardizedMAD);
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)

@@ -192,7 +192,7 @@ public final class PlotModeledSegments extends CommandLineProgram {
             final Map<String, Integer> modeledSegmentsContigToNumPointsMap = modeledSegments.getRecords().stream()
                     .collect(Collectors.groupingBy(ModeledSegment::getContig, Collectors.summingInt(ModeledSegment::getNumPointsAlleleFraction)));
             Utils.validateArg(allelicCountsContigToNumPointsMap.equals(modeledSegmentsContigToNumPointsMap),
-                    "Number of allelic-count points in input modeled-segments file is inconsistent with that in input allelic-counts file.");
+                    "Number of allelic-count points in input modeled-segments file is inconsistent with that in input heterozygous allelic-counts file.");
         }
     }
 

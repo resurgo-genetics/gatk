@@ -26,6 +26,8 @@ public final class PlotModeledSegmentsIntegrationTest extends CommandLineProgram
     private static final File ALLELIC_COUNTS_OUT_OF_DICTIONARY_BOUNDS_FILE = new File(TEST_SUB_DIR, "plotting-allelic-counts-out-of-dictionary-bounds.tsv");
     private static final File MODELED_SEGMENTS_WITH_SAMPLE_NAME_MISMATCH_FILE = new File(TEST_SUB_DIR, "plotting-modeled-segments-with-sample-name-mismatch.seg");
     private static final File MODELED_SEGMENTS_OUT_OF_DICTIONARY_BOUNDS_FILE = new File(TEST_SUB_DIR, "plotting-modeled-segments-out-of-dictionary-bounds.seg");
+    private static final File MODELED_SEGMENTS_WITH_WRONG_NUM_POINTS_COPY_RATIO_FILE = new File(TEST_SUB_DIR, "plotting-modeled-segments-with-wrong-num-points-copy-ratio.seg");
+    private static final File MODELED_SEGMENTS_WITH_WRONG_NUM_POINTS_ALLELE_FRACTION_FILE = new File(TEST_SUB_DIR, "plotting-modeled-segments-with-wrong-num-points-allele-fraction.seg");
     
     private static final String OUTPUT_PREFIX = "test";
     private static final int THRESHOLD_PLOT_FILE_SIZE_IN_BYTES = 50000;  //test that data points are plotted (not just background/axes)
@@ -203,7 +205,7 @@ public final class PlotModeledSegmentsIntegrationTest extends CommandLineProgram
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
-    public void testDenoisedCopyRatiosDataOutOfBounds() {
+    public void testDenoisedCopyRatiosOutOfDictionaryBounds() {
         final File outputDir = createTempDir("testDir");
         final String[] arguments = {
                 "-" + CopyNumberStandardArgument.DENOISED_COPY_RATIOS_FILE_SHORT_NAME, DENOISED_COPY_RATIOS_OUT_OF_DICTIONARY_BOUNDS_FILE.getAbsolutePath(),
@@ -217,7 +219,7 @@ public final class PlotModeledSegmentsIntegrationTest extends CommandLineProgram
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
-    public void testAllelicCountsDataOutOfBounds() {
+    public void testAllelicCountsOutOfDictionaryBounds() {
         final File outputDir = createTempDir("testDir");
         final String[] arguments = {
                 "-" + CopyNumberStandardArgument.DENOISED_COPY_RATIOS_FILE_SHORT_NAME, DENOISED_COPY_RATIOS_FILE.getAbsolutePath(),
@@ -231,12 +233,40 @@ public final class PlotModeledSegmentsIntegrationTest extends CommandLineProgram
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
-    public void testModeledSegmentsDataOutOfBounds() {
+    public void testModeledSegmentsOutOfDictionaryBounds() {
         final File outputDir = createTempDir("testDir");
         final String[] arguments = {
                 "-" + CopyNumberStandardArgument.DENOISED_COPY_RATIOS_FILE_SHORT_NAME, DENOISED_COPY_RATIOS_FILE.getAbsolutePath(),
                 "-" + CopyNumberStandardArgument.ALLELIC_COUNTS_FILE_SHORT_NAME, ALLELIC_COUNTS_FILE.getAbsolutePath(),
                 "-" + CopyNumberStandardArgument.SEGMENTS_FILE_SHORT_NAME, MODELED_SEGMENTS_OUT_OF_DICTIONARY_BOUNDS_FILE.getAbsolutePath(),
+                "-" + StandardArgumentDefinitions.SEQUENCE_DICTIONARY_SHORT_NAME, SEQUENCE_DICTIONARY_FILE.getAbsolutePath(),
+                "-" + StandardArgumentDefinitions.OUTPUT_SHORT_NAME, outputDir.getAbsolutePath(),
+                "-" + CopyNumberStandardArgument.OUTPUT_PREFIX_SHORT_NAME, OUTPUT_PREFIX
+        };
+        runCommandLine(arguments);
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class)
+    public void testModeledSegmentsWithWrongNumPointsCopyRatio() {
+        final File outputDir = createTempDir("testDir");
+        final String[] arguments = {
+                "-" + CopyNumberStandardArgument.DENOISED_COPY_RATIOS_FILE_SHORT_NAME, DENOISED_COPY_RATIOS_FILE.getAbsolutePath(),
+                "-" + CopyNumberStandardArgument.ALLELIC_COUNTS_FILE_SHORT_NAME, ALLELIC_COUNTS_FILE.getAbsolutePath(),
+                "-" + CopyNumberStandardArgument.SEGMENTS_FILE_SHORT_NAME, MODELED_SEGMENTS_WITH_WRONG_NUM_POINTS_COPY_RATIO_FILE.getAbsolutePath(),
+                "-" + StandardArgumentDefinitions.SEQUENCE_DICTIONARY_SHORT_NAME, SEQUENCE_DICTIONARY_FILE.getAbsolutePath(),
+                "-" + StandardArgumentDefinitions.OUTPUT_SHORT_NAME, outputDir.getAbsolutePath(),
+                "-" + CopyNumberStandardArgument.OUTPUT_PREFIX_SHORT_NAME, OUTPUT_PREFIX
+        };
+        runCommandLine(arguments);
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class)
+    public void testModeledSegmentsWithWrongNumPointsAlleleFraction() {
+        final File outputDir = createTempDir("testDir");
+        final String[] arguments = {
+                "-" + CopyNumberStandardArgument.DENOISED_COPY_RATIOS_FILE_SHORT_NAME, DENOISED_COPY_RATIOS_FILE.getAbsolutePath(),
+                "-" + CopyNumberStandardArgument.ALLELIC_COUNTS_FILE_SHORT_NAME, ALLELIC_COUNTS_FILE.getAbsolutePath(),
+                "-" + CopyNumberStandardArgument.SEGMENTS_FILE_SHORT_NAME, MODELED_SEGMENTS_WITH_WRONG_NUM_POINTS_ALLELE_FRACTION_FILE.getAbsolutePath(),
                 "-" + StandardArgumentDefinitions.SEQUENCE_DICTIONARY_SHORT_NAME, SEQUENCE_DICTIONARY_FILE.getAbsolutePath(),
                 "-" + StandardArgumentDefinitions.OUTPUT_SHORT_NAME, outputDir.getAbsolutePath(),
                 "-" + CopyNumberStandardArgument.OUTPUT_PREFIX_SHORT_NAME, OUTPUT_PREFIX
