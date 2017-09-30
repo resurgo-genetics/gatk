@@ -45,8 +45,8 @@ public final class PlotModeledSegmentsIntegrationTest extends CommandLineProgram
                 "-" + CopyNumberStandardArgument.OUTPUT_PREFIX_SHORT_NAME, OUTPUT_PREFIX
         };
         runCommandLine(arguments);
-        Assert.assertTrue(new File(outputDir, OUTPUT_PREFIX + ".modeledSegments.png").exists());
-        Assert.assertTrue(new File(outputDir, OUTPUT_PREFIX + ".modeledSegments.png").length() > THRESHOLD_PLOT_FILE_SIZE_IN_BYTES);
+        Assert.assertTrue(new File(outputDir, OUTPUT_PREFIX + ".modelFinal.png").exists());
+        Assert.assertTrue(new File(outputDir, OUTPUT_PREFIX + ".modelFinal.png").length() > THRESHOLD_PLOT_FILE_SIZE_IN_BYTES);
     }
 
     @Test
@@ -60,8 +60,8 @@ public final class PlotModeledSegmentsIntegrationTest extends CommandLineProgram
                 "-" + CopyNumberStandardArgument.OUTPUT_PREFIX_SHORT_NAME, OUTPUT_PREFIX
         };
         runCommandLine(arguments);
-        Assert.assertTrue(new File(outputDir, OUTPUT_PREFIX + ".modeledSegments.png").exists());
-        Assert.assertTrue(new File(outputDir, OUTPUT_PREFIX + ".modeledSegments.png").length() > THRESHOLD_PLOT_FILE_SIZE_IN_BYTES / 2);    //copy-ratio-only plot is half the size
+        Assert.assertTrue(new File(outputDir, OUTPUT_PREFIX + ".modelFinal.png").exists());
+        Assert.assertTrue(new File(outputDir, OUTPUT_PREFIX + ".modelFinal.png").length() > THRESHOLD_PLOT_FILE_SIZE_IN_BYTES / 2);    //copy-ratio-only plot is half the size
     }
 
     @Test
@@ -75,8 +75,8 @@ public final class PlotModeledSegmentsIntegrationTest extends CommandLineProgram
                 "-" + CopyNumberStandardArgument.OUTPUT_PREFIX_SHORT_NAME, OUTPUT_PREFIX
         };
         runCommandLine(arguments);
-        Assert.assertTrue(new File(outputDir, OUTPUT_PREFIX + ".modeledSegments.png").exists());
-        Assert.assertTrue(new File(outputDir, OUTPUT_PREFIX + ".modeledSegments.png").length() > THRESHOLD_PLOT_FILE_SIZE_IN_BYTES / 2);    //allele-fraction-only plot is half the size
+        Assert.assertTrue(new File(outputDir, OUTPUT_PREFIX + ".modelFinal.png").exists());
+        Assert.assertTrue(new File(outputDir, OUTPUT_PREFIX + ".modelFinal.png").length() > THRESHOLD_PLOT_FILE_SIZE_IN_BYTES / 2);    //allele-fraction-only plot is half the size
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)

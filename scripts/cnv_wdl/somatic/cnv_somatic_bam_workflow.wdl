@@ -218,7 +218,7 @@ task ModelSegments {
     }
 
     output {
-        File het_allelic_counts = "${output_dir_}/${entity_id}.het.tsv"
+        File het_allelic_counts = "${output_dir_}/${entity_id}.hets.tsv"
         File copy_ratio_segments = "${output_dir_}/${entity_id}.cr.seg"
         File allele_fraction_segments = "${output_dir_}/${entity_id}.af.seg"
         File combined_segments = "${output_dir_}/${entity_id}.craf.seg"
@@ -338,6 +338,6 @@ task PlotModeledSegments {
     }
 
     output {
-        File modeled_segments_plot = "${output_dir_}/${entity_id}.modeledSegments.png"
+        File modeled_segments_plot = "${output_dir_}/${entity_id}.modelFinal.png"
     }
 }

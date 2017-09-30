@@ -54,8 +54,7 @@ public final class ModelSegments extends SparkCommandLineProgram {
     private static final double GENOTYPING_P_VALUE_THRESHOLD = 0.01;
 
     //filename tags for output
-    public static final String FILTERED_ALLELIC_COUNTS_FILE_SUFFIX = ".filtered.tsv";
-    public static final String HET_ALLELIC_COUNTS_FILE_SUFFIX = ".het.tsv";
+    public static final String HET_ALLELIC_COUNTS_FILE_SUFFIX = ".hets.tsv";
     public static final String SEGMENTS_FILE_SUFFIX = ".seg";
     public static final String COPY_RATIO_SEGMENTS_FILE_SUFFIX = ".cr" + SEGMENTS_FILE_SUFFIX;
     public static final String ALLELE_FRACTION_SEGMENTS_FILE_SUFFIX = ".af" + SEGMENTS_FILE_SUFFIX;
@@ -348,11 +347,11 @@ public final class ModelSegments extends SparkCommandLineProgram {
         }
 
         //TODO replace/improve old code used below for performing segment union and model fitting
-        logger.info("Combining available copy-ratio and allele-fraction segments...");
-        final CRAFSegmentCollection crafSegments = CRAFSegmentCollection.unionAndMergeSmallSegments(
+        final CRAFSegmentCollection crafSegments = CRAFSegmentCollection.unionSegments(
                 copyRatioSegments, denoisedCopyRatios, alleleFractionSegments, hetAllelicCounts, numCopyRatioIntervalsSmallSegmentThreshold);
         writeSegments(crafSegments, CRAF_SEGMENTS_FILE_SUFFIX);
 
+        logger.info("Beginning modeling...");
         //initial MCMC model fitting performed by ACNVModeller constructor
         final ACNVModeller modeller = new ACNVModeller(crafSegments.convertToSegmentedGenome(denoisedCopyRatios, hetAllelicCounts),
                 numSamplesCopyRatio, numBurnInCopyRatio, numSamplesAlleleFraction, numBurnInAlleleFraction, ctx);
@@ -408,6 +407,7 @@ public final class ModelSegments extends SparkCommandLineProgram {
         logger.info(String.format("Retained %d / %d sites after filtering on total count...",
                 filteredAllelicCounts.getRecords().size(), unfilteredAllelicCounts.getRecords().size()));
 
+        logger.info("Performing binomial testing and filtering homozygous allelic counts...");
         hetAllelicCounts = new AllelicCountCollection(
                 unfilteredAllelicCounts.getSampleName(),
                 filteredAllelicCounts.getRecords().stream()

@@ -95,9 +95,9 @@ public final class AlleleFractionKernelSegmenter {
             final List<AllelicCount> allelicCountsInChromosome = allelicCountsPerChromosome.get(chromosome);
             final List<Double> alternateAlleleFractionsInChromosome = alternateAlleleFractionsPerChromosome.get(chromosome);
 
-            final List<Integer> changepoints = new KernelSegmenter<>(alternateAlleleFractionsInChromosome)
+            final List<Integer> changepoints = new ArrayList<>(new KernelSegmenter<>(alternateAlleleFractionsInChromosome)
                 .findChangepoints(maxNumChangepointsPerChromosome, kernel.apply(kernelVariance), kernelApproximationDimension,
-                        windowSizes, numChangepointsPenaltyLinearFactor, numChangepointsPenaltyLogLinearFactor, KernelSegmenter.ChangepointSortOrder.INDEX);
+                        windowSizes, numChangepointsPenaltyLinearFactor, numChangepointsPenaltyLogLinearFactor, KernelSegmenter.ChangepointSortOrder.INDEX));
 
             if (!changepoints.contains(alternateAlleleFractionsInChromosome.size())) {
                 changepoints.add(alternateAlleleFractionsInChromosome.size() - 1);

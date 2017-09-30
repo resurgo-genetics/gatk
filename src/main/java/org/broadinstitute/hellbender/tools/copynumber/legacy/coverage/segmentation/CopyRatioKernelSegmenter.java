@@ -83,9 +83,9 @@ public final class CopyRatioKernelSegmenter {
             logger.info(String.format("Finding changepoints in chromosome %s...", chromosome));
             final List<Double> denoisedCopyRatiosInChromosome = denoisedCopyRatiosPerChromosome.get(chromosome);
 
-            final List<Integer> changepoints = new KernelSegmenter<>(denoisedCopyRatiosInChromosome)
+            final List<Integer> changepoints = new ArrayList<>(new KernelSegmenter<>(denoisedCopyRatiosInChromosome)
                 .findChangepoints(maxNumChangepointsPerChromosome, kernel.apply(kernelVariance), kernelApproximationDimension,
-                        windowSizes, numChangepointsPenaltyLinearFactor, numChangepointsPenaltyLogLinearFactor, KernelSegmenter.ChangepointSortOrder.INDEX);
+                        windowSizes, numChangepointsPenaltyLinearFactor, numChangepointsPenaltyLogLinearFactor, KernelSegmenter.ChangepointSortOrder.INDEX));
 
             if (!changepoints.contains(denoisedCopyRatiosInChromosome.size())) {
                 changepoints.add(denoisedCopyRatiosInChromosome.size() - 1);

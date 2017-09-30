@@ -17,7 +17,7 @@ public class CopyRatioSegment implements Locatable {
                             final int numPoints,
                             final double meanLog2CopyRatio) {
         Utils.nonNull(interval);
-        ParamUtils.isPositiveOrZero(numPoints, "Number of points must be non-negative.");
+        ParamUtils.isPositiveOrZero(numPoints, "Number of copy-ratio points must be non-negative.");
         this.interval = interval;
         this.numPoints = numPoints;
         this.meanLog2CopyRatio = meanLog2CopyRatio;
