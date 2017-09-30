@@ -134,18 +134,18 @@ public final class KernelSegmenter<DATA> {
             return Collections.emptyList();
         }
 
-        logger.info(String.format("Finding up to %d changepoints in %d data points...", maxNumChangepoints, data.size()));
+        logger.debug(String.format("Finding up to %d changepoints in %d data points...", maxNumChangepoints, data.size()));
         final RandomGenerator rng = RandomGeneratorFactory.createRandomGenerator(new Random(RANDOM_SEED));
 
-        logger.info("Calculating low-rank approximation to kernel matrix...");
+        logger.debug("Calculating low-rank approximation to kernel matrix...");
         final RealMatrix reducedObservationMatrix = calculateReducedObservationMatrix(rng, data, kernel, kernelApproximationDimension);
         final double[] kernelApproximationDiagonal = calculateKernelApproximationDiagonal(reducedObservationMatrix);
 
-        logger.info(String.format("Finding changepoint candidates for all window sizes %s...", windowSizes.toString()));
+        logger.debug(String.format("Finding changepoint candidates for all window sizes %s...", windowSizes.toString()));
         final List<Integer> changepointCandidates = findChangepointCandidates(
                 data, reducedObservationMatrix, kernelApproximationDiagonal, maxNumChangepoints, windowSizes);
 
-        logger.info("Performing backward model selection on changepoint candidates...");
+        logger.debug("Performing backward model selection on changepoint candidates...");
         return selectChangepoints(
                 changepointCandidates, maxNumChangepoints, numChangepointsPenaltyLinearFactor, numChangepointsPenaltyLogLinearFactor,
                 reducedObservationMatrix, kernelApproximationDiagonal).stream()
@@ -204,13 +204,13 @@ public final class KernelSegmenter<DATA> {
 
         //subsample data with replacement
         final int numSubsample = Math.min(kernelApproximationDimension, data.size());
-        logger.info(String.format("Subsampling %d points from data to find kernel approximation...", numSubsample));
+        logger.debug(String.format("Subsampling %d points from data to find kernel approximation...", numSubsample));
         final List<DATA> dataSubsample = numSubsample == data.size()
                 ? data
                 : IntStream.range(0, numSubsample).boxed().map(i -> data.get(rng.nextInt(data.size()))).collect(Collectors.toList());
 
         //calculate (symmetric) kernel matrix of subsampled data
-        logger.info(String.format("Calculating kernel matrix of subsampled data (%d x %d)...", numSubsample, numSubsample));
+        logger.debug(String.format("Calculating kernel matrix of subsampled data (%d x %d)...", numSubsample, numSubsample));
         final RealMatrix subKernelMatrix = new Array2DRowRealMatrix(numSubsample, numSubsample);
         for (int i = 0; i < numSubsample; i++) {
             for (int j = 0; j < i; j++) {
@@ -222,7 +222,7 @@ public final class KernelSegmenter<DATA> {
         }
 
         //perform SVD of kernel matrix of subsampled data
-        logger.info(String.format("Performing SVD of kernel matrix of subsampled data (%d x %d)...", numSubsample, numSubsample));
+        logger.debug(String.format("Performing SVD of kernel matrix of subsampled data (%d x %d)...", numSubsample, numSubsample));
         final SingularValueDecomposition svd = new SingularValueDecomposition(subKernelMatrix);
 
         //calculate reduced observation matrix
