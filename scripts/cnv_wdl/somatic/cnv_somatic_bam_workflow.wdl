@@ -296,8 +296,8 @@ task PlotDenoisedCopyRatios {
     }
 
     output {
-        File denoised_copy_ratios_plot = "${output_dir_}/${entity_id}.denoising.png"
-        File denoised_copy_ratios_lim_4_plot = "${output_dir_}/${entity_id}.denoisingLimit4.png"
+        File denoised_copy_ratios_plot = "${output_dir_}/${entity_id}.denoised.png"
+        File denoised_copy_ratios_lim_4_plot = "${output_dir_}/${entity_id}.denoisedLimit4.png"
     }
 }
 
@@ -338,6 +338,6 @@ task PlotModeledSegments {
     }
 
     output {
-        File modeled_segments_plot = "${output_dir_}/${entity_id}.modelFinal.png"
+        File modeled_segments_plot = "${output_dir_}/${entity_id}.modeled.png"
     }
 }

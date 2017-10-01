@@ -59,7 +59,7 @@ WriteDenoisingPlots = function(sample_name, standardized_copy_ratios_file, denoi
     post_color_green="#4FC601"
 
     #plot over full range
-    denoising_plot_file = file.path(output_dir, paste(output_prefix, ".denoising.png", sep=""))
+    denoising_plot_file = file.path(output_dir, paste(output_prefix, ".denoised.png", sep=""))
     png(denoising_plot_file, 12, 7, units="in", type="cairo", res=300, bg="white")
     par(mfrow=c(2, 1), cex=0.75, las=1)
     SetUpPlot(sample_name, "standardized copy ratio", 0, max(standardized_copy_ratios_df[["COPY_RATIO"]]), paste("median absolute deviation = ", round(standardizedMAD, 3), sep=""), contig_names, contig_starts, contig_ends, FALSE)
@@ -69,7 +69,7 @@ WriteDenoisingPlots = function(sample_name, standardized_copy_ratios_file, denoi
     dev.off()
 
     #plot up to CR = 4
-    denoising_limit_plot_file = file.path(output_dir, paste(output_prefix, ".denoisingLimit4.png", sep=""))
+    denoising_limit_plot_file = file.path(output_dir, paste(output_prefix, ".denoisedLimit4.png", sep=""))
     png(denoising_limit_plot_file, 12, 7, units="in", type="cairo", res=300, bg="white")
     par(mfrow=c(2, 1), cex=0.75, las=1)
     SetUpPlot(sample_name, "standardized copy ratio", 0, 4, paste("median absolute deviation = ", round(standardizedMAD, 3), sep=""), contig_names, contig_starts, contig_ends, FALSE)

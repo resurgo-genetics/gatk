@@ -38,7 +38,7 @@ contig_starts = c(0, head(contig_ends, -1))
 WriteModeledSegmentsPlot = function(sample_name, allelic_counts_file, denoised_copy_ratios_file, modeled_segments_file, contig_names, contig_lengths, output_dir, output_prefix) {
     modeled_segments_df = suppressWarnings(fread(modeled_segments_file, sep="\t", stringsAsFactors=FALSE, header=TRUE, check.names=FALSE, data.table=FALSE, showProgress=FALSE, verbose=FALSE))
 
-    plot_file = file.path(output_dir, paste(output_prefix, ".modelFinal.png", sep=""))
+    plot_file = file.path(output_dir, paste(output_prefix, ".modeled.png", sep=""))
     num_plots = ifelse(all(file.exists(c(denoised_copy_ratios_file, allelic_counts_file))), 2, 1)
     png(plot_file, 12, 3.5 * num_plots, units="in", type="cairo", res=300, bg="white")
     par(mfrow=c(num_plots, 1), cex=0.75, las=1)
