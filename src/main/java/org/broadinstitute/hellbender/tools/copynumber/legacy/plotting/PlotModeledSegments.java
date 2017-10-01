@@ -21,6 +21,7 @@ import org.broadinstitute.hellbender.utils.io.Resource;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -179,19 +180,24 @@ public final class PlotModeledSegments extends CommandLineProgram {
 
     private void validateNumPoints() {
         if (inputDenoisedCopyRatiosFile != null) {
-            final Map<String, Integer> denoisedCopyRatiosContigToNumPointsMap = denoisedCopyRatios.getRecords().stream()
-                    .collect(Collectors.groupingBy(CopyRatio::getContig, Collectors.summingInt(x -> 1)));
             final Map<String, Integer> modeledSegmentsContigToNumPointsMap = modeledSegments.getRecords().stream()
-                    .collect(Collectors.groupingBy(ModeledSegment::getContig, Collectors.summingInt(ModeledSegment::getNumPointsCopyRatio)));
-            Utils.validateArg(denoisedCopyRatiosContigToNumPointsMap.equals(modeledSegmentsContigToNumPointsMap),
+                    .collect(Collectors.groupingBy(ModeledSegment::getContig, LinkedHashMap::new, Collectors.summingInt(ModeledSegment::getNumPointsCopyRatio)));
+            final Map<String, Integer> denoisedCopyRatiosContigToNumPointsMap = denoisedCopyRatios.getRecords().stream()
+                    .collect(Collectors.groupingBy(CopyRatio::getContig, LinkedHashMap::new, Collectors.summingInt(x -> 1)));
+            Utils.validateArg(modeledSegmentsContigToNumPointsMap.keySet().stream()
+                    .allMatch(c -> (modeledSegmentsContigToNumPointsMap.get(c) == 0 && !denoisedCopyRatiosContigToNumPointsMap.containsKey(c)) ||
+                            (modeledSegmentsContigToNumPointsMap.get(c).equals(denoisedCopyRatiosContigToNumPointsMap.get(c)))),
                     "Number of denoised copy-ratio points in input modeled-segments file is inconsistent with that in input denoised copy-ratio file.");
         }
         if (inputAllelicCountsFile != null) {
-            final Map<String, Integer> allelicCountsContigToNumPointsMap = allelicCounts.getRecords().stream()
-                    .collect(Collectors.groupingBy(AllelicCount::getContig, Collectors.summingInt(x -> 1)));
             final Map<String, Integer> modeledSegmentsContigToNumPointsMap = modeledSegments.getRecords().stream()
-                    .collect(Collectors.groupingBy(ModeledSegment::getContig, Collectors.summingInt(ModeledSegment::getNumPointsAlleleFraction)));
-            Utils.validateArg(allelicCountsContigToNumPointsMap.equals(modeledSegmentsContigToNumPointsMap),
+                    .collect(Collectors.groupingBy(ModeledSegment::getContig, LinkedHashMap::new, Collectors.summingInt(ModeledSegment::getNumPointsAlleleFraction)));
+            final Map<String, Integer> allelicCountsContigToNumPointsMap = allelicCounts.getRecords().stream()
+                    .filter(ac -> modeledSegmentsContigToNumPointsMap.get(ac.getContig()) != 0)
+                    .collect(Collectors.groupingBy(AllelicCount::getContig, LinkedHashMap::new, Collectors.summingInt(x -> 1)));
+            Utils.validateArg(modeledSegmentsContigToNumPointsMap.keySet().stream()
+                            .allMatch(c -> (modeledSegmentsContigToNumPointsMap.get(c) == 0 && !allelicCountsContigToNumPointsMap.containsKey(c)) ||
+                                    (modeledSegmentsContigToNumPointsMap.get(c).equals(allelicCountsContigToNumPointsMap.get(c)))),
                     "Number of allelic-count points in input modeled-segments file is inconsistent with that in input heterozygous allelic-counts file.");
         }
     }
