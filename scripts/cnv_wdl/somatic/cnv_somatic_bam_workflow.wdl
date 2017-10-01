@@ -131,7 +131,7 @@ workflow CNVSomaticBAMWorkflow {
         File called_copy_ratio_segments = CallCopyRatioSegments.called_copy_ratio_segments
         File denoised_copy_ratios_plot = PlotDenoisedCopyRatios.denoised_copy_ratios_plot
         File denoised_copy_ratios_lim_4_plot = PlotDenoisedCopyRatios.denoised_copy_ratios_lim_4_plot
-        File denoised_copy_ratios_lim_4_plot = PlotModeledSegments.modeled_segments_plot
+        File modeled_segments_plot = PlotModeledSegments.modeled_segments_plot
     }
 }
 
