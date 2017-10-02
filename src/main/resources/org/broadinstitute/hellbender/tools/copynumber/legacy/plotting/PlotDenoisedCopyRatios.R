@@ -46,6 +46,10 @@ WriteDenoisingPlots = function(sample_name, standardized_copy_ratios_file, denoi
     standardized_copy_ratios_df[["COPY_RATIO"]] = 2^standardized_copy_ratios_df[["LOG2_COPY_RATIO"]]
     denoised_copy_ratios_df[["COPY_RATIO"]] = 2^denoised_copy_ratios_df[["LOG2_COPY_RATIO"]]
 
+    #determine copy-ratio midpoints
+    standardized_copy_ratios_df[["MIDDLE"]] = round((standardized_copy_ratios_df[["START"]] + standardized_copy_ratios_df[["END"]]) / 2)
+    denoised_copy_ratios_df[["MIDDLE"]] = round((denoised_copy_ratios_df[["START"]] + denoised_copy_ratios_df[["END"]]) / 2)
+
     #write the MAD files
     standardizedMAD = CalculateMedianAbsoluteDeviation(standardized_copy_ratios_df[["COPY_RATIO"]])
     denoisedMAD = CalculateMedianAbsoluteDeviation(denoised_copy_ratios_df[["COPY_RATIO"]])

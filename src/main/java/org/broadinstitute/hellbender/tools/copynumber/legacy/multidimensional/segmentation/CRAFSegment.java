@@ -98,4 +98,14 @@ public class CRAFSegment implements Locatable {
         result = 31 * result + (int) (temp ^ (temp >>> 32));
         return result;
     }
+
+    @Override
+    public String toString() {
+        return "CRAFSegment{" +
+                "interval=" + interval +
+                ", numPointsCopyRatio=" + numPointsCopyRatio +
+                ", numPointsAlleleFraction=" + numPointsAlleleFraction +
+                ", meanLog2CopyRatio=" + meanLog2CopyRatio +
+                '}';
+    }
 }

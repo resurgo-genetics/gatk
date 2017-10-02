@@ -256,19 +256,6 @@ public final class ModelSegments extends SparkCommandLineProgram {
     private double numChangepointsPenaltyFactorAlleleFraction = 10.;
 
     @Argument(
-            doc = "Threshold number of copy-ratio intervals for small-segment merging. " +
-                    "If a segment contains strictly less than this number of copy-ratio intervals" +
-                    "after combining copy-ratio and allele-fraction segments, " +
-                    "it is considered small and will be merged with an adjacent segment.  " +
-                    "Ignored unless both denoised copy ratios and allelic counts are provided.",
-            fullName = NUM_COPY_RATIO_INTERVALS_SMALL_SEGMENT_THRESHOLD_LONG_NAME,
-            shortName = NUM_COPY_RATIO_INTERVALS_SMALL_SEGMENT_THRESHOLD_SHORT_NAME,
-            optional = true,
-            minValue = 0
-    )
-    private int numCopyRatioIntervalsSmallSegmentThreshold = 0;
-
-    @Argument(
             doc = "Alpha hyperparameter for the 4-parameter beta-distribution prior on segment minor-allele fraction. " +
                     "The prior for the minor-allele fraction f in each segment is assumed to be Beta(alpha, 1, 0, 1/2). " +
                     "Increasing this hyperparameter will reduce the effect of reference bias at the expense of sensitivity.",
@@ -388,11 +375,11 @@ public final class ModelSegments extends SparkCommandLineProgram {
             hetAllelicCounts = new AllelicCountCollection(denoisedCopyRatios.getSampleName(), Collections.emptyList());
         }
 
-        //TODO replace/improve old code used below for performing segment union and model fitting
         final CRAFSegmentCollection crafSegments = CRAFSegmentCollection.unionSegments(
-                copyRatioSegments, denoisedCopyRatios, alleleFractionSegments, hetAllelicCounts, numCopyRatioIntervalsSmallSegmentThreshold);
+                copyRatioSegments, denoisedCopyRatios, alleleFractionSegments, hetAllelicCounts);
         writeSegments(crafSegments, CRAF_SEGMENTS_FILE_SUFFIX);
 
+        //TODO replace/improve old code used below for model fitting
         logger.info("Beginning modeling...");
         //initial MCMC model fitting performed by ACNVModeller constructor
         final ACNVModeller modeller = new ACNVModeller(crafSegments.convertToSegmentedGenome(denoisedCopyRatios, hetAllelicCounts),

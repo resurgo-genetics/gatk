@@ -49,6 +49,9 @@ WriteModeledSegmentsPlot = function(sample_name, allelic_counts_file, denoised_c
         #transform to linear copy ratio
         denoised_copy_ratios_df[["COPY_RATIO"]] = 2^denoised_copy_ratios_df[["LOG2_COPY_RATIO"]]
 
+        #determine copy-ratio midpoints
+        denoised_copy_ratios_df[["MIDDLE"]] = round((denoised_copy_ratios_df[["START"]] + denoised_copy_ratios_df[["END"]]) / 2)
+
         SetUpPlot(sample_name, "denoised copy ratio", 0, 4, "contig", contig_names, contig_starts, contig_ends, TRUE)
         PlotCopyRatiosWithModeledSegments(denoised_copy_ratios_df, modeled_segments_df, contig_names, contig_starts)
     }

@@ -72,4 +72,12 @@ public class AlleleFractionSegment implements Locatable {
         result = 31 * result + numPoints;
         return result;
     }
+
+    @Override
+    public String toString() {
+        return "AlleleFractionSegment{" +
+                "interval=" + interval +
+                ", numPoints=" + numPoints +
+                '}';
+    }
 }

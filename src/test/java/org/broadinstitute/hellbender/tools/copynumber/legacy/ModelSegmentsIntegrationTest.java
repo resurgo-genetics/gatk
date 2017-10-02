@@ -20,7 +20,7 @@ public class ModelSegmentsIntegrationTest extends CommandLineProgramTest {
                 "--" + ModelSegments.NUM_BURN_IN_COPY_RATIO_LONG_NAME, "10",
                 "--" + ModelSegments.NUM_SAMPLES_ALLELE_FRACTION_LONG_NAME, "50",
                 "--" + ModelSegments.NUM_BURN_IN_ALLELE_FRACTION_LONG_NAME, "10",
-                "-" + StandardArgumentDefinitions.VERBOSITY_NAME, "DEBUG"
+                "-" + StandardArgumentDefinitions.VERBOSITY_NAME, "INFO"
         };
         runCommandLine(arguments);
     }
@@ -48,7 +48,20 @@ public class ModelSegmentsIntegrationTest extends CommandLineProgramTest {
                 "-" + CopyNumberStandardArgument.ALLELIC_COUNTS_FILE_SHORT_NAME, "/home/slee/working/gatk/TCGA-05-4389-01A-01D-1931-08.allelicCounts.tsv",
                 "-" + CopyNumberStandardArgument.OUTPUT_PREFIX_SHORT_NAME, "TCGA-05-4389-01A-01D-1931-08",
                 "-" + StandardArgumentDefinitions.OUTPUT_SHORT_NAME, "/home/slee/working/gatk",
-                "-" + StandardArgumentDefinitions.VERBOSITY_NAME, "INFO"
+                "-" + StandardArgumentDefinitions.VERBOSITY_NAME, "DEBUG"
+        };
+        runCommandLine(arguments);
+    }
+
+    @Test
+    public void testWGSNormal() {
+        final String[] arguments = {
+                "-" + CopyNumberStandardArgument.DENOISED_COPY_RATIOS_FILE_SHORT_NAME, "/home/slee/working/gatk/TCGA-05-4389-10A-01D-1931-08.denoisedCR.tsv",
+                "-" + CopyNumberStandardArgument.ALLELIC_COUNTS_FILE_SHORT_NAME, "/home/slee/working/gatk/TCGA-05-4389-10A-01D-1931-08.allelicCounts.tsv",
+                "-" + CopyNumberStandardArgument.OUTPUT_PREFIX_SHORT_NAME, "TCGA-05-4389-10A-01D-1931-08",
+                "-" + StandardArgumentDefinitions.OUTPUT_SHORT_NAME, "/home/slee/working/gatk",
+                "-" + ModelSegments.MAXIMUM_NUMBER_OF_SEGMENTS_PER_CHROMOSOME_LONG_NAME, "1",
+                "-" + StandardArgumentDefinitions.VERBOSITY_NAME, "DEBUG"
         };
         runCommandLine(arguments);
     }

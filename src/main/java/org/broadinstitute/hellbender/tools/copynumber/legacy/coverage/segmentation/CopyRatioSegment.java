@@ -88,4 +88,13 @@ public class CopyRatioSegment implements Locatable {
         result = 31 * result + (int) (temp ^ (temp >>> 32));
         return result;
     }
+
+    @Override
+    public String toString() {
+        return "CopyRatioSegment{" +
+                "interval=" + interval +
+                ", numPoints=" + numPoints +
+                ", meanLog2CopyRatio=" + meanLog2CopyRatio +
+                '}';
+    }
 }

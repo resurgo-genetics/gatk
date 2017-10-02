@@ -51,4 +51,14 @@ public class CalledCopyRatioSegment extends CopyRatioSegment {
         result = 31 * result + call.hashCode();
         return result;
     }
+
+    @Override
+    public String toString() {
+        return "CalledCopyRatioSegment{" +
+                "interval=" + getInterval() +
+                ", numPoints=" + getNumPoints() +
+                ", meanLog2CopyRatio=" + getMeanLog2CopyRatio() +
+                ", call=" + call +
+                '}';
+    }
 }

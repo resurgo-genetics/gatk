@@ -184,7 +184,6 @@ task ModelSegments {
     Array[Int]? window_sizes = [8, 16, 32, 64, 128, 256]
     Float? num_changepoints_penalty_factor_copy_ratio
     Float? num_changepoints_penalty_factor_allele_fraction
-    Int? num_copy_ratio_intervals_small_segment_threshold
     Float? minor_allele_fraction_prior_alpha
     Int? num_samples_copy_ratio
     Int? num_burn_in_copy_ratio
@@ -220,7 +219,6 @@ task ModelSegments {
             --windowSizes ${sep= " --windowSizes " window_sizes} \
             --numChangepointsPenaltyFactorCopyRatio ${default="1.0" num_changepoints_penalty_factor_copy_ratio} \
             --numChangepointsPenaltyFactorAlleleFraction ${default="10.0" num_changepoints_penalty_factor_allele_fraction} \
-            --numCopyRatioIntervalsSmallSegmentThreshold ${default="0" num_copy_ratio_intervals_small_segment_threshold} \
             --minorAlleleFractionPriorAlpha ${default="25.0" minor_allele_fraction_prior_alpha} \
             --numSamplesCopyRatio ${default=100 num_samples_copy_ratio} \
             --numBurnInCopyRatio ${default=50 num_burn_in_copy_ratio} \

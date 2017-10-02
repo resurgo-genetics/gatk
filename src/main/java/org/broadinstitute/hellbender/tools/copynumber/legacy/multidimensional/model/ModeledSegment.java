@@ -173,4 +173,21 @@ public class ModeledSegment implements Locatable {
         result = 31 * result + (int) (temp ^ (temp >>> 32));
         return result;
     }
+
+    @Override
+    public String toString() {
+        return "ModeledSegment{" +
+                "interval=" + interval +
+                ", numPointsCopyRatio=" + numPointsCopyRatio +
+                ", numPointsAlleleFraction=" + numPointsAlleleFraction +
+                ", log2CopyRatioPosteriorMode=" + log2CopyRatioPosteriorMode +
+                ", log2CopyRatioPosterior10=" + log2CopyRatioPosterior10 +
+                ", log2CopyRatioPosterior50=" + log2CopyRatioPosterior50 +
+                ", log2CopyRatioPosterior90=" + log2CopyRatioPosterior90 +
+                ", minorAlleleFractionPosteriorMode=" + minorAlleleFractionPosteriorMode +
+                ", minorAlleleFractionPosterior10=" + minorAlleleFractionPosterior10 +
+                ", minorAlleleFractionPosterior50=" + minorAlleleFractionPosterior50 +
+                ", minorAlleleFractionPosterior90=" + minorAlleleFractionPosterior90 +
+                '}';
+    }
 }
