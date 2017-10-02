@@ -4,6 +4,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.broadinstitute.hellbender.exceptions.UserException;
+import org.broadinstitute.hellbender.tools.copynumber.legacy.ModelSegments;
 import org.broadinstitute.hellbender.tools.exome.allelefraction.AlleleFractionModeller;
 import org.broadinstitute.hellbender.tools.exome.copyratio.CopyRatioModeller;
 import org.broadinstitute.hellbender.tools.pon.allelic.AllelicPanelOfNormals;
@@ -40,6 +41,7 @@ public final class ACNVModeller {
     private CopyRatioModeller copyRatioModeller;
     private AlleleFractionModeller alleleFractionModeller;
 
+    private final double minorAlleleFractionPriorAlpha;
     private final AllelicPanelOfNormals allelicPoN;
 
     private final List<ACNVModeledSegment> segments = new ArrayList<>();
@@ -62,7 +64,7 @@ public final class ACNVModeller {
      * specifying number of total samples and number of burn-in samples for Markov-Chain Monte Carlo model fitting.
      * An initial model fit is performed.
      *
-     * @param segmentedGenome            contains segments, target coverages, and SNP counts to model
+     * @param segmentedGenome           contains segments, target coverages, and SNP counts to model
      * @param numSamplesCopyRatio       number of total samples for copy-ratio model MCMC
      * @param numBurnInCopyRatio        number of burn-in samples to discard for copy-ratio model MCMC
      * @param numSamplesAlleleFraction  number of total samples for allele-fraction model MCMC
@@ -73,7 +75,8 @@ public final class ACNVModeller {
                         final int numSamplesCopyRatio, final int numBurnInCopyRatio,
                         final int numSamplesAlleleFraction, final int numBurnInAlleleFraction,
                         final JavaSparkContext ctx) {
-        this(segmentedGenome, AllelicPanelOfNormals.EMPTY_PON, numSamplesCopyRatio, numBurnInCopyRatio, numSamplesAlleleFraction, numBurnInAlleleFraction, ctx);
+        this(segmentedGenome, AlleleFractionModeller.MINOR_ALLELE_FRACTION_PRIOR_ALPHA_DEFAULT,
+                AllelicPanelOfNormals.EMPTY_PON, numSamplesCopyRatio, numBurnInCopyRatio, numSamplesAlleleFraction, numBurnInAlleleFraction, ctx);
     }
 
     /**
@@ -81,7 +84,8 @@ public final class ACNVModeller {
      * specifying number of total samples and number of burn-in samples for Markov-Chain Monte Carlo model fitting.
      * An initial model fit is performed.
      *
-     * @param segmentedGenome            contains segments, target coverages, and SNP counts to model
+     * @param segmentedGenome           contains segments, target coverages, and SNP counts to model
+     * @param minorAlleleFractionPriorAlpha hyperparameter for the segment minor-allele fraction (for use by {@link ModelSegments} only)
      * @param allelicPoN                allelic-bias panel of normals
      * @param numSamplesCopyRatio       number of total samples for copy-ratio model MCMC
      * @param numBurnInCopyRatio        number of burn-in samples to discard for copy-ratio model MCMC
@@ -89,11 +93,12 @@ public final class ACNVModeller {
      * @param numBurnInAlleleFraction   number of burn-in samples to discard for allele-fraction model MCMC
      * @param ctx                       JavaSparkContext, used for kernel density estimation in {@link PosteriorSummary}
      */
-    public ACNVModeller(final SegmentedGenome segmentedGenome, final AllelicPanelOfNormals allelicPoN,
+    public ACNVModeller(final SegmentedGenome segmentedGenome, final double minorAlleleFractionPriorAlpha, final AllelicPanelOfNormals allelicPoN,
                         final int numSamplesCopyRatio, final int numBurnInCopyRatio,
                         final int numSamplesAlleleFraction, final int numBurnInAlleleFraction,
                         final JavaSparkContext ctx) {
         this.segmentedGenome = segmentedGenome;
+        this.minorAlleleFractionPriorAlpha = minorAlleleFractionPriorAlpha;
         this.allelicPoN = allelicPoN;
         this.numSamplesCopyRatio = numSamplesCopyRatio;
         this.numBurnInCopyRatio = numBurnInCopyRatio;
@@ -102,6 +107,24 @@ public final class ACNVModeller {
         this.ctx = ctx;
         logger.info("Fitting initial model...");
         fitModel();
+    }
+
+    /**
+     * We expose a hyperparameter for the segment minor-allele fraction for use by {@link ModelSegments} only.
+     */
+    public ACNVModeller(final SegmentedGenome segmentedGenome, final double minorAlleleFractionPriorAlpha,
+                        final int numSamplesCopyRatio, final int numBurnInCopyRatio,
+                        final int numSamplesAlleleFraction, final int numBurnInAlleleFraction,
+                        final JavaSparkContext ctx) {
+        this(segmentedGenome, minorAlleleFractionPriorAlpha, AllelicPanelOfNormals.EMPTY_PON, numSamplesCopyRatio, numBurnInCopyRatio, numSamplesAlleleFraction, numBurnInAlleleFraction, ctx);
+    }
+
+    public ACNVModeller(final SegmentedGenome segmentedGenome, final AllelicPanelOfNormals allelicPoN,
+                        final int numSamplesCopyRatio, final int numBurnInCopyRatio,
+                        final int numSamplesAlleleFraction, final int numBurnInAlleleFraction,
+                        final JavaSparkContext ctx) {
+        this(segmentedGenome, AlleleFractionModeller.MINOR_ALLELE_FRACTION_PRIOR_ALPHA_DEFAULT,
+                allelicPoN, numSamplesCopyRatio, numBurnInCopyRatio, numSamplesAlleleFraction, numBurnInAlleleFraction, ctx);
     }
 
     /**
@@ -142,7 +165,7 @@ public final class ACNVModeller {
         copyRatioModeller = new CopyRatioModeller(segmentedGenome);
         copyRatioModeller.fitMCMC(numSamplesCopyRatio, numBurnInCopyRatio);
         logger.info("Fitting allele-fraction model...");
-        alleleFractionModeller = new AlleleFractionModeller(segmentedGenome, allelicPoN);
+        alleleFractionModeller = new AlleleFractionModeller(segmentedGenome, minorAlleleFractionPriorAlpha, allelicPoN);
         alleleFractionModeller.fitMCMC(numSamplesAlleleFraction, numBurnInAlleleFraction);
 
         //update list of ACNVModeledSegment with new PosteriorSummaries

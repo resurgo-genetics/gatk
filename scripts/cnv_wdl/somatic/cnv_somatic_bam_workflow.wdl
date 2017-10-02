@@ -176,12 +176,24 @@ task ModelSegments {
     File allelic_counts
     Int? max_num_segments_per_chromosome
     Int? min_total_allele_count
+    Float? genotyping_p_value_threshold
+    Float? genotyping_base_error_rate
     Float? kernel_variance_copy_ratio
     Float? kernel_variance_allele_fraction
     Int? kernel_approximation_dimension
     Array[Int]? window_sizes = [8, 16, 32, 64, 128, 256]
     Float? num_changepoints_penalty_factor_copy_ratio
     Float? num_changepoints_penalty_factor_allele_fraction
+    Int? num_copy_ratio_intervals_small_segment_threshold
+    Float? minor_allele_fraction_prior_alpha
+    Int? num_samples_copy_ratio
+    Int? num_burn_in_copy_ratio
+    Int? num_samples_allele_fraction
+    Int? num_burn_in_allele_fraction
+    Float? smoothing_threshold_copy_ratio
+    Float? smoothing_threshold_allele_fraction
+    Int? max_num_smoothing_iterations
+    Int? num_smoothing_iterations_per_fit
     String? output_dir
     String gatk_jar
 
@@ -200,12 +212,24 @@ task ModelSegments {
             --allelicCounts ${allelic_counts} \
             --maxNumSegmentsPerChromosome ${default="500" max_num_segments_per_chromosome} \
             --minTotalAlleleCount ${default="10" min_total_allele_count} \
+            --genotypingPValueThreshold ${default="0.01" genotyping_p_value_threshold} \
+            --genotypingBaseErrorRate ${default="0.01" genotyping_base_error_rate} \
             --kernelVarianceCopyRatio ${default="0.0" kernel_variance_copy_ratio} \
             --kernelVarianceAlleleFraction ${default="0.01" kernel_variance_allele_fraction} \
             --kernelApproximationDimension ${default="100" kernel_approximation_dimension} \
             --windowSizes ${sep= " --windowSizes " window_sizes} \
             --numChangepointsPenaltyFactorCopyRatio ${default="1.0" num_changepoints_penalty_factor_copy_ratio} \
             --numChangepointsPenaltyFactorAlleleFraction ${default="10.0" num_changepoints_penalty_factor_allele_fraction} \
+            --numCopyRatioIntervalsSmallSegmentThreshold ${default="0" num_copy_ratio_intervals_small_segment_threshold} \
+            --minorAlleleFractionPriorAlpha ${default="25.0" minor_allele_fraction_prior_alpha} \
+            --numSamplesCopyRatio ${default=100 num_samples_copy_ratio} \
+            --numBurnInCopyRatio ${default=50 num_burn_in_copy_ratio} \
+            --numSamplesAlleleFraction ${default=100 num_samples_allele_fraction} \
+            --numBurnInAlleleFraction ${default=50 num_burn_in_allele_fraction} \
+            --smoothingThresholdCopyRatio ${default="4.0" smoothing_threshold_copy_ratio} \
+            --smoothingThresholdAlleleFraction ${default="2.0" smoothing_threshold_allele_fraction} \
+            --maxNumSmoothingIterations ${default=10 max_num_smoothing_iterations} \
+            --numSmoothingIterationsPerFit ${default=0 num_smoothing_iterations_per_fit} \
             --output ${output_dir_} \
             --outputPrefix ${entity_id}
     }

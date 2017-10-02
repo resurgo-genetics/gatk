@@ -44,6 +44,7 @@ import java.util.stream.IntStream;
 public final class AlleleFractionModeller {
     public static final double MAX_REASONABLE_MEAN_BIAS = AlleleFractionInitializer.MAX_REASONABLE_MEAN_BIAS;
     public static final double MAX_REASONABLE_BIAS_VARIANCE = AlleleFractionInitializer.MAX_REASONABLE_BIAS_VARIANCE;
+    public static final double MINOR_ALLELE_FRACTION_PRIOR_ALPHA_DEFAULT = 1.;
 
     private final SegmentedGenome segmentedGenome;
     private final ParameterizedModel<AlleleFractionParameter, AlleleFractionState, AlleleFractionData> model;
@@ -54,6 +55,10 @@ public final class AlleleFractionModeller {
     private final int numSegments;
 
     public AlleleFractionModeller(final SegmentedGenome segmentedGenome, final AllelicPanelOfNormals allelicPoN) {
+        this(segmentedGenome, MINOR_ALLELE_FRACTION_PRIOR_ALPHA_DEFAULT, allelicPoN);
+    }
+
+    public AlleleFractionModeller(final SegmentedGenome segmentedGenome, final double minorAlleleFractionPriorAlpha, final AllelicPanelOfNormals allelicPoN) {
         this.segmentedGenome = segmentedGenome;
         final AlleleFractionData data = new AlleleFractionData(segmentedGenome, allelicPoN);
         numSegments = data.getNumSegments();
@@ -82,7 +87,7 @@ public final class AlleleFractionModeller {
         final ParameterSampler<Double, AlleleFractionParameter, AlleleFractionState, AlleleFractionData> outlierProbabilitySampler =
                 new AlleleFractionSamplers.OutlierProbabilitySampler(outlierProbabilitySamplingWidths);
         final ParameterSampler<AlleleFractionState.MinorFractions, AlleleFractionParameter, AlleleFractionState, AlleleFractionData> minorFractionsSampler =
-                new AlleleFractionSamplers.MinorFractionsSampler(minorFractionsSliceSamplingWidths);
+                new AlleleFractionSamplers.MinorFractionsSampler(minorAlleleFractionPriorAlpha, minorFractionsSliceSamplingWidths);
 
         model = new ParameterizedModel.GibbsBuilder<>(initialState, data)
                 .addParameterSampler(AlleleFractionParameter.MEAN_BIAS, meanBiasSampler, Double.class)

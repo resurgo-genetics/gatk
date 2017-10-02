@@ -50,9 +50,6 @@ import java.util.stream.Collectors;
 public final class ModelSegments extends SparkCommandLineProgram {
     private static final long serialVersionUID = 1L;
 
-    private static final double ERROR_RATE = 1E-2;
-    private static final double GENOTYPING_P_VALUE_THRESHOLD = 0.01;
-
     //filename tags for output
     public static final String HET_ALLELIC_COUNTS_FILE_SUFFIX = ".hets.tsv";
     public static final String SEGMENTS_FILE_SUFFIX = ".seg";
@@ -69,6 +66,12 @@ public final class ModelSegments extends SparkCommandLineProgram {
 
     public static final String MINIMUM_TOTAL_ALLELE_COUNT_LONG_NAME = "minTotalAlleleCount";
     public static final String MINIMUM_TOTAL_ALLELE_COUNT_SHORT_NAME = "minAC";
+
+    public static final String GENOTYPING_P_VALUE_THRESHOLD_LONG_NAME = "genotypingPValueThreshold";
+    public static final String GENOTYPING_P_VALUE_THRESHOLD_SHORT_NAME = "pValTh";
+
+    public static final String GENOTYPING_BASE_ERROR_RATE_LONG_NAME = "genotypingBaseErrorRate";
+    public static final String GENOTYPING_BASE_ERROR_RATE_SHORT_NAME = "baseErrRate";
 
     public static final String KERNEL_VARIANCE_COPY_RATIO_LONG_NAME = "kernelVarianceCopyRatio";
     public static final String KERNEL_VARIANCE_COPY_RATIO_SHORT_NAME = "kernVarCR";
@@ -91,6 +94,9 @@ public final class ModelSegments extends SparkCommandLineProgram {
     public static final String NUM_COPY_RATIO_INTERVALS_SMALL_SEGMENT_THRESHOLD_LONG_NAME = "numCopyRatioIntervalsSmallSegmentThreshold";
     public static final String NUM_COPY_RATIO_INTERVALS_SMALL_SEGMENT_THRESHOLD_SHORT_NAME = "numCRSmallSegTh";
 
+    public static final String MINOR_ALLELE_FRACTION_PRIOR_ALPHA_LONG_NAME = "minorAlleleFractionPriorAlpha";
+    public static final String MINOR_ALLELE_FRACTION_PRIOR_ALPHA_SHORT_NAME = "alphaAF";
+
     public static final String NUM_SAMPLES_COPY_RATIO_LONG_NAME = "numSamplesCopyRatio";
     public static final String NUM_SAMPLES_COPY_RATIO_SHORT_NAME = "numSampCR";
 
@@ -103,17 +109,17 @@ public final class ModelSegments extends SparkCommandLineProgram {
     public static final String NUM_BURN_IN_ALLELE_FRACTION_LONG_NAME = "numBurnInAlleleFraction";
     public static final String NUM_BURN_IN_ALLELE_FRACTION_SHORT_NAME = "numBurnAF";
 
-    public static final String INTERVAL_THRESHOLD_COPY_RATIO_LONG_NAME = "intervalThresholdCopyRatio";
-    public static final String INTERVAL_THRESHOLD_COPY_RATIO_SHORT_NAME = "simThCR";
+    public static final String SMOOTHING_CREDIBLE_INTERVAL_THRESHOLD_COPY_RATIO_LONG_NAME = "smoothingThresholdCopyRatio";
+    public static final String SMOOTHING_CREDIBLE_INTERVAL_THRESHOLD_COPY_RATIO_SHORT_NAME = "smoothThCR";
 
-    public static final String INTERVAL_THRESHOLD_ALLELE_FRACTION_LONG_NAME = "intervalThresholdAlleleFraction";
-    public static final String INTERVAL_THRESHOLD_ALLELE_FRACTION_SHORT_NAME = "simThAF";
+    public static final String SMOOTHING_CREDIBLE_INTERVAL_THRESHOLD_ALLELE_FRACTION_LONG_NAME = "smoothingThresholdAlleleFraction";
+    public static final String SMOOTHING_CREDIBLE_INTERVAL_THRESHOLD_ALLELE_FRACTION_SHORT_NAME = "smoothThAF";
 
-    public static final String MAX_NUM_SIMILAR_SEGMENT_MERGING_ITERATIONS_LONG_NAME = "maxNumIterationsSimSeg";
-    public static final String MAX_NUM_SIMILAR_SEGMENT_MERGING_ITERATIONS_SHORT_NAME = "maxIterSim";
+    public static final String MAX_NUM_SMOOTHING_ITERATIONS_LONG_NAME = "maxNumSmoothingIterations";
+    public static final String MAX_NUM_SMOOTHING_ITERATIONS_SHORT_NAME = "maxNumSmoothIter";
 
-    public static final String NUM_SIMILAR_SEGMENT_MERGING_ITERATIONS_PER_FIT_LONG_NAME = "numIterationsSimSegPerFit";
-    public static final String NUM_SIMILAR_SEGMENT_MERGING_ITERATIONS_PER_FIT_SHORT_NAME = "numIterSimPerFit";
+    public static final String NUM_SMOOTHING_ITERATIONS_PER_FIT_LONG_NAME = "numSmoothingIterationsPerFit";
+    public static final String NUM_SMOOTHING_ITERATIONS_PER_FIT_SHORT_NAME = "numSmoothIterPerFit";
 
     @Argument(
             doc = "Input file containing denoised copy-ratio profile (output of DenoiseReadCounts).",
@@ -155,13 +161,29 @@ public final class ModelSegments extends SparkCommandLineProgram {
     private int maxNumSegmentsPerChromosome = 1000;
 
     @Argument(
-            doc = "Minimum total count required to include site in allele-fraction segmentation.",
+            doc = "Minimum total count required to include allelic count in allele-fraction segmentation.",
             fullName = MINIMUM_TOTAL_ALLELE_COUNT_LONG_NAME,
             shortName = MINIMUM_TOTAL_ALLELE_COUNT_SHORT_NAME,
             minValue = 0,
             optional = true
     )
     private int minTotalAlleleCount = 10;
+
+    @Argument(
+            doc = "P-value threshold for genotyping and filtering homozygous allelic counts.",
+            fullName = GENOTYPING_P_VALUE_THRESHOLD_LONG_NAME,
+            shortName = GENOTYPING_P_VALUE_THRESHOLD_SHORT_NAME,
+            optional = true
+    )
+    private double genotypingPValueThreshold = 1E-2;
+
+    @Argument(
+            doc = "Base error rate for genotyping and filtering homozygous allelic counts.",
+            fullName = GENOTYPING_BASE_ERROR_RATE_LONG_NAME,
+            shortName = GENOTYPING_BASE_ERROR_RATE_SHORT_NAME,
+            optional = true
+    )
+    private double genotypingBaseErrorRate = 1E-2;
 
     @Argument(
             doc = "Variance of Gaussian kernel for copy-ratio segmentation.  If zero, a linear kernel will be used.",
@@ -241,15 +263,28 @@ public final class ModelSegments extends SparkCommandLineProgram {
                     "Ignored unless both denoised copy ratios and allelic counts are provided.",
             fullName = NUM_COPY_RATIO_INTERVALS_SMALL_SEGMENT_THRESHOLD_LONG_NAME,
             shortName = NUM_COPY_RATIO_INTERVALS_SMALL_SEGMENT_THRESHOLD_SHORT_NAME,
-            optional = true
+            optional = true,
+            minValue = 0
     )
     private int numCopyRatioIntervalsSmallSegmentThreshold = 0;
+
+    @Argument(
+            doc = "Alpha hyperparameter for the 4-parameter beta-distribution prior on segment minor-allele fraction. " +
+                    "The prior for the minor-allele fraction f in each segment is assumed to be Beta(alpha, 1, 0, 1/2). " +
+                    "Increasing this hyperparameter will reduce the effect of reference bias at the expense of sensitivity.",
+            fullName = MINOR_ALLELE_FRACTION_PRIOR_ALPHA_LONG_NAME,
+            shortName = MINOR_ALLELE_FRACTION_PRIOR_ALPHA_SHORT_NAME,
+            optional = true,
+            minValue = 1
+    )
+    private double minorAlleleFractionPriorAlpha = 25.0;
 
     @Argument(
             doc = "Total number of MCMC samples for copy-ratio model.",
             fullName = NUM_SAMPLES_COPY_RATIO_LONG_NAME,
             shortName = NUM_SAMPLES_COPY_RATIO_SHORT_NAME,
-            optional = true
+            optional = true,
+            minValue = 1
     )
     private int numSamplesCopyRatio = 100;
 
@@ -257,7 +292,8 @@ public final class ModelSegments extends SparkCommandLineProgram {
             doc = "Number of burn-in samples to discard for copy-ratio model.",
             fullName = NUM_BURN_IN_COPY_RATIO_LONG_NAME,
             shortName = NUM_BURN_IN_COPY_RATIO_SHORT_NAME,
-            optional = true
+            optional = true,
+            minValue = 0
     )
     private int numBurnInCopyRatio = 50;
 
@@ -265,7 +301,8 @@ public final class ModelSegments extends SparkCommandLineProgram {
             doc = "Total number of MCMC samples for allele-fraction model.",
             fullName = NUM_SAMPLES_ALLELE_FRACTION_LONG_NAME,
             shortName = NUM_SAMPLES_ALLELE_FRACTION_SHORT_NAME,
-            optional = true
+            optional = true,
+            minValue = 1
     )
     private int numSamplesAlleleFraction = 100;
 
@@ -273,43 +310,48 @@ public final class ModelSegments extends SparkCommandLineProgram {
             doc = "Number of burn-in samples to discard for allele-fraction model.",
             fullName = NUM_BURN_IN_ALLELE_FRACTION_LONG_NAME,
             shortName = NUM_BURN_IN_ALLELE_FRACTION_SHORT_NAME,
-            optional = true
+            optional = true,
+            minValue = 0
     )
     private int numBurnInAlleleFraction = 50;
 
     @Argument(
-            doc = "Number of 95% credible-interval widths to use for copy-ratio similar-segment merging.",
-            fullName = INTERVAL_THRESHOLD_COPY_RATIO_LONG_NAME,
-            shortName = INTERVAL_THRESHOLD_COPY_RATIO_SHORT_NAME,
-            optional = true
+            doc = "Number of 95% credible-interval widths to use for copy-ratio segmentation smoothing.",
+            fullName = SMOOTHING_CREDIBLE_INTERVAL_THRESHOLD_COPY_RATIO_LONG_NAME,
+            shortName = SMOOTHING_CREDIBLE_INTERVAL_THRESHOLD_COPY_RATIO_SHORT_NAME,
+            optional = true,
+            minValue = 0.
     )
-    private double intervalThresholdCopyRatio = 4.;
+    private double smoothingCredibleIntervalThresholdCopyRatio = 4.;
 
     @Argument(
-            doc = "Number of 95% credible-interval widths to use for allele-fraction similar-segment merging.",
-            fullName = INTERVAL_THRESHOLD_ALLELE_FRACTION_LONG_NAME,
-            shortName = INTERVAL_THRESHOLD_ALLELE_FRACTION_SHORT_NAME,
-            optional = true
+            doc = "Number of 95% credible-interval widths to use for allele-fraction segmentation smoothing.",
+            fullName = SMOOTHING_CREDIBLE_INTERVAL_THRESHOLD_ALLELE_FRACTION_LONG_NAME,
+            shortName = SMOOTHING_CREDIBLE_INTERVAL_THRESHOLD_ALLELE_FRACTION_SHORT_NAME,
+            optional = true,
+            minValue = 0.
     )
-    private double intervalThresholdAlleleFraction = 2.;
+    private double smoothingCredibleIntervalThresholdAlleleFraction = 2.;
 
     @Argument(
-            doc = "Maximum number of iterations allowed for similar-segment merging.",
-            fullName = MAX_NUM_SIMILAR_SEGMENT_MERGING_ITERATIONS_LONG_NAME,
-            shortName = MAX_NUM_SIMILAR_SEGMENT_MERGING_ITERATIONS_SHORT_NAME,
-            optional = true
+            doc = "Maximum number of iterations allowed for segmentation smoothing.",
+            fullName = MAX_NUM_SMOOTHING_ITERATIONS_LONG_NAME,
+            shortName = MAX_NUM_SMOOTHING_ITERATIONS_SHORT_NAME,
+            optional = true,
+            minValue = 0
     )
-    private int maxNumSimilarSegmentMergingIterations = 10;
+    private int maxNumSmoothingIterations = 10;
 
     @Argument(
-            doc = "Number of similar-segment--merging iterations per MCMC model refit. " +
+            doc = "Number of segmentation-smoothing iterations per MCMC model refit. " +
                     "(Increasing this will decrease runtime, but the final number of segments may be higher. " +
                     "Setting this to 0 will completely disable model refitting between iterations.)",
-            fullName = NUM_SIMILAR_SEGMENT_MERGING_ITERATIONS_PER_FIT_LONG_NAME,
-            shortName = NUM_SIMILAR_SEGMENT_MERGING_ITERATIONS_PER_FIT_SHORT_NAME,
-            optional = true
+            fullName = NUM_SMOOTHING_ITERATIONS_PER_FIT_LONG_NAME,
+            shortName = NUM_SMOOTHING_ITERATIONS_PER_FIT_SHORT_NAME,
+            optional = true,
+            minValue = 0
     )
-    public int numSimilarSegmentMergingIterationsPerFit = 0;
+    private int numSmoothingIterationsPerFit = 0;
 
     //initialize data/segment variables, some of which may be optional
     private CopyRatioCollection denoisedCopyRatios = null;
@@ -354,13 +396,13 @@ public final class ModelSegments extends SparkCommandLineProgram {
         logger.info("Beginning modeling...");
         //initial MCMC model fitting performed by ACNVModeller constructor
         final ACNVModeller modeller = new ACNVModeller(crafSegments.convertToSegmentedGenome(denoisedCopyRatios, hetAllelicCounts),
-                numSamplesCopyRatio, numBurnInCopyRatio, numSamplesAlleleFraction, numBurnInAlleleFraction, ctx);
+                minorAlleleFractionPriorAlpha, numSamplesCopyRatio, numBurnInCopyRatio, numSamplesAlleleFraction, numBurnInAlleleFraction, ctx);
 
         //write initial segments and parameters to file
         writeACNVModeledSegmentAndParameterFiles(crafSegments.getSampleName(), modeller, BEGIN_FIT_FILE_TAG);
 
-        //similar-segment merging (segment files are output for each merge iteration)
-        performSimilarSegmentMergingStep(modeller);
+        //segmentation smoothing (segment files are output for each merge iteration)
+        performSmoothingStep(modeller);
 
         //write final segments and parameters to file
         writeACNVModeledSegmentAndParameterFiles(crafSegments.getSampleName(), modeller, FINAL_FIT_FILE_TAG);
@@ -414,8 +456,8 @@ public final class ModelSegments extends SparkCommandLineProgram {
                         .filter(ac -> new BinomialTest().binomialTest(
                                 ac.getRefReadCount() + ac.getAltReadCount(),
                                 Math.min(ac.getAltReadCount(), ac.getRefReadCount()),
-                                ERROR_RATE,
-                                AlternativeHypothesis.TWO_SIDED) <= GENOTYPING_P_VALUE_THRESHOLD)
+                                genotypingBaseErrorRate,
+                                AlternativeHypothesis.TWO_SIDED) <= genotypingPValueThreshold)
                         .collect(Collectors.toList()));
         final File hetAllelicCountsFile = new File(outputDir, outputPrefix + HET_ALLELIC_COUNTS_FILE_SUFFIX);
         hetAllelicCounts.write(hetAllelicCountsFile);
@@ -433,19 +475,19 @@ public final class ModelSegments extends SparkCommandLineProgram {
                         numChangepointsPenaltyFactorAlleleFraction, numChangepointsPenaltyFactorAlleleFraction);
     }
 
-    //similar-segment merging
-    private void performSimilarSegmentMergingStep(final ACNVModeller modeller) {
-        logger.info("Initial number of segments before similar-segment merging: " + modeller.getACNVModeledSegments().size());
+    //segmentation smoothing
+    private void performSmoothingStep(final ACNVModeller modeller) {
+        logger.info("Initial number of segments before smoothing: " + modeller.getACNVModeledSegments().size());
         //perform iterations of similar-segment merging until all similar segments are merged
-        for (int numIterations = 1; numIterations <= maxNumSimilarSegmentMergingIterations; numIterations++) {
-            logger.info("Similar-segment merging iteration: " + numIterations);
+        for (int numIterations = 1; numIterations <= maxNumSmoothingIterations; numIterations++) {
+            logger.info("Smoothing iteration: " + numIterations);
             final int prevNumSegments = modeller.getACNVModeledSegments().size();
-            if (numSimilarSegmentMergingIterationsPerFit > 0 && numIterations % numSimilarSegmentMergingIterationsPerFit == 0) {
+            if (numSmoothingIterationsPerFit > 0 && numIterations % numSmoothingIterationsPerFit == 0) {
                 //refit model after this merge iteration
-                modeller.performSimilarSegmentMergingIteration(intervalThresholdCopyRatio, intervalThresholdAlleleFraction, true);
+                modeller.performSimilarSegmentMergingIteration(smoothingCredibleIntervalThresholdCopyRatio, smoothingCredibleIntervalThresholdAlleleFraction, true);
             } else {
                 //do not refit model after this merge iteration (deciles will be unspecified)
-                modeller.performSimilarSegmentMergingIteration(intervalThresholdCopyRatio, intervalThresholdAlleleFraction, false);
+                modeller.performSimilarSegmentMergingIteration(smoothingCredibleIntervalThresholdCopyRatio, smoothingCredibleIntervalThresholdAlleleFraction, false);
             }
             if (modeller.getACNVModeledSegments().size() == prevNumSegments) {
                 break;
@@ -455,7 +497,7 @@ public final class ModelSegments extends SparkCommandLineProgram {
             //make sure final model is completely fit (i.e., deciles are specified)
             modeller.fitModel();
         }
-        logger.info("Final number of segments after similar-segment merging: " + modeller.getACNVModeledSegments().size());
+        logger.info("Final number of segments after smoothing: " + modeller.getACNVModeledSegments().size());
     }
 
     //write modeled segments and global parameters to file
