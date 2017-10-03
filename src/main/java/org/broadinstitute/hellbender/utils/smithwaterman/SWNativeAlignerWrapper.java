@@ -34,7 +34,6 @@ public final class SWNativeAlignerWrapper implements SmithWatermanAligner {
         CLIP
     }
 
-
     @Override
     public SmithWatermanAlignment align(final byte[] reference, final byte[] alternate, final SWParameters parameters, final SWOverhangStrategy overhangStrategy){
 
