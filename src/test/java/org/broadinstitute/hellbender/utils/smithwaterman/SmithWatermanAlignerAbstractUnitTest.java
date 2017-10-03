@@ -30,7 +30,6 @@ public abstract class SmithWatermanAlignerAbstractUnitTest extends BaseTest {
      */
     protected abstract SmithWatermanAligner getAligner();
 
-
     protected static void printAlignment(final byte[] ref, final byte[] read, final SmithWatermanAlignment alignment, final SWOverhangStrategy overhangStrategy) {
         final StringBuilder bread = new StringBuilder();
         final StringBuilder bref = new StringBuilder();
@@ -157,14 +156,12 @@ public abstract class SmithWatermanAlignerAbstractUnitTest extends BaseTest {
                 {ref1, read1, new SWParameters(200, -50, -300, -22), 0, "11M"}
         };
     }
-
     @Test(dataProvider = "OddNoAlignment")
     public void testOddNoAlignment(final String reference, final String read, final SWParameters weights,
                                    final int expectedStart, final String expectedCigar) {
         assertAlignmentMatchesExpected(reference, read, expectedStart, expectedCigar, weights,
                                        SWOverhangStrategy.SOFTCLIP);
     }
-
     @Test
     public void testIndelsAtStartAndEnd() {
         final String match     = "CCCCC";
@@ -175,7 +172,6 @@ public abstract class SmithWatermanAlignerAbstractUnitTest extends BaseTest {
 
         assertAlignmentMatchesExpected(reference, read, expectedStart, expectedCigar, SmithWatermanAligner.ORIGINAL_DEFAULT, SWOverhangStrategy.SOFTCLIP);
     }
-
     @Test
     public void testDegenerateAlignmentWithIndelsAtBothEnds() {
         logger.warn("testDegenerateAlignmentWithIndelsAtBothEnds");
@@ -234,7 +230,6 @@ public abstract class SmithWatermanAlignerAbstractUnitTest extends BaseTest {
             Assert.assertEquals(pc.getOperator(), npc.getOperator());
         }
     }
-
     @DataProvider
     public Object[][] getSubstringMatchTests(){
         return new Object[][]{
@@ -244,7 +239,6 @@ public abstract class SmithWatermanAlignerAbstractUnitTest extends BaseTest {
                 {3, "5M", SWOverhangStrategy.IGNORE}
         };
     }
-
     @Test(dataProvider = "getSubstringMatchTests")
     public void testSubstringMatch(int expectedStart, String expectedCigar, SWOverhangStrategy strategy) {
         final String matchingSection = "CCCCC";
@@ -273,7 +267,6 @@ public abstract class SmithWatermanAlignerAbstractUnitTest extends BaseTest {
                 {359, "7M", SWOverhangStrategy.IGNORE}
         };
     }
-
     @Test(dataProvider = "getSubstringMatchLong")
     public void testSubstringMatchLong(int expectedStart, String expectedCigar, SWOverhangStrategy strategy) {
         final String reference = "ATAGAAAATAGTTTTTGGAAATATGGGTGAAGAGACATCTCCTCTTATGGAAAAAGGGATTCTAGAATTTAACAATAAATATTCCCAACTTTCCCCAAGGCTTTAAAATCTACCTTGAAGGAGCAGCTGATGTATTTCTAGAACAGACTTAGGTGTCTTGGTGTGGCCTGTAAAGAGATACTGTCTTTCTCTTTTGAGTGTAAGAGAGAAAGGACAGTCTACTCAATAAAGAGTGCTGGGAAAACTGAATATCCACACACAGAATAATAAAACTAGATCCTATCTCTCACCATATACAAAGATCAACTCAAAACAAATTAAAGACCTAAATGTAAGACAAGAAATTATAAAACTACTAGAAAAAAACACAAGGGAAATGCTTCAGGACATTGGC";

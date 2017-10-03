@@ -24,16 +24,6 @@ public final class SWNativeAlignerWrapper implements SmithWatermanAligner {
         this.aligner = aligner;
     }
 
-    /**
-     * The state of a trace step through the matrix
-     */
-    protected enum State {
-        MATCH,
-        INSERTION,
-        DELETION,
-        CLIP
-    }
-
     @Override
     public SmithWatermanAlignment align(final byte[] reference, final byte[] alternate, final SWParameters parameters, final SWOverhangStrategy overhangStrategy){
 
@@ -51,24 +41,12 @@ public final class SWNativeAlignerWrapper implements SmithWatermanAligner {
         if (matchIndex != -1) {
             // generate the alignment result when the substring search was successful
             final List<CigarElement> lce = new ArrayList<>(alternate.length);
-            CigarOperator op = null;
-            switch (State.MATCH) {
-                case MATCH: op = CigarOperator.M; break;
-                case INSERTION: op = CigarOperator.I; break;
-                case DELETION: op = CigarOperator.D; break;
-                case CLIP: op = CigarOperator.S; break;
-            }
-            lce.add(new CigarElement(alternate.length, op));
+            lce.add(new CigarElement(alternate.length, CigarOperator.M));
             return new SWNativeResultWrapper(AlignmentUtils.consolidateCigar(new Cigar(lce)), matchIndex);
         }
         else {
             // run full Smith-Waterman
-            final int n = reference.length+1;
-            final int m = alternate.length+1;
-            final int[][] sw = new int[n][m];
-            final int[][] btrack=new int[n][m];
             final SWNativeAlignerResult alignment = aligner.align(reference, alternate,parameters,overhangStrategy);
-
             return new SWNativeResultWrapper(alignment);
         }
 
