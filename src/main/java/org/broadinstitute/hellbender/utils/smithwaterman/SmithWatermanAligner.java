@@ -3,11 +3,8 @@ package org.broadinstitute.hellbender.utils.smithwaterman;
 import org.broadinstitute.gatk.nativebindings.smithwaterman.SWOverhangStrategy;
 import org.broadinstitute.gatk.nativebindings.smithwaterman.SWParameters;
 import org.broadinstitute.hellbender.exceptions.UserException;
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-
-
 import java.io.Closeable;
 import java.util.function.Supplier;
 
