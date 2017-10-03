@@ -7,5 +7,4 @@ public final class SmithWatermanJavaAlignerUnitTest extends SmithWatermanAligner
         return SmithWatermanJavaAligner.getInstance();
     }
 
-
 }
