@@ -21,12 +21,15 @@ import java.util.List;
  * Implementations of a {@link SmithWatermanAligner} can be tested by subclassing this test and overriding
  * {@link #getAligner()} to return an instance of the class to be tested
  */
+
+@Test
 public abstract class SmithWatermanAlignerAbstractUnitTest extends BaseTest {
 
     /**
      * @return an aligner to be tested
      */
     protected abstract SmithWatermanAligner getAligner();
+
 
     protected static void printAlignment(final byte[] ref, final byte[] read, final SmithWatermanAlignment alignment, final SWOverhangStrategy overhangStrategy) {
         final StringBuilder bread = new StringBuilder();
@@ -169,6 +172,7 @@ public abstract class SmithWatermanAlignerAbstractUnitTest extends BaseTest {
         final String read      = match + "GGG";
         final int expectedStart = 3;
         final String expectedCigar = "5M3S";
+
         assertAlignmentMatchesExpected(reference, read, expectedStart, expectedCigar, SmithWatermanAligner.ORIGINAL_DEFAULT, SWOverhangStrategy.SOFTCLIP);
     }
 
@@ -251,6 +255,7 @@ public abstract class SmithWatermanAlignerAbstractUnitTest extends BaseTest {
     }
 
     protected void assertAlignmentMatchesExpected(String reference, String read, int expectedStart, String expectedCigar, SWParameters weights, SWOverhangStrategy strategy) {
+
         try(final SmithWatermanAligner sw = getAligner()) {
             final SmithWatermanAlignment alignment = sw.align(reference.getBytes(), read.getBytes(), weights, strategy);
             printAlignment(reference.getBytes(), read.getBytes(), alignment, strategy);
@@ -275,4 +280,5 @@ public abstract class SmithWatermanAlignerAbstractUnitTest extends BaseTest {
         final String read      = "AAAAAAA";
         assertAlignmentMatchesExpected(reference, read, expectedStart, expectedCigar, SmithWatermanAligner.ORIGINAL_DEFAULT, strategy);
     }
+
 }
