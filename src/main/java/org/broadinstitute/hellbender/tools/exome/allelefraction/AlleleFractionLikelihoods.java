@@ -23,6 +23,8 @@ import static org.broadinstitute.hellbender.utils.MathUtils.log10ToLog;
  * @author Samuel Lee &lt;slee@broadinstitute.org&gt;
  */
 public final class AlleleFractionLikelihoods {
+    private static final int NUM_POINTS_SUBSAMPLING_LIMIT = 100000; //for global variables, only sample up to this many data points
+
     private AlleleFractionLikelihoods() {}
 
     /**

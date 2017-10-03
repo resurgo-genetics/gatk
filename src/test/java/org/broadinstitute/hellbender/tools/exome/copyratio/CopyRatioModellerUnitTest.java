@@ -124,7 +124,7 @@ public final class CopyRatioModellerUnitTest extends BaseTest {
 
         //load data (coverages and number of targets in each segment)
         final ReadCountCollection coverage = ReadCountCollectionUtils.parse(COVERAGES_FILE);
-        final Genome genome = new Genome(coverage, Collections.emptyList()); //Genome with no SNPs
+        final Genome genome = new Genome(coverage.records(), Collections.emptyList(), ReadCountCollectionUtils.getSampleNameFromReadCounts(coverage)); //Genome with no SNPs
         final SegmentedGenome segmentedGenome = new SegmentedGenome(SEGMENT_FILE, genome);
 
         //run MCMC

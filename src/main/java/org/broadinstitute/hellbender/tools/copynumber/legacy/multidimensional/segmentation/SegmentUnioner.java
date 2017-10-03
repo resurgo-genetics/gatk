@@ -105,6 +105,7 @@ final class SegmentUnioner {
                         new ArrayList<>(allelicCountOverlapDetector.getOverlaps(s))))
                 .forEach(System.out::println);
 
+        logger.info("Trimming combined segments...");
         //for trimming segments in the final step, we need an overlap detector built from the full copy-ratio intervals
         final OverlapDetector<CopyRatio> copyRatioOverlapDetector = OverlapDetector.create(denoisedCopyRatios.getRecords());
         return spuriousAlleleFractionMergedSegments.stream()
@@ -161,7 +162,7 @@ final class SegmentUnioner {
 
     /**
      * Given combined segments, returns a list with spurious segments---which contain only points
-     * of the first type that were created during segment union by breakpoints arising from
+     * of the first type that were created during breakpoint union by breakpoints arising from
      * points of the second type---remerged.
      */
     private static <FirstTypeSegment extends Locatable, FirstType extends Locatable, SecondType extends Locatable> List<SimpleInterval> mergeSpuriousSegments(

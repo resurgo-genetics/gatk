@@ -1,6 +1,7 @@
 package org.broadinstitute.hellbender.tools.exome.allelefraction;
 
 import org.apache.commons.math3.exception.MaxCountExceededException;
+import org.apache.commons.math3.random.RandomGenerator;
 import org.apache.commons.math3.special.Beta;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -54,6 +55,7 @@ public final class AlleleFractionInitializer {
 
     private AlleleFractionGlobalParameters globalParameters;
     private AlleleFractionState.MinorFractions minorFractions;
+    private final int numPoints;
     private static final Logger logger = LogManager.getLogger(AlleleFractionInitializer.class);
 
     /**
@@ -63,6 +65,7 @@ public final class AlleleFractionInitializer {
     public AlleleFractionInitializer(final AlleleFractionData data) {
         globalParameters = INITIAL_GLOBAL_PARAMETERS;
         minorFractions = initialMinorFractions(data);
+        numPoints = data.getNumPoints();
         double previousIterationLogLikelihood;
         double nextIterationLogLikelihood = Double.NEGATIVE_INFINITY;
         logger.info(String.format("Initializing allele-fraction model.  Iterating until log likelihood converges to within %.3f.",
@@ -72,6 +75,32 @@ public final class AlleleFractionInitializer {
             previousIterationLogLikelihood = nextIterationLogLikelihood;
             globalParameters = new AlleleFractionGlobalParameters(estimateMeanBias(data), estimateBiasVariance(data),
                     estimateOutlierProbability(data));
+            minorFractions = estimateMinorFractions(data);
+
+            nextIterationLogLikelihood = AlleleFractionLikelihoods.logLikelihood(globalParameters, minorFractions, data);
+            logger.info(String.format("Iteration %d, model log likelihood = %.3f.", iteration, nextIterationLogLikelihood));
+            iteration++;
+        } while (iteration < MAX_ITERATIONS &&
+                nextIterationLogLikelihood - previousIterationLogLikelihood > LOG_LIKELIHOOD_CONVERGENCE_THRESHOLD);
+    }
+
+    /**
+     * Subsample data for global variables.
+     */
+    public AlleleFractionInitializer(final RandomGenerator rng, final int numPointsSubsamplingLimit, final AlleleFractionData data) {
+        globalParameters = INITIAL_GLOBAL_PARAMETERS;
+        minorFractions = initialMinorFractions(data);
+        numPoints = data.getNumPoints();
+        double previousIterationLogLikelihood;
+        double nextIterationLogLikelihood = Double.NEGATIVE_INFINITY;
+        logger.info(String.format("Initializing allele-fraction model.  Iterating until log likelihood converges to within %.3f.",
+                LOG_LIKELIHOOD_CONVERGENCE_THRESHOLD));
+        final AlleleFractionData dataGlobal = data.getNumPoints() >= numPointsSubsamplingLimit ? data.subsample(rng, numPointsSubsamplingLimit) : data;
+        int iteration = 1;
+        do {
+            previousIterationLogLikelihood = nextIterationLogLikelihood;
+            globalParameters = new AlleleFractionGlobalParameters(estimateMeanBias(dataGlobal), estimateBiasVariance(dataGlobal),
+                    estimateOutlierProbability(dataGlobal));
             minorFractions = estimateMinorFractions(data);
 
             nextIterationLogLikelihood = AlleleFractionLikelihoods.logLikelihood(globalParameters, minorFractions, data);
@@ -128,20 +157,23 @@ public final class AlleleFractionInitializer {
     }
 
     private double estimateOutlierProbability(final AlleleFractionData data) {
+        final double scalingFactor = (double) numPoints / data.getNumPoints();
         final Function<Double, Double> objective = outlierProbability ->
-                AlleleFractionLikelihoods.logLikelihood(globalParameters.copyWithNewOutlierProbability(outlierProbability), minorFractions, data);
+                scalingFactor * AlleleFractionLikelihoods.logLikelihood(globalParameters.copyWithNewOutlierProbability(outlierProbability), minorFractions, data);
         return OptimizationUtils.argmax(objective, 0.0, MAX_REASONABLE_OUTLIER_PROBABILITY, globalParameters.getOutlierProbability());
     }
 
     private double estimateMeanBias(final AlleleFractionData data) {
+        final double scalingFactor = (double) numPoints / data.getNumPoints();
         final Function<Double, Double> objective = meanBias ->
-                AlleleFractionLikelihoods.logLikelihood(globalParameters.copyWithNewMeanBias(meanBias), minorFractions, data);
+                scalingFactor * AlleleFractionLikelihoods.logLikelihood(globalParameters.copyWithNewMeanBias(meanBias), minorFractions, data);
         return OptimizationUtils.argmax(objective, 0.0, MAX_REASONABLE_MEAN_BIAS, globalParameters.getMeanBias());
     }
 
     private double estimateBiasVariance(final AlleleFractionData data) {
+        final double scalingFactor = (double) numPoints / data.getNumPoints();
         final Function<Double, Double> objective = biasVariance ->
-                AlleleFractionLikelihoods.logLikelihood(globalParameters.copyWithNewBiasVariance(biasVariance), minorFractions, data);
+                scalingFactor * AlleleFractionLikelihoods.logLikelihood(globalParameters.copyWithNewBiasVariance(biasVariance), minorFractions, data);
         return OptimizationUtils.argmax(objective, 0.0, MAX_REASONABLE_BIAS_VARIANCE, globalParameters.getBiasVariance());
     }
 

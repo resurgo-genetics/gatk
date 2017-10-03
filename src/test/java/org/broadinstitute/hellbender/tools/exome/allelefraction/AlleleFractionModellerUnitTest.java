@@ -4,6 +4,7 @@ import htsjdk.samtools.util.Log;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.broadinstitute.hellbender.engine.spark.SparkContextFactory;
 import org.broadinstitute.hellbender.tools.exome.Genome;
+import org.broadinstitute.hellbender.tools.exome.ReadCountCollectionUtils;
 import org.broadinstitute.hellbender.tools.exome.SegmentUtils;
 import org.broadinstitute.hellbender.tools.exome.SegmentedGenome;
 import org.broadinstitute.hellbender.tools.exome.alleliccount.AllelicCountCollection;
@@ -222,7 +223,7 @@ public final class AlleleFractionModellerUnitTest extends BaseTest {
 
         final double minorFractionTolerance = 0.025;
 
-        final Genome genome = new Genome(AlleleFractionSimulatedData.TRIVIAL_TARGETS, sample.getCounts());
+        final Genome genome = new Genome(AlleleFractionSimulatedData.TRIVIAL_TARGETS.records(), sample.getCounts(), ReadCountCollectionUtils.getSampleNameFromReadCounts(AlleleFractionSimulatedData.TRIVIAL_TARGETS));
         final List<SimpleInterval> segments = SegmentUtils.readIntervalsFromSegmentFile(SEGMENTS_FILE);
         final SegmentedGenome segmentedGenome = new SegmentedGenome(segments, genome);
 

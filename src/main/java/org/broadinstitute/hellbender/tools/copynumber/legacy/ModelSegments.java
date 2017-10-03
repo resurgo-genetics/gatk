@@ -167,7 +167,7 @@ public final class ModelSegments extends SparkCommandLineProgram {
             minValue = 0,
             optional = true
     )
-    private int minTotalAlleleCount = 10;
+    private int minTotalAlleleCount = 20;
 
     @Argument(
             doc = "P-value threshold for genotyping and filtering homozygous allelic counts.",
@@ -264,7 +264,7 @@ public final class ModelSegments extends SparkCommandLineProgram {
             optional = true,
             minValue = 1
     )
-    private double minorAlleleFractionPriorAlpha = 25.0;
+    private double minorAlleleFractionPriorAlpha = 25.;
 
     @Argument(
             doc = "Total number of MCMC samples for copy-ratio model.",
@@ -388,7 +388,7 @@ public final class ModelSegments extends SparkCommandLineProgram {
         //write initial segments and parameters to file
         writeACNVModeledSegmentAndParameterFiles(crafSegments.getSampleName(), modeller, BEGIN_FIT_FILE_TAG);
 
-        //segmentation smoothing (segment files are output for each merge iteration)
+        //segmentation smoothing
         performSmoothingStep(modeller);
 
         //write final segments and parameters to file

@@ -136,7 +136,7 @@ public final class SegmentMergeUtilsUnitTest extends BaseTest {
             final List<Target> targets = records.stream().map(ReadCountRecord::getTarget).collect(Collectors.toList());
             final RealMatrix counts = new Array2DRowRealMatrix(targets.size(), 1);
             counts.setColumn(0, records.stream().mapToDouble(r -> r.getCount()).toArray());
-            return new Genome(new ReadCountCollection(targets, Arrays.asList("sample"), counts), snps);
+            return new Genome(new ReadCountCollection(targets, Arrays.asList("sample"), counts).records(), snps, "sample");
         }
 
         private static final List<SimpleInterval> mergedSegmentsLeft =

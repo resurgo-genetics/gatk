@@ -2,6 +2,7 @@ package org.broadinstitute.hellbender.tools.exome.conversion.acsconversion;
 
 import org.broadinstitute.hellbender.tools.exome.ACNVModeledSegment;
 import org.broadinstitute.hellbender.tools.exome.Genome;
+import org.broadinstitute.hellbender.tools.exome.ReadCountCollectionUtils;
 import org.broadinstitute.hellbender.tools.exome.SegmentUtils;
 import org.broadinstitute.hellbender.tools.exome.allelefraction.AlleleFractionSimulatedData;
 import org.broadinstitute.hellbender.utils.test.BaseTest;
@@ -22,7 +23,7 @@ public class ACSModeledSegmentUtilsUnitTest extends BaseTest {
     @Test
     public void testConversion() {
         final List<ACNVModeledSegment> segs = SegmentUtils.readACNVModeledSegmentFile(new File(TEST_FILE_PATH));
-        final Genome genome = new Genome(AlleleFractionSimulatedData.TRIVIAL_TARGETS, Collections.emptyList());
+        final Genome genome = new Genome(AlleleFractionSimulatedData.TRIVIAL_TARGETS.records(), Collections.emptyList(), ReadCountCollectionUtils.getSampleNameFromReadCounts(AlleleFractionSimulatedData.TRIVIAL_TARGETS));
         final List<ACSModeledSegment> acsSegs = segs.stream().map(seg -> ACSModeledSegmentUtils.convertACNVSegmentToACSSegment(seg, 2.0, genome, true)).collect(Collectors.toList());
 
         for (int i = 0; i < segs.size(); i ++) {

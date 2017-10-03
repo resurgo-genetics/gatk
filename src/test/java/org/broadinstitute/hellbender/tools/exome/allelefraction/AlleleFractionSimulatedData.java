@@ -7,10 +7,7 @@ import org.apache.commons.math3.distribution.UniformRealDistribution;
 import org.apache.commons.math3.linear.Array2DRowRealMatrix;
 import org.apache.commons.math3.random.RandomGenerator;
 import org.apache.commons.math3.random.RandomGeneratorFactory;
-import org.broadinstitute.hellbender.tools.exome.Genome;
-import org.broadinstitute.hellbender.tools.exome.ReadCountCollection;
-import org.broadinstitute.hellbender.tools.exome.SegmentedGenome;
-import org.broadinstitute.hellbender.tools.exome.Target;
+import org.broadinstitute.hellbender.tools.exome.*;
 import org.broadinstitute.hellbender.tools.exome.alleliccount.AllelicCount;
 import org.broadinstitute.hellbender.utils.SimpleInterval;
 
@@ -99,7 +96,7 @@ public final class AlleleFractionSimulatedData {
             }
         }
 
-        final Genome genome = new Genome(TRIVIAL_TARGETS, alleleCounts);
+        final Genome genome = new Genome(TRIVIAL_TARGETS.records(), alleleCounts, ReadCountCollectionUtils.getSampleNameFromReadCounts(AlleleFractionSimulatedData.TRIVIAL_TARGETS));
         segmentedGenome = new SegmentedGenome(segments, genome);
         trueState = new AlleleFractionState(biasMean, biasVariance, outlierProbability, minorFractions);
     };

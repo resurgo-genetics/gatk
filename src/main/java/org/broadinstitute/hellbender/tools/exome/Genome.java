@@ -27,12 +27,13 @@ public final class Genome {
      * @param targets       list of log_2 target coverages, cannot be {@code null}
      * @param snps          list of SNP allele counts, cannot be {@code null}
      */
-    public Genome(final ReadCountCollection targets, final List<AllelicCount> snps) {
-        Utils.nonNull(targets, "The list of targets cannot be null.");
-        Utils.nonNull(snps, "The list of SNPs cannot be null.");
-        this.targets = new HashedListTargetCollection<>(targets.records().stream().map(ReadCountRecord::asSingleSampleRecord).collect(Collectors.toList()));
+    public <T extends ReadCountRecord> Genome(final List<T> targets, final List<AllelicCount> snps, final String sampleName) {
+        Utils.nonNull(targets);
+        Utils.nonNull(snps);
+        Utils.nonNull(sampleName);
+        this.targets = new HashedListTargetCollection<>(targets.stream().map(ReadCountRecord::asSingleSampleRecord).collect(Collectors.toList()));
         this.snps = new HashedListTargetCollection<>(snps);
-        sampleName = ReadCountCollectionUtils.getSampleNameFromReadCounts(targets);
+        this.sampleName = sampleName;
     }
 
     public Genome(final CopyRatioCollection denoisedCopyRatios, final org.broadinstitute.hellbender.tools.copynumber.allelic.alleliccount.AllelicCountCollection allelicCounts) {

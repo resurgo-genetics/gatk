@@ -210,7 +210,7 @@ task ModelSegments {
             --denoisedCopyRatios ${denoised_copy_ratios} \
             --allelicCounts ${allelic_counts} \
             --maxNumSegmentsPerChromosome ${default="500" max_num_segments_per_chromosome} \
-            --minTotalAlleleCount ${default="10" min_total_allele_count} \
+            --minTotalAlleleCount ${default="20" min_total_allele_count} \
             --genotypingPValueThreshold ${default="0.01" genotyping_p_value_threshold} \
             --genotypingBaseErrorRate ${default="0.01" genotyping_base_error_rate} \
             --kernelVarianceCopyRatio ${default="0.0" kernel_variance_copy_ratio} \
