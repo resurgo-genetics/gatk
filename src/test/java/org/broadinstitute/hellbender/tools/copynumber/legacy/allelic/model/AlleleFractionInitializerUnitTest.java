@@ -1,8 +1,5 @@
 package org.broadinstitute.hellbender.tools.copynumber.legacy.allelic.model;
 
-import org.broadinstitute.hellbender.tools.exome.allelefraction.AlleleFractionData;
-import org.broadinstitute.hellbender.tools.exome.allelefraction.AlleleFractionInitializer;
-import org.broadinstitute.hellbender.tools.exome.allelefraction.AlleleFractionState;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -13,6 +10,7 @@ import org.testng.annotations.Test;
 public final class AlleleFractionInitializerUnitTest {
     @Test
     public void testInitialize() {
+        final String sampleName = "test";
         final double averageHetsPerSegment = 50;
         final int numSegments = 100;
         final int averageDepth = 50;
@@ -26,10 +24,10 @@ public final class AlleleFractionInitializerUnitTest {
         final double biasVarianceTolerance = 0.01;
         final double outlierProbabilityTolerance = 0.01;
 
-        final AlleleFractionSimulatedData simulatedData = new AlleleFractionSimulatedData(averageHetsPerSegment, numSegments,
-                averageDepth, biasMean, biasVariance, outlierProbability);
+        final AlleleFractionSimulatedData simulatedData = new AlleleFractionSimulatedData(
+                sampleName, averageHetsPerSegment, numSegments, averageDepth, biasMean, biasVariance, outlierProbability);
 
-        final org.broadinstitute.hellbender.tools.exome.allelefraction.AlleleFractionData data = new AlleleFractionData(simulatedData.getSegmentedGenome());
+        final AlleleFractionData data = simulatedData.getData();
         final AlleleFractionState initializedState = new AlleleFractionInitializer(data).getInitializedState();
 
         final AlleleFractionSimulatedData.AlleleFractionStateError error = simulatedData.error(initializedState);
