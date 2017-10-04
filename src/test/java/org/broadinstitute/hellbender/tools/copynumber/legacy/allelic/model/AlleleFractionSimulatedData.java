@@ -1,4 +1,4 @@
-package org.broadinstitute.hellbender.tools.exome.allelefraction;
+package org.broadinstitute.hellbender.tools.copynumber.legacy.allelic.model;
 
 import org.apache.commons.math3.distribution.BinomialDistribution;
 import org.apache.commons.math3.distribution.GammaDistribution;
@@ -7,10 +7,9 @@ import org.apache.commons.math3.distribution.UniformRealDistribution;
 import org.apache.commons.math3.linear.Array2DRowRealMatrix;
 import org.apache.commons.math3.random.RandomGenerator;
 import org.apache.commons.math3.random.RandomGeneratorFactory;
-import org.broadinstitute.hellbender.tools.exome.Genome;
-import org.broadinstitute.hellbender.tools.exome.ReadCountCollection;
-import org.broadinstitute.hellbender.tools.exome.SegmentedGenome;
-import org.broadinstitute.hellbender.tools.exome.Target;
+import org.broadinstitute.hellbender.tools.exome.*;
+import org.broadinstitute.hellbender.tools.exome.allelefraction.AlleleFractionIndicator;
+import org.broadinstitute.hellbender.tools.exome.allelefraction.AlleleFractionState;
 import org.broadinstitute.hellbender.tools.exome.alleliccount.AllelicCount;
 import org.broadinstitute.hellbender.utils.SimpleInterval;
 
@@ -40,7 +39,7 @@ public final class AlleleFractionSimulatedData {
         return new PoissonDistribution(rng, mean, PoissonDistribution.DEFAULT_EPSILON, PoissonDistribution.DEFAULT_MAX_ITERATIONS);
     }
 
-    private final AlleleFractionState trueState;
+    private final org.broadinstitute.hellbender.tools.exome.allelefraction.AlleleFractionState trueState;
     private final PhaseIndicators truePhases = new PhaseIndicators(new ArrayList<>());
     private final SegmentedGenome segmentedGenome;
     private final int numSegments;
@@ -49,7 +48,7 @@ public final class AlleleFractionSimulatedData {
             final double averageDepth, final double biasMean, final double biasVariance, final double outlierProbability) {
         rng.setSeed(RANDOM_SEED);
         this.numSegments = numSegments;
-        final AlleleFractionState.MinorFractions minorFractions = new AlleleFractionState.MinorFractions(numSegments);
+        final org.broadinstitute.hellbender.tools.exome.allelefraction.AlleleFractionState.MinorFractions minorFractions = new org.broadinstitute.hellbender.tools.exome.allelefraction.AlleleFractionState.MinorFractions(numSegments);
         final List<AllelicCount> alleleCounts = new ArrayList<>();
         final List<SimpleInterval> segments = new ArrayList<>();
 
@@ -99,13 +98,13 @@ public final class AlleleFractionSimulatedData {
             }
         }
 
-        final Genome genome = new Genome(TRIVIAL_TARGETS, alleleCounts);
+        final Genome genome = new Genome(TRIVIAL_TARGETS.records(), alleleCounts, ReadCountCollectionUtils.getSampleNameFromReadCounts(AlleleFractionSimulatedData.TRIVIAL_TARGETS));
         segmentedGenome = new SegmentedGenome(segments, genome);
-        trueState = new AlleleFractionState(biasMean, biasVariance, outlierProbability, minorFractions);
+        trueState = new org.broadinstitute.hellbender.tools.exome.allelefraction.AlleleFractionState(biasMean, biasVariance, outlierProbability, minorFractions);
     };
 
 
-    public AlleleFractionState getTrueState() { return trueState; }
+    public org.broadinstitute.hellbender.tools.exome.allelefraction.AlleleFractionState getTrueState() { return trueState; }
 
     /**
      * Returns the ArrayList of phase indicators held internally, which should not be modified by the caller.

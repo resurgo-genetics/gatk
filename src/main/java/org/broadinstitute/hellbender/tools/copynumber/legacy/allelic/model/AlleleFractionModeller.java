@@ -1,5 +1,7 @@
-package org.broadinstitute.hellbender.tools.exome.allelefraction;
+package org.broadinstitute.hellbender.tools.copynumber.legacy.allelic.model;
 
+import org.apache.commons.math3.random.RandomGenerator;
+import org.apache.commons.math3.random.RandomGeneratorFactory;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.broadinstitute.hellbender.tools.exome.SegmentedGenome;
 import org.broadinstitute.hellbender.tools.pon.allelic.AllelicPanelOfNormals;
@@ -44,6 +46,11 @@ import java.util.stream.IntStream;
 public final class AlleleFractionModeller {
     public static final double MAX_REASONABLE_MEAN_BIAS = AlleleFractionInitializer.MAX_REASONABLE_MEAN_BIAS;
     public static final double MAX_REASONABLE_BIAS_VARIANCE = AlleleFractionInitializer.MAX_REASONABLE_BIAS_VARIANCE;
+    public static final double MINOR_ALLELE_FRACTION_PRIOR_ALPHA_DEFAULT = 1.;
+
+    private static final int RANDOM_SEED = 1;
+    private static final RandomGenerator RNG = RandomGeneratorFactory.createRandomGenerator(new Random(RANDOM_SEED));
+    private static final int NUM_POINTS_SUBSAMPLING_LIMIT = 1000000; //for global variables, only sample up to this many data points
 
     private final SegmentedGenome segmentedGenome;
     private final ParameterizedModel<AlleleFractionParameter, AlleleFractionState, AlleleFractionData> model;
@@ -54,10 +61,14 @@ public final class AlleleFractionModeller {
     private final int numSegments;
 
     public AlleleFractionModeller(final SegmentedGenome segmentedGenome, final AllelicPanelOfNormals allelicPoN) {
+        this(segmentedGenome, MINOR_ALLELE_FRACTION_PRIOR_ALPHA_DEFAULT, allelicPoN);
+    }
+
+    public AlleleFractionModeller(final SegmentedGenome segmentedGenome, final double minorAlleleFractionPriorAlpha, final AllelicPanelOfNormals allelicPoN) {
         this.segmentedGenome = segmentedGenome;
         final AlleleFractionData data = new AlleleFractionData(segmentedGenome, allelicPoN);
         numSegments = data.getNumSegments();
-        final AlleleFractionState initialState = new AlleleFractionInitializer(data).getInitializedState();
+        final AlleleFractionState initialState = new AlleleFractionInitializer(RNG, NUM_POINTS_SUBSAMPLING_LIMIT, data).getInitializedState();
 
         // Initialization got us to the mode of the likelihood
         // if we approximate conditionals as normal we can guess the width from the curvature at the mode and use as the slice-sampling widths
@@ -76,13 +87,13 @@ public final class AlleleFractionModeller {
                 .boxed().collect(Collectors.toList());
 
         final ParameterSampler<Double, AlleleFractionParameter, AlleleFractionState, AlleleFractionData> meanBiasSampler =
-                new AlleleFractionSamplers.MeanBiasSampler(MAX_REASONABLE_MEAN_BIAS, meanBiasSamplingWidths);
+                new AlleleFractionSamplers.MeanBiasSampler(MAX_REASONABLE_MEAN_BIAS, meanBiasSamplingWidths, NUM_POINTS_SUBSAMPLING_LIMIT);
         final ParameterSampler<Double, AlleleFractionParameter, AlleleFractionState, AlleleFractionData> biasVarianceSampler =
-                new AlleleFractionSamplers.BiasVarianceSampler(MAX_REASONABLE_BIAS_VARIANCE, biasVarianceSamplingWidths);
+                new AlleleFractionSamplers.BiasVarianceSampler(MAX_REASONABLE_BIAS_VARIANCE, biasVarianceSamplingWidths, NUM_POINTS_SUBSAMPLING_LIMIT);
         final ParameterSampler<Double, AlleleFractionParameter, AlleleFractionState, AlleleFractionData> outlierProbabilitySampler =
-                new AlleleFractionSamplers.OutlierProbabilitySampler(outlierProbabilitySamplingWidths);
+                new AlleleFractionSamplers.OutlierProbabilitySampler(outlierProbabilitySamplingWidths, NUM_POINTS_SUBSAMPLING_LIMIT);
         final ParameterSampler<AlleleFractionState.MinorFractions, AlleleFractionParameter, AlleleFractionState, AlleleFractionData> minorFractionsSampler =
-                new AlleleFractionSamplers.MinorFractionsSampler(minorFractionsSliceSamplingWidths);
+                new AlleleFractionSamplers.MinorFractionsSampler(minorAlleleFractionPriorAlpha, minorFractionsSliceSamplingWidths);
 
         model = new ParameterizedModel.GibbsBuilder<>(initialState, data)
                 .addParameterSampler(AlleleFractionParameter.MEAN_BIAS, meanBiasSampler, Double.class)

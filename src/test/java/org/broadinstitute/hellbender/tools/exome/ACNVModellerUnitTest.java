@@ -67,7 +67,7 @@ public final class ACNVModellerUnitTest extends BaseTest {
         final ReadCountCollection coverage = ReadCountCollectionUtils.parse(COVERAGES_FILE);
         final List<AllelicCount> snpCountsDummy =
                 Collections.singletonList(new AllelicCount(new SimpleInterval("1", 1, 1), 0, 1));
-        final Genome genome = new Genome(coverage.records(), snpCountsDummy, ReadCountCollectionUtils.getSampleNameFromReadCounts(coverage));
+        final Genome genome = new Genome(coverage, snpCountsDummy);
         final SegmentedGenome segmentedGenome = new SegmentedGenome(SEGMENT_FILE, genome);
 
         //initial MCMC model fitting performed by ACNVModeller constructor

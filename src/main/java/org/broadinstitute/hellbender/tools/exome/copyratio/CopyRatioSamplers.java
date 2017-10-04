@@ -2,8 +2,6 @@ package org.broadinstitute.hellbender.tools.exome.copyratio;
 
 import org.apache.commons.math3.distribution.BetaDistribution;
 import org.apache.commons.math3.random.RandomGenerator;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.broadinstitute.hellbender.utils.MathUtils;
 import org.broadinstitute.hellbender.utils.mcmc.ParameterSampler;
 import org.broadinstitute.hellbender.utils.mcmc.SliceSampler;
@@ -17,8 +15,6 @@ import java.util.stream.IntStream;
  * @author Samuel Lee &lt;slee@broadinstitute.org&gt;
  */
 final class CopyRatioSamplers {
-    private static final Logger logger = LogManager.getLogger(CopyRatioSamplers.class);
-
     private CopyRatioSamplers() {}
 
     //Calculates the exponent for a normal distribution; used in log-likelihood calculation below.
@@ -43,7 +39,6 @@ final class CopyRatioSamplers {
 
         @Override
         public Double sample(final RandomGenerator rng, final CopyRatioState state, final CopyRatioData dataCollection) {
-            logger.debug("Sampling variance...");
             final Function<Double, Double> logConditionalPDF = newVariance -> {
                 final double gaussianLogNormalization = 0.5 * Math.log(newVariance);
                 double ll = 0.;
@@ -76,7 +71,6 @@ final class CopyRatioSamplers {
 
         @Override
         public Double sample(final RandomGenerator rng, final CopyRatioState state, final CopyRatioData dataCollection) {
-            logger.debug("Sampling outlier probability...");
             final int numOutliers = (int) IntStream.range(0, dataCollection.getNumTargets()).filter(state::targetOutlierIndicator).count();
             return new BetaDistribution(rng,
                     outlierProbabilityPriorAlpha + numOutliers,
@@ -106,7 +100,6 @@ final class CopyRatioSamplers {
                 if (indexedCoveragesInSegment.isEmpty()) {
                     means.add(Double.NaN);
                 } else {
-                    logger.debug(String.format("Sampling copy ratio for segment %d...", segment));
                     final Function<Double, Double> logConditionalPDF = newMean ->
                             indexedCoveragesInSegment.stream()
                                     .filter(c -> !state.targetOutlierIndicator(c.getTargetIndex()))
@@ -138,7 +131,6 @@ final class CopyRatioSamplers {
 
         @Override
         public CopyRatioState.OutlierIndicators sample(final RandomGenerator rng, final CopyRatioState state, final CopyRatioData dataCollection) {
-            logger.debug("Sampling outlier indicators...");
             final double outlierUnnormalizedLogProbability =
                     Math.log(state.outlierProbability()) + outlierUniformLogLikelihood;
             final double notOutlierUnnormalizedLogProbabilityPrefactor =

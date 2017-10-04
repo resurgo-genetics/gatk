@@ -1,7 +1,6 @@
 package org.broadinstitute.hellbender.tools.exome;
 
 import org.broadinstitute.hellbender.exceptions.UserException;
-import org.broadinstitute.hellbender.tools.copynumber.legacy.coverage.copyratio.CopyRatioCollection;
 import org.broadinstitute.hellbender.tools.exome.alleliccount.AllelicCount;
 import org.broadinstitute.hellbender.tools.exome.alleliccount.AllelicCountCollection;
 import org.broadinstitute.hellbender.utils.Utils;
@@ -27,27 +26,12 @@ public final class Genome {
      * @param targets       list of log_2 target coverages, cannot be {@code null}
      * @param snps          list of SNP allele counts, cannot be {@code null}
      */
-    public <T extends ReadCountRecord> Genome(final List<T> targets, final List<AllelicCount> snps, final String sampleName) {
-        Utils.nonNull(targets);
-        Utils.nonNull(snps);
-        Utils.nonNull(sampleName);
-        this.targets = new HashedListTargetCollection<>(targets.stream().map(ReadCountRecord::asSingleSampleRecord).collect(Collectors.toList()));
+    public Genome(final ReadCountCollection targets, final List<AllelicCount> snps) {
+        Utils.nonNull(targets, "The list of targets cannot be null.");
+        Utils.nonNull(snps, "The list of SNPs cannot be null.");
+        this.targets = new HashedListTargetCollection<>(targets.records().stream().map(ReadCountRecord::asSingleSampleRecord).collect(Collectors.toList()));
         this.snps = new HashedListTargetCollection<>(snps);
-        this.sampleName = sampleName;
-    }
-
-    public Genome(final CopyRatioCollection denoisedCopyRatios, final org.broadinstitute.hellbender.tools.copynumber.allelic.alleliccount.AllelicCountCollection allelicCounts) {
-        Utils.nonNull(denoisedCopyRatios);
-        Utils.nonNull(allelicCounts);
-        Utils.validateArg(denoisedCopyRatios.getSampleName().equals(allelicCounts.getSampleName()),
-                "Sample names from copy ratios and allelic counts must match.");
-        this.targets = new HashedListTargetCollection<>(denoisedCopyRatios.getRecords().stream()
-                .map(cr -> new ReadCountRecord.SingleSampleRecord(new Target(cr.getInterval()), cr.getLog2CopyRatioValue()))
-                .collect(Collectors.toList()));
-        this.snps = new HashedListTargetCollection<>(allelicCounts.getRecords().stream()
-                .map(ac -> new AllelicCount(ac.getInterval(), ac.getRefReadCount(), ac.getAltReadCount()))
-                .collect(Collectors.toList()));
-        sampleName = denoisedCopyRatios.getSampleName();
+        sampleName = ReadCountCollectionUtils.getSampleNameFromReadCounts(targets);
     }
 
     /**

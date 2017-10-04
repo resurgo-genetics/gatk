@@ -1,11 +1,15 @@
-package org.broadinstitute.hellbender.tools.exome.allelefraction;
+package org.broadinstitute.hellbender.tools.copynumber.legacy.allelic.model;
 
 import htsjdk.samtools.util.Log;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.broadinstitute.hellbender.engine.spark.SparkContextFactory;
 import org.broadinstitute.hellbender.tools.exome.Genome;
+import org.broadinstitute.hellbender.tools.exome.ReadCountCollectionUtils;
 import org.broadinstitute.hellbender.tools.exome.SegmentUtils;
 import org.broadinstitute.hellbender.tools.exome.SegmentedGenome;
+import org.broadinstitute.hellbender.tools.exome.allelefraction.AlleleFractionModeller;
+import org.broadinstitute.hellbender.tools.exome.allelefraction.AlleleFractionParameter;
+import org.broadinstitute.hellbender.tools.exome.allelefraction.AlleleFractionState;
 import org.broadinstitute.hellbender.tools.exome.alleliccount.AllelicCountCollection;
 import org.broadinstitute.hellbender.tools.pon.allelic.AllelicPanelOfNormals;
 import org.broadinstitute.hellbender.utils.LoggingUtils;
@@ -110,7 +114,7 @@ public final class AlleleFractionModellerUnitTest extends BaseTest {
         final List<Double> outlierProbabilitySamples = modeller.getOutlierProbabilitySamples();
         Assert.assertEquals(outlierProbabilitySamples.size(), numSamples - numBurnIn);
 
-        final List<AlleleFractionState.MinorFractions> minorFractionsSamples = modeller.getMinorFractionsSamples();
+        final List<org.broadinstitute.hellbender.tools.exome.allelefraction.AlleleFractionState.MinorFractions> minorFractionsSamples = modeller.getMinorFractionsSamples();
         Assert.assertEquals(minorFractionsSamples.size(), numSamples - numBurnIn);
         for (final AlleleFractionState.MinorFractions sample : minorFractionsSamples) {
             Assert.assertEquals(sample.size(), numSegments);
@@ -222,7 +226,7 @@ public final class AlleleFractionModellerUnitTest extends BaseTest {
 
         final double minorFractionTolerance = 0.025;
 
-        final Genome genome = new Genome(AlleleFractionSimulatedData.TRIVIAL_TARGETS, sample.getCounts());
+        final Genome genome = new Genome(AlleleFractionSimulatedData.TRIVIAL_TARGETS.records(), sample.getCounts(), ReadCountCollectionUtils.getSampleNameFromReadCounts(AlleleFractionSimulatedData.TRIVIAL_TARGETS));
         final List<SimpleInterval> segments = SegmentUtils.readIntervalsFromSegmentFile(SEGMENTS_FILE);
         final SegmentedGenome segmentedGenome = new SegmentedGenome(segments, genome);
 

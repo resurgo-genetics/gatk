@@ -1,7 +1,6 @@
 package org.broadinstitute.hellbender.tools.exome.allelefraction;
 
 import org.broadinstitute.hellbender.tools.exome.Genome;
-import org.broadinstitute.hellbender.tools.exome.ReadCountCollectionUtils;
 import org.broadinstitute.hellbender.tools.exome.SegmentedGenome;
 import org.broadinstitute.hellbender.tools.exome.alleliccount.AllelicCount;
 import org.broadinstitute.hellbender.utils.SimpleInterval;
@@ -32,16 +31,35 @@ public final class AlleleFractionDataUnitTest {
         ac.add(new AllelicCount(new SimpleInterval("chr", 10, 10), 1, 1));
         ac.add(new AllelicCount(new SimpleInterval("chr", 11, 11), 2, 2));
 
-        final Genome genome = new Genome(AlleleFractionSimulatedData.TRIVIAL_TARGETS.records(), ac, ReadCountCollectionUtils.getSampleNameFromReadCounts(AlleleFractionSimulatedData.TRIVIAL_TARGETS));
+        final Genome genome = new Genome(AlleleFractionSimulatedData.TRIVIAL_TARGETS, ac);
 
         final SegmentedGenome segmentedGenome = new SegmentedGenome(segments, genome);
 
         final AlleleFractionData dc = new AlleleFractionData(segmentedGenome);
         Assert.assertEquals(dc.getNumSegments(), 2);
+        Assert.assertEquals(dc.getRefCount(0), 0);
+        Assert.assertEquals(dc.getAltCount(0), 5);
+        Assert.assertEquals(dc.getReadCount(2), 10);
+        Assert.assertEquals(dc.getReadCount(3), 2);
+        Assert.assertEquals(dc.getRefCount(4), 2);
+        Assert.assertEquals(dc.getAltCount(4), 2);
+
+        Assert.assertEquals(dc.getAllelicCount(0).getAltReadCount(), 5);
+        Assert.assertEquals(dc.getAllelicCount(1).getAltReadCount(), 0);
+        Assert.assertEquals(dc.getAllelicCount(3).getRefReadCount(), 1);
+        Assert.assertEquals(dc.getAllelicCount(4).getRefReadCount(), 2);
 
         Assert.assertEquals(dc.getCountsInSegment(0).get(1).getRefReadCount(), 5);
         Assert.assertEquals(dc.getCountsInSegment(0).get(1).getAltReadCount(), 0);
 
-        Assert.assertEquals(dc.getNumPoints(), 5);
+        final List<Integer> hetsInSegment0 = dc.getHetsInSegment(0);
+        Assert.assertEquals(hetsInSegment0.size(), 3);
+        Assert.assertEquals((int) hetsInSegment0.get(0), 0);
+        Assert.assertEquals((int) hetsInSegment0.get(2), 2);
+
+        final List<Integer> hetsInSegment1 = dc.getHetsInSegment(1);
+        Assert.assertEquals(hetsInSegment1.size(), 2);
+        Assert.assertEquals((int) hetsInSegment1.get(0), 3);
+        Assert.assertEquals((int) hetsInSegment1.get(1), 4);
     }
 }

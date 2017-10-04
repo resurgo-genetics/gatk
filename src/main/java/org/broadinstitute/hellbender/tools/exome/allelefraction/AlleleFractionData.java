@@ -1,18 +1,15 @@
 package org.broadinstitute.hellbender.tools.exome.allelefraction;
 
-import org.apache.commons.math3.random.RandomGenerator;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import org.broadinstitute.hellbender.tools.exome.Genome;
 import org.broadinstitute.hellbender.tools.exome.SegmentedGenome;
 import org.broadinstitute.hellbender.tools.exome.TargetCollection;
 import org.broadinstitute.hellbender.tools.exome.alleliccount.AllelicCount;
 import org.broadinstitute.hellbender.tools.pon.allelic.AllelicPanelOfNormals;
 import org.broadinstitute.hellbender.utils.SimpleInterval;
-import org.broadinstitute.hellbender.utils.Utils;
 import org.broadinstitute.hellbender.utils.mcmc.DataCollection;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -23,76 +20,63 @@ import java.util.stream.IntStream;
  * @author David Benjamin &lt;davidben@broadinstitute.org&gt;
  */
 public final class AlleleFractionData implements DataCollection {
-    private static final Logger logger = LogManager.getLogger(AlleleFractionData.class);
-
-    private final SegmentedGenome segmentedGenome;
     private final int numSegments;
-    private final int numPoints;
     private final AllelicPanelOfNormals allelicPoN;
-    private final List<List<AllelicCount>> allelicCountsPerSegment;
-    private final Map<Integer, IndexPair> indexToIndexPairMap;
-
-    private static final class IndexPair {
-        private final int segmentIndex;
-        private final int countIndexWithinSegment;
-
-        private IndexPair(final int segmentIndex, final int countIndexWithinSegment) {
-            this.segmentIndex = segmentIndex;
-            this.countIndexWithinSegment = countIndexWithinSegment;
-        }
-    }
+    private final List<AllelicCount> allelicCounts; // allelic counts indexed by het
+    private final List<Integer> hetIndices; // the numbers 0, 1, 2 . . . N_hets
+    private final List<Integer> startHetsPerSegment = new ArrayList<>();
+    private final List<Integer> numHetsPerSegment = new ArrayList<>();
 
     public AlleleFractionData(final SegmentedGenome segmentedGenome) {
         this(segmentedGenome, AllelicPanelOfNormals.EMPTY_PON);
     }
 
     public AlleleFractionData(final SegmentedGenome segmentedGenome, final AllelicPanelOfNormals allelicPoN) {
-        this.segmentedGenome = segmentedGenome;
-        this.allelicPoN = allelicPoN;
         numSegments = segmentedGenome.getSegments().size();
-        indexToIndexPairMap = new HashMap<>();
-        allelicCountsPerSegment = new ArrayList<>(segmentedGenome.getSegments().size());
+        this.allelicPoN = allelicPoN;
+        allelicCounts = new ArrayList<>();
+        final List<SimpleInterval> segmentIntervals = segmentedGenome.getSegments();
         final TargetCollection<AllelicCount> alleleCounts = segmentedGenome.getGenome().getSNPs();
-        int numPoints = 0;
-        for (int segmentIndex = 0; segmentIndex < numSegments; segmentIndex++) {
-            final int currentNumPoints = numPoints;
-            final SimpleInterval segment = segmentedGenome.getSegments().get(segmentIndex);
-            final List<AllelicCount> allelicCountsInSegment = alleleCounts.targets(segment);
-            allelicCountsPerSegment.add(allelicCountsInSegment);
-            final int numPointsInSegment = allelicCountsInSegment.size();
-            for (int countIndexWithinSegment = 0; countIndexWithinSegment < numPointsInSegment; countIndexWithinSegment++) {
-                indexToIndexPairMap.put(currentNumPoints + countIndexWithinSegment, new IndexPair(segmentIndex, countIndexWithinSegment));
-            }
-            numPoints += numPointsInSegment;
+
+        int startHet = 0;
+        for (final SimpleInterval segment : segmentIntervals) {
+            startHetsPerSegment.add(startHet);
+            final List<AllelicCount> countsInSegment = alleleCounts.targets(segment);
+            numHetsPerSegment.add(countsInSegment.size());
+            startHet += countsInSegment.size();
+            allelicCounts.addAll(countsInSegment);
         }
-        this.numPoints = numPoints;
+
+        hetIndices = IntStream.range(0, allelicCounts.size()).boxed().collect(Collectors.toList());
     }
 
     public AllelicPanelOfNormals getPoN() { return allelicPoN; }
 
+    public List<AllelicCount> getAllelicCounts() { return Collections.unmodifiableList(allelicCounts); }
+
     public List<AllelicCount> getCountsInSegment(final int segment) {
-        return Collections.unmodifiableList(allelicCountsPerSegment.get(segment));
+        final int startInclusive = startHetsPerSegment.get(segment);
+        final int endExclusive = startInclusive + numHetsPerSegment.get(segment);
+        return Collections.unmodifiableList(allelicCounts.subList(startInclusive, endExclusive));
+    }
+
+    public List<Integer> getHetsInSegment(final int segment) {
+        final int startInclusive = startHetsPerSegment.get(segment);
+        final int endExclusive = startInclusive + numHetsPerSegment.get(segment);
+        return Collections.unmodifiableList(hetIndices.subList(startInclusive, endExclusive));
     }
 
     public int getNumHetsInSegment(final int segment) {
-        return allelicCountsPerSegment.get(segment).size();
+        return numHetsPerSegment.get(segment);
     }
 
     public int getNumSegments() { return numSegments; }
 
-    public int getNumPoints() { return numPoints; }
+    public AllelicCount getAllelicCount(final int het) { return allelicCounts.get(het); }
 
-    AlleleFractionData subsample(final RandomGenerator rng, final int numPointsSubsampling) {
-        Utils.nonNull(rng);
-        Utils.validateArg(numPointsSubsampling <= numPoints, "Number of points to subsample must be less than number of points.");
-        logger.info(String.format("Subsampling %d / %d points...", numPointsSubsampling, numPoints));
-        final List<Integer> shuffledIndices = IntStream.range(0, numPoints).boxed().collect(Collectors.toList());
-        Collections.shuffle(shuffledIndices, new Random(rng.nextInt()));
-        final List<AllelicCount> subsampledCounts = shuffledIndices.subList(0, numPointsSubsampling).stream()
-                .map(indexToIndexPairMap::get)
-                .map(ip -> allelicCountsPerSegment.get(ip.segmentIndex).get(ip.countIndexWithinSegment))
-                .collect(Collectors.toList());
-        final Genome subsampledGenome = new Genome(segmentedGenome.getGenome().getTargets().targets(), subsampledCounts, segmentedGenome.getGenome().getSampleName());
-        return new AlleleFractionData(new SegmentedGenome(segmentedGenome.getSegments(), subsampledGenome), allelicPoN);
-    }
+    public int getAltCount(final int het) { return allelicCounts.get(het).getAltReadCount(); }
+
+    public int getRefCount(final int het) { return allelicCounts.get(het).getRefReadCount(); }
+
+    public int getReadCount(final int het) { return getAltCount(het) + getRefCount(het); }
 }

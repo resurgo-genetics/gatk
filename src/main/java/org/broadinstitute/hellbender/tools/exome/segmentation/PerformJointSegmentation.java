@@ -114,7 +114,7 @@ public class PerformJointSegmentation extends CommandLineProgram {
                 .collect(Collectors.toList());
 
         //TODO: make more reasonable output for ACNV 2.0
-        SegmentUtils.writeACNVModeledSegmentFile(outputSegmentsFile, segments, new Genome(rcc.records(), acc.getCounts(), ReadCountCollectionUtils.getSampleNameFromReadCounts(rcc)));
+        SegmentUtils.writeACNVModeledSegmentFile(outputSegmentsFile, segments, new Genome(rcc, acc.getCounts()));
 
         return "SUCCESS";
     }
