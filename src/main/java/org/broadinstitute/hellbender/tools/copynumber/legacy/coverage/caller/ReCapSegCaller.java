@@ -52,7 +52,7 @@ public final class ReCapSegCaller {
     private static LinkedHashMap<CopyRatioSegment,Set<CopyRatio>> constructSegmentToCopyRatiosMap(final CopyRatioCollection denoisedCopyRatios,
                                                                                                   final CopyRatioSegmentCollection copyRatioSegments) {
         final LinkedHashMap<CopyRatioSegment, Set<CopyRatio>> segmentToCopyRatiosMap = new LinkedHashMap<>();
-        final OverlapDetector<CopyRatio> copyRatioOverlapDetector = OverlapDetector.create(denoisedCopyRatios.getRecords());
+        final OverlapDetector<CopyRatio> copyRatioOverlapDetector = denoisedCopyRatios.getOverlapDetector();
         for (final CopyRatioSegment segment : copyRatioSegments.getRecords()) {
             final int numPointsExpected = segment.getNumPoints();
             final Set<CopyRatio> copyRatiosInSegment = copyRatioOverlapDetector.getOverlaps(segment);

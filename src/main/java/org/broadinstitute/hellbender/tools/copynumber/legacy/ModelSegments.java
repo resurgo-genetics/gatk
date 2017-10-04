@@ -492,14 +492,12 @@ public final class ModelSegments extends SparkCommandLineProgram {
                                                           final ACNVModeller modeller,
                                                           final String fileTag) {
         final List<ACNVModeledSegment> acnvModeledSegments = modeller.getACNVModeledSegments();
-        final OverlapDetector<CopyRatio> copyRatioOverlapDetector = OverlapDetector.create(
-                denoisedCopyRatios.getRecords().stream()
-                        .map(cr -> new CopyRatio(cr.getMidpoint(), cr.getLog2CopyRatioValue())) //map copy-ratio intervals to their midpoints so that each will be uniquely contained in a single segment
-                        .collect(Collectors.toList()));
-        final OverlapDetector<AllelicCount> allelicCountOverlapDetector = OverlapDetector.create(hetAllelicCounts.getRecords());
+        //map copy-ratio intervals to their midpoints so that each will be uniquely contained in a single segment
+        final OverlapDetector<CopyRatio> copyRatioMidpointOverlapDetector = denoisedCopyRatios.getMidpointOverlapDetector();
+        final OverlapDetector<AllelicCount> allelicCountOverlapDetector = hetAllelicCounts.getOverlapDetector();
         final List<ModeledSegment> modeledSegmentsList = acnvModeledSegments.stream()
                 .map(s -> new ModeledSegment(
-                        copyRatioOverlapDetector.getOverlaps(s).size(),
+                        copyRatioMidpointOverlapDetector.getOverlaps(s).size(),
                         allelicCountOverlapDetector.getOverlaps(s).size(),
                         s))
                 .collect(Collectors.toList());

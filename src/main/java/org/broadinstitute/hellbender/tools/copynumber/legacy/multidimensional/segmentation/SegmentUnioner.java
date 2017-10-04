@@ -39,10 +39,8 @@ final class SegmentUnioner {
         //for determining membership of copy-ratio intervals in unioned segments,
         //we must map copy-ratio intervals to their midpoints so that each will be
         //uniquely contained in a single segment
-        copyRatioMidpointOverlapDetector = OverlapDetector.create(denoisedCopyRatios.getRecords().stream()
-                .map(cr -> new CopyRatio(cr.getMidpoint(), cr.getLog2CopyRatioValue()))
-                .collect(Collectors.toList()));
-        allelicCountOverlapDetector = OverlapDetector.create(allelicCounts.getRecords());
+        copyRatioMidpointOverlapDetector = denoisedCopyRatios.getMidpointOverlapDetector();
+        allelicCountOverlapDetector = allelicCounts.getOverlapDetector();
         unionedSegments = constructUnionedSegments(
                 copyRatioSegments, denoisedCopyRatios, copyRatioMidpointOverlapDetector,
                 alleleFractionSegments, allelicCounts, allelicCountOverlapDetector);
@@ -107,7 +105,7 @@ final class SegmentUnioner {
 
         logger.info("Trimming combined segments...");
         //for trimming segments in the final step, we need an overlap detector built from the full copy-ratio intervals
-        final OverlapDetector<CopyRatio> copyRatioOverlapDetector = OverlapDetector.create(denoisedCopyRatios.getRecords());
+        final OverlapDetector<CopyRatio> copyRatioOverlapDetector = denoisedCopyRatios.getOverlapDetector();
         return spuriousAlleleFractionMergedSegments.stream()
                 .map(s -> trimSegments(s, copyRatioOverlapDetector, allelicCountOverlapDetector))
                 .collect(Collectors.toList());

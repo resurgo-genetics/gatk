@@ -1,5 +1,6 @@
 package org.broadinstitute.hellbender.tools.copynumber.legacy.coverage.copyratio;
 
+import htsjdk.samtools.util.OverlapDetector;
 import org.broadinstitute.hellbender.tools.copynumber.legacy.formats.TSVLocatableCollection;
 import org.broadinstitute.hellbender.utils.SimpleInterval;
 import org.broadinstitute.hellbender.utils.tsv.DataLine;
@@ -47,5 +48,16 @@ public final class CopyRatioCollection extends TSVLocatableCollection<CopyRatio>
 
     public List<Double> getLog2CopyRatioValues() {
         return getRecords().stream().map(CopyRatio::getLog2CopyRatioValue).collect(Collectors.toList());
+    }
+
+    /**
+     * The midpoint is used to characterize the interval for the purposes of determining overlaps when combining
+     * copy-ratio and allele-fraction segmentations, so that each copy-ratio interval will be uniquely contained
+     * in a single segment.
+     */
+    public OverlapDetector<CopyRatio> getMidpointOverlapDetector() {
+        return OverlapDetector.create(getRecords().stream()
+                .map(cr -> new CopyRatio(cr.getMidpoint(), cr.getLog2CopyRatioValue()))
+                .collect(Collectors.toList()));
     }
 }
