@@ -88,7 +88,7 @@ public class UnionSegments extends GATKTool {
 
         final List<List<SimpleAnnotatedGenomicRegion>> segmentList = Lists.newArrayList(segments1, segments2);
         final List<Map<Locatable, List<SimpleAnnotatedGenomicRegion>>> unionIntervalsToSegmentsMaps = segmentList.stream()
-                .map(segs -> createOverlapMap(unionIntervals, segs, dictionary)).collect(Collectors.toList());
+                .map(segs -> IntervalUtils.createOverlapMap(unionIntervals, segs, dictionary)).collect(Collectors.toList());
 
         final List<SimpleAnnotatedGenomicRegion> result = new ArrayList<>();
 
@@ -109,59 +109,5 @@ public class UnionSegments extends GATKTool {
     }
 
 
-    /** Input lists are assumed sorted
-     *
-     * No copies of inputs are created
-     *
-     * @param keys
-     * @param vals
-     * @return
-     */
-    private <T extends Locatable> Map<Locatable, List<SimpleAnnotatedGenomicRegion>> createOverlapMap(final List<T> keys, final List<SimpleAnnotatedGenomicRegion> vals,
-                                                             final SAMSequenceDictionary dictionary) {
-       final Iterator<T> keysIterator = keys.iterator();
-       final Iterator<SimpleAnnotatedGenomicRegion> valsIterator = vals.iterator();
-       final Map<Locatable, List<SimpleAnnotatedGenomicRegion>> result = keys.stream().collect(Collectors.toMap(k -> k, k -> new ArrayList<>()));
 
-       if (!valsIterator.hasNext() || !keysIterator.hasNext()) {
-           return result;
-       }
-
-       SimpleAnnotatedGenomicRegion v = valsIterator.next();
-       while (keysIterator.hasNext()) {
-           Locatable k = keysIterator.next();
-
-           // Advance until we overlap
-           while (!k.overlaps(v)) {
-
-               // if k is before v
-               if (IntervalUtils.isBefore(k, v, dictionary)) {
-                   if (keysIterator.hasNext()) {
-                       k = keysIterator.next();
-                   } else {
-                       break;
-                   }
-
-               } else {
-                   // k is definitely after v
-                   if (valsIterator.hasNext()) {
-                       v = valsIterator.next();
-                   } else {
-                       break;
-                   }
-               }
-           }
-
-           // Advance until we no longer overlap.
-           while (k.overlaps(v)) {
-               result.get(k).add(v);
-               if (valsIterator.hasNext()) {
-                   v = valsIterator.next();
-               } else {
-                   break;
-               }
-           }
-       }
-       return result;
-    }
 }

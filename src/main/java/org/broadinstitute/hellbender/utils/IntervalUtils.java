@@ -1243,5 +1243,72 @@ public final class IntervalUtils {
         }
         return result;
     }
+
+    /**
+     * Creates a map of which locatables (keys) overlap the other list of locatables (vals)
+     *
+     * Input lists are assumed sorted by interval.  These are lists solely because we need the ordering to make
+     *  this run efficiently.
+     *
+     *  Within a single input list, segments cannot overlap (or duplicate).  If this occurs, behavior is undefined.
+     *
+     * No copies of inputs are created
+     *
+     * @param keys -- the intervals we wish to query.  Sorted by interval.  Never {@code null}
+     * @param vals -- the intervals that we wish to map to the keys.  Sorted by interval.  Never {@code null}
+     * @return a mapping of intervals from keys to the list of overlapping intervals in vals.  All item in keys will
+     * have a key.  Never {@code null}
+     */
+    public static <T extends Locatable, U extends Locatable> Map<T, List<U>> createOverlapMap(final List<T> keys, final List<U> vals,
+                                                                                        final SAMSequenceDictionary dictionary) {
+        Utils.nonNull(keys);
+        Utils.nonNull(vals);
+
+        final Iterator<T> keysIterator = keys.iterator();
+        final Iterator<U> valsIterator = vals.iterator();
+        final Set<T> keysSet = new HashSet<>(keys);
+        final Map<T, List<U>> result = keysSet.stream().collect(Collectors.toMap(k -> k, k -> new ArrayList<>()));
+
+        if (!valsIterator.hasNext() || !keysIterator.hasNext()) {
+            return result;
+        }
+
+        U v = valsIterator.next();
+        while (keysIterator.hasNext()) {
+            Locatable k = keysIterator.next();
+
+            // Advance until we overlap
+            while (!k.overlaps(v)) {
+
+                // if k is before v
+                if (IntervalUtils.isBefore(k, v, dictionary)) {
+                    if (keysIterator.hasNext()) {
+                        k = keysIterator.next();
+                    } else {
+                        break;
+                    }
+
+                } else {
+                    // k is definitely after v
+                    if (valsIterator.hasNext()) {
+                        v = valsIterator.next();
+                    } else {
+                        break;
+                    }
+                }
+            }
+
+            // Advance until we no longer overlap.
+            while (k.overlaps(v)) {
+                result.get(k).add(v);
+                if (valsIterator.hasNext()) {
+                    v = valsIterator.next();
+                } else {
+                    break;
+                }
+            }
+        }
+        return result;
+    }
 }
 
