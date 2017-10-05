@@ -60,7 +60,7 @@ public class VersatileAnnotatedRegionParser {
             final Set<String> otherHeaders = Sets.intersection(headerSet, headersOfInterest);
             final String contigHeader = contigHeaders.iterator().next();
             final String startHeader = startHeaders.iterator().next();
-            final String endHeader = startHeaders.iterator().next();
+            final String endHeader = endHeaders.iterator().next();
 
             Map<String, String> segmentInfoMap;
             while ((segmentInfoMap = mapReader.read(headers)) != null) {
