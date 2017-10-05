@@ -18,11 +18,11 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 /**
- * Provide simulated AlleleFractionData objects and stores the "truth" data from which they were created
+ * Provide simulated {@link AlleleFractionSegmentedData} objects and stores the "truth" data from which they were created
  *
  * @author David Benjamin
  */
-public final class AlleleFractionSimulatedData {
+final class AlleleFractionSimulatedData {
     private static final int MIN_HETS_PER_SEGMENT = 3;
     private static final int RANDOM_SEED = 13;
     private static final RandomGenerator rng = RandomGeneratorFactory.createRandomGenerator(new Random(RANDOM_SEED));
@@ -31,7 +31,7 @@ public final class AlleleFractionSimulatedData {
         return new PoissonDistribution(rng, mean, PoissonDistribution.DEFAULT_EPSILON, PoissonDistribution.DEFAULT_MAX_ITERATIONS);
     }
 
-    private AlleleFractionData data;
+    private AlleleFractionSegmentedData data;
     private final PhaseIndicators truePhases = new PhaseIndicators();
     private final AlleleFractionState trueState;
     private final int numSegments;
@@ -96,11 +96,11 @@ public final class AlleleFractionSimulatedData {
             }
         }
 
-        data = new AlleleFractionData(new AllelicCountCollection(sampleName, allelicCounts), segments);
+        data = new AlleleFractionSegmentedData(new AllelicCountCollection(sampleName, allelicCounts), segments);
         trueState = new AlleleFractionState(biasMean, biasVariance, outlierProbability, minorFractions);
     }
 
-    AlleleFractionData getData() {
+    AlleleFractionSegmentedData getData() {
         return data;
     }
 

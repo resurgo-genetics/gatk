@@ -27,7 +27,7 @@ public final class AlleleFractionInitializerUnitTest {
         final AlleleFractionSimulatedData simulatedData = new AlleleFractionSimulatedData(
                 sampleName, averageHetsPerSegment, numSegments, averageDepth, biasMean, biasVariance, outlierProbability);
 
-        final AlleleFractionData data = simulatedData.getData();
+        final AlleleFractionSegmentedData data = simulatedData.getData();
         final AlleleFractionState initializedState = new AlleleFractionInitializer(data).getInitializedState();
 
         final AlleleFractionSimulatedData.AlleleFractionStateError error = simulatedData.error(initializedState);

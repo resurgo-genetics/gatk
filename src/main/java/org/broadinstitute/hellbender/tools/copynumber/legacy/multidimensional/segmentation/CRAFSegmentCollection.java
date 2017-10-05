@@ -7,8 +7,6 @@ import org.broadinstitute.hellbender.tools.copynumber.legacy.allelic.segmentatio
 import org.broadinstitute.hellbender.tools.copynumber.legacy.coverage.copyratio.CopyRatioCollection;
 import org.broadinstitute.hellbender.tools.copynumber.legacy.coverage.segmentation.CopyRatioSegmentCollection;
 import org.broadinstitute.hellbender.tools.copynumber.legacy.formats.TSVLocatableCollection;
-import org.broadinstitute.hellbender.tools.exome.Genome;
-import org.broadinstitute.hellbender.tools.exome.SegmentedGenome;
 import org.broadinstitute.hellbender.utils.SimpleInterval;
 import org.broadinstitute.hellbender.utils.Utils;
 import org.broadinstitute.hellbender.utils.tsv.DataLine;
@@ -95,11 +93,11 @@ public final class CRAFSegmentCollection extends TSVLocatableCollection<CRAFSegm
                     .collect(Collectors.toList());
         } else {
             Utils.validateArg(Stream.of(
-                    copyRatioSegments.getSampleName(),
-                    denoisedCopyRatios.getSampleName(),
-                    alleleFractionSegments.getSampleName(),
-                    allelicCounts.getSampleName())
-                    .distinct().count() == 1,
+                    Utils.nonNull(copyRatioSegments).getSampleName(),
+                    Utils.nonNull(denoisedCopyRatios).getSampleName(),
+                    Utils.nonNull(alleleFractionSegments).getSampleName(),
+                    Utils.nonNull(allelicCounts).getSampleName())
+                            .distinct().count() == 1,
                     "Sample names from all inputs must match.");
             sampleName = copyRatioSegments.getSampleName();
 
@@ -111,11 +109,5 @@ public final class CRAFSegmentCollection extends TSVLocatableCollection<CRAFSegm
             logger.info(String.format("After combining segments, %d segments remain...", crafSegments.size()));
         }
         return new CRAFSegmentCollection(sampleName, crafSegments);
-    }
-
-    public SegmentedGenome convertToSegmentedGenome(final CopyRatioCollection denoisedCopyRatios,
-                                                    final AllelicCountCollection allelicCounts) {
-        final Genome genome = new Genome(denoisedCopyRatios, allelicCounts);
-        return new SegmentedGenome(getIntervals(), genome);
     }
 }

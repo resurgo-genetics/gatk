@@ -6,48 +6,50 @@ package org.broadinstitute.hellbender.tools.copynumber.legacy.allelic.model;
  *
  * @author David Benjamin &lt;davidben@broadinstitute.org&gt;
  */
-public final class AlleleFractionGlobalParameters {
+final class AlleleFractionGlobalParameters {
     private final double meanBias;
     private final double biasVariance;
     private final double outlierProbability;
 
-    public AlleleFractionGlobalParameters(final double meanBias, final double biasVariance, final double outlierProbability) {
+    AlleleFractionGlobalParameters(final double meanBias,
+                                   final double biasVariance,
+                                   final double outlierProbability) {
         this.meanBias = meanBias;
         this.biasVariance = biasVariance;
         this.outlierProbability = outlierProbability;
     }
 
-    public double getMeanBias() {
+    double getMeanBias() {
         return meanBias;
     }
 
-    public double getBiasVariance() {
+    double getBiasVariance() {
         return biasVariance;
     }
 
-    public double getOutlierProbability() {
+    double getOutlierProbability() {
         return outlierProbability;
     }
 
     //get the gamma distribution alpha parameter
-    public double getAlpha() {
+    double getAlpha() {
         return meanBias * meanBias / biasVariance;
     }
 
     //get the gamma distribution beta parameter
-    public double getBeta() {
+    double getBeta() {
         return meanBias / biasVariance;
     }
 
-    public AlleleFractionGlobalParameters copyWithNewMeanBias(final double newMeanBias) {
+    AlleleFractionGlobalParameters copyWithNewMeanBias(final double newMeanBias) {
         return new AlleleFractionGlobalParameters(newMeanBias, biasVariance, outlierProbability);
     }
 
-    public AlleleFractionGlobalParameters copyWithNewBiasVariance(final double newBiasVariance) {
+    AlleleFractionGlobalParameters copyWithNewBiasVariance(final double newBiasVariance) {
         return new AlleleFractionGlobalParameters(meanBias, newBiasVariance, outlierProbability);
     }
 
-    public AlleleFractionGlobalParameters copyWithNewOutlierProbability(final double newOutlierProbability) {
+    AlleleFractionGlobalParameters copyWithNewOutlierProbability(final double newOutlierProbability) {
         return new AlleleFractionGlobalParameters(meanBias, biasVariance, newOutlierProbability);
     }
 }

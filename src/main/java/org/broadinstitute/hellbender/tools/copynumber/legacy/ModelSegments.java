@@ -1,7 +1,6 @@
 package org.broadinstitute.hellbender.tools.copynumber.legacy;
 
 import com.google.common.collect.ImmutableSet;
-import htsjdk.samtools.util.OverlapDetector;
 import org.apache.commons.math3.stat.inference.AlternativeHypothesis;
 import org.apache.commons.math3.stat.inference.BinomialTest;
 import org.apache.spark.api.java.JavaSparkContext;
@@ -12,21 +11,18 @@ import org.broadinstitute.barclay.help.DocumentedFeature;
 import org.broadinstitute.hellbender.cmdline.StandardArgumentDefinitions;
 import org.broadinstitute.hellbender.cmdline.programgroups.CopyNumberProgramGroup;
 import org.broadinstitute.hellbender.engine.spark.SparkCommandLineProgram;
-import org.broadinstitute.hellbender.tools.copynumber.allelic.alleliccount.AllelicCount;
 import org.broadinstitute.hellbender.tools.copynumber.allelic.alleliccount.AllelicCountCollection;
+import org.broadinstitute.hellbender.tools.copynumber.legacy.allelic.model.AlleleFractionPrior;
 import org.broadinstitute.hellbender.tools.copynumber.legacy.allelic.segmentation.AlleleFractionKernelSegmenter;
 import org.broadinstitute.hellbender.tools.copynumber.legacy.allelic.segmentation.AlleleFractionSegmentCollection;
-import org.broadinstitute.hellbender.tools.copynumber.legacy.coverage.copyratio.CopyRatio;
 import org.broadinstitute.hellbender.tools.copynumber.legacy.coverage.copyratio.CopyRatioCollection;
 import org.broadinstitute.hellbender.tools.copynumber.legacy.coverage.segmentation.CopyRatioKernelSegmenter;
 import org.broadinstitute.hellbender.tools.copynumber.legacy.coverage.segmentation.CopyRatioSegmentCollection;
 import org.broadinstitute.hellbender.tools.copynumber.legacy.formats.CopyNumberStandardArgument;
 import org.broadinstitute.hellbender.tools.copynumber.legacy.formats.TSVLocatableCollection;
-import org.broadinstitute.hellbender.tools.copynumber.legacy.multidimensional.model.ModeledSegment;
+import org.broadinstitute.hellbender.tools.copynumber.legacy.multidimensional.model.CRAFModeller;
 import org.broadinstitute.hellbender.tools.copynumber.legacy.multidimensional.model.ModeledSegmentCollection;
 import org.broadinstitute.hellbender.tools.copynumber.legacy.multidimensional.segmentation.CRAFSegmentCollection;
-import org.broadinstitute.hellbender.tools.exome.ACNVModeledSegment;
-import org.broadinstitute.hellbender.tools.exome.ACNVModeller;
 import org.broadinstitute.hellbender.utils.Utils;
 import org.broadinstitute.hellbender.utils.io.IOUtils;
 
@@ -375,24 +371,29 @@ public final class ModelSegments extends SparkCommandLineProgram {
             hetAllelicCounts = new AllelicCountCollection(denoisedCopyRatios.getSampleName(), Collections.emptyList());
         }
 
+        //union segments (combine copy-ratio and allele-fraction breakpoints, if available)
         final CRAFSegmentCollection crafSegments = CRAFSegmentCollection.unionSegments(
                 copyRatioSegments, denoisedCopyRatios, alleleFractionSegments, hetAllelicCounts);
         writeSegments(crafSegments, CRAF_SEGMENTS_FILE_SUFFIX);
 
-        //TODO replace/improve old code used below for model fitting
         logger.info("Beginning modeling...");
-        //initial MCMC model fitting performed by ACNVModeller constructor
-        final ACNVModeller modeller = new ACNVModeller(crafSegments.convertToSegmentedGenome(denoisedCopyRatios, hetAllelicCounts),
-                minorAlleleFractionPriorAlpha, numSamplesCopyRatio, numBurnInCopyRatio, numSamplesAlleleFraction, numBurnInAlleleFraction, ctx);
+        //initial MCMC model fitting performed by CRAFModeller constructor
+        final AlleleFractionPrior alleleFractionPrior = new AlleleFractionPrior(minorAlleleFractionPriorAlpha);
+        final CRAFModeller modeller = new CRAFModeller(
+                crafSegments, denoisedCopyRatios, hetAllelicCounts, alleleFractionPrior,
+                numSamplesCopyRatio, numBurnInCopyRatio,
+                numSamplesAlleleFraction, numBurnInAlleleFraction, ctx);
 
         //write initial segments and parameters to file
-        writeACNVModeledSegmentAndParameterFiles(crafSegments.getSampleName(), modeller, BEGIN_FIT_FILE_TAG);
+        writeModeledSegmentsAndParameterFiles(crafSegments.getSampleName(), modeller, BEGIN_FIT_FILE_TAG);
 
         //segmentation smoothing
-        performSmoothingStep(modeller);
+        modeller.smoothSegments(
+                maxNumSmoothingIterations, numSmoothingIterationsPerFit,
+                smoothingCredibleIntervalThresholdCopyRatio, smoothingCredibleIntervalThresholdAlleleFraction);
 
         //write final segments and parameters to file
-        writeACNVModeledSegmentAndParameterFiles(crafSegments.getSampleName(), modeller, FINAL_FIT_FILE_TAG);
+        writeModeledSegmentsAndParameterFiles(crafSegments.getSampleName(), modeller, FINAL_FIT_FILE_TAG);
 
         ctx.setLogLevel(originalLogLevel);
         logger.info("SUCCESS: ModelSegments run complete.");
@@ -462,50 +463,14 @@ public final class ModelSegments extends SparkCommandLineProgram {
                         numChangepointsPenaltyFactorAlleleFraction, numChangepointsPenaltyFactorAlleleFraction);
     }
 
-    //segmentation smoothing
-    private void performSmoothingStep(final ACNVModeller modeller) {
-        logger.info("Initial number of segments before smoothing: " + modeller.getACNVModeledSegments().size());
-        //perform iterations of similar-segment merging until all similar segments are merged
-        for (int numIterations = 1; numIterations <= maxNumSmoothingIterations; numIterations++) {
-            logger.info("Smoothing iteration: " + numIterations);
-            final int prevNumSegments = modeller.getACNVModeledSegments().size();
-            if (numSmoothingIterationsPerFit > 0 && numIterations % numSmoothingIterationsPerFit == 0) {
-                //refit model after this merge iteration
-                modeller.performSimilarSegmentMergingIteration(smoothingCredibleIntervalThresholdCopyRatio, smoothingCredibleIntervalThresholdAlleleFraction, true);
-            } else {
-                //do not refit model after this merge iteration (deciles will be unspecified)
-                modeller.performSimilarSegmentMergingIteration(smoothingCredibleIntervalThresholdCopyRatio, smoothingCredibleIntervalThresholdAlleleFraction, false);
-            }
-            if (modeller.getACNVModeledSegments().size() == prevNumSegments) {
-                break;
-            }
-        }
-        if (!modeller.isModelFit()) {
-            //make sure final model is completely fit (i.e., deciles are specified)
-            modeller.fitModel();
-        }
-        logger.info("Final number of segments after smoothing: " + modeller.getACNVModeledSegments().size());
-    }
-
-    //write modeled segments and global parameters to file
-    private void writeACNVModeledSegmentAndParameterFiles(final String sampleName,
-                                                          final ACNVModeller modeller,
-                                                          final String fileTag) {
-        final List<ACNVModeledSegment> acnvModeledSegments = modeller.getACNVModeledSegments();
-        //map copy-ratio intervals to their midpoints so that each will be uniquely contained in a single segment
-        final OverlapDetector<CopyRatio> copyRatioMidpointOverlapDetector = denoisedCopyRatios.getMidpointOverlapDetector();
-        final OverlapDetector<AllelicCount> allelicCountOverlapDetector = hetAllelicCounts.getOverlapDetector();
-        final List<ModeledSegment> modeledSegmentsList = acnvModeledSegments.stream()
-                .map(s -> new ModeledSegment(
-                        copyRatioMidpointOverlapDetector.getOverlaps(s).size(),
-                        allelicCountOverlapDetector.getOverlaps(s).size(),
-                        s))
-                .collect(Collectors.toList());
-        final ModeledSegmentCollection modeledSegments = new ModeledSegmentCollection(sampleName, modeledSegmentsList);
+    private void writeModeledSegmentsAndParameterFiles(final String sampleName,
+                                                       final CRAFModeller modeller,
+                                                       final String fileTag) {
+        final ModeledSegmentCollection modeledSegments = modeller.getModeledSegments();
         writeSegments(modeledSegments, fileTag + SEGMENTS_FILE_SUFFIX);
         final File copyRatioParameterFile = new File(outputDir, outputPrefix + fileTag + CR_PARAMETER_FILE_SUFFIX);
         final File alleleFractionParameterFile = new File(outputDir, outputPrefix + fileTag + AF_PARAMETER_FILE_SUFFIX);
-        modeller.writeACNVModelParameterFiles(copyRatioParameterFile, alleleFractionParameterFile);
+        modeller.writeModelParameterFiles(copyRatioParameterFile, alleleFractionParameterFile);
     }
 
     private void writeSegments(final TSVLocatableCollection<?> segments,

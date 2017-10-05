@@ -22,7 +22,7 @@ import java.util.stream.IntStream;
  *
  * @author Samuel Lee &lt;slee@broadinstitute.org&gt;
  */
-final class CopyRatioData implements DataCollection {
+public final class CopyRatioSegmentedData implements DataCollection {
     private final CopyRatioCollection copyRatios;
     private final List<SimpleInterval> segments;
     private final double minLog2CopyRatioValue;
@@ -30,8 +30,8 @@ final class CopyRatioData implements DataCollection {
 
     private final List<List<IndexedCopyRatio>> indexedCopyRatiosPerSegment = new ArrayList<>();
 
-    CopyRatioData(final CopyRatioCollection copyRatios,
-                  final List<SimpleInterval> segments) {
+    public CopyRatioSegmentedData(final CopyRatioCollection copyRatios,
+                                  final List<SimpleInterval> segments) {
         this.copyRatios = Utils.nonNull(copyRatios);
         this.segments = Utils.nonEmpty(segments).stream().sorted(TSVLocatableCollection.LEXICOGRAPHICAL_ORDER_COMPARATOR).collect(Collectors.toList());
 
@@ -54,6 +54,10 @@ final class CopyRatioData implements DataCollection {
             indexedCopyRatiosPerSegment.add(indexedCopyRatiosInSegment);
             index += copyRatiosInSegment.size();
         }
+    }
+
+    List<SimpleInterval> getSegments() {
+        return Collections.unmodifiableList(segments);
     }
 
     int getNumSegments() {

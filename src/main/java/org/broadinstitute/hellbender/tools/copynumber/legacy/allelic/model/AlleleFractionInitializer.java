@@ -1,21 +1,21 @@
 package org.broadinstitute.hellbender.tools.copynumber.legacy.allelic.model;
 
 import org.apache.commons.math3.exception.MaxCountExceededException;
-import org.apache.commons.math3.random.RandomGenerator;
 import org.apache.commons.math3.special.Beta;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.broadinstitute.hellbender.tools.exome.alleliccount.AllelicCount;
+import org.broadinstitute.hellbender.tools.copynumber.allelic.alleliccount.AllelicCount;
 import org.broadinstitute.hellbender.utils.OptimizationUtils;
+import org.broadinstitute.hellbender.utils.Utils;
 
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 /**
- * The Allele Fraction Model (after marginalizing latent parameters as described in docs/CNVs/CNV-methods.pdf)
+ * The allele-fraction model (after marginalizing latent parameters as described in docs/CNVs/CNV-methods.pdf)
  * contains the following parameters:
- *      1.  minor allele fractions for each segment
+ *      1.  minor-allele fractions for each segment
  *      2.  a global outlier probability
  *      3.  the mean allelic bias
  *      4.  the rate (mean / variance) of the allelic bias
@@ -23,7 +23,7 @@ import java.util.stream.IntStream;
  * Note that 3 and 4 are hyperparameters specifying a gamma distribution prior on allelic bias -- the latent variables
  * for bias at each het site have been marginalized but the hyperparameters have not.
  *
- * The Allele Fraction Model samples the distribution of these parameters using Markov chain Monte Carlo and in principle
+ * The allele-fraction model samples the distribution of these parameters using Markov chain Monte Carlo and in principle
  * an initialization step is not necessary.  However, in practice this initialization finds the mode of the posterior
  * distributions in only a few iterations, whereas sampling would require many more.  Thus we greatly reduce the
  * number of burn-in samples that we must discard.
@@ -35,37 +35,37 @@ import java.util.stream.IntStream;
  * @author David Benjamin &lt;davidben@broadinstitute.org&gt;
  */
 public final class AlleleFractionInitializer {
-    public static final double INITIAL_OUTLIER_PROBABILITY = 0.01;
-    public static final double INITIAL_MEAN_BIAS = 1.0;
-    public static final double INITIAL_BIAS_VARIANCE = 0.1;   // this is an overestimate, but starting small makes it slow for
-                                                                 // mean bias to escape a bad initial guess
-    public static final AlleleFractionGlobalParameters INITIAL_GLOBAL_PARAMETERS =
-        new AlleleFractionGlobalParameters(INITIAL_MEAN_BIAS, INITIAL_BIAS_VARIANCE, INITIAL_OUTLIER_PROBABILITY);
-
-    public static final double LOG_LIKELIHOOD_CONVERGENCE_THRESHOLD = 0.5;
-    public static final int MAX_ITERATIONS = 50;
-
-    //define maxima of search intervals for maximum likelihood -- parameter values above these would be ridiculous
-    public static final double MAX_REASONABLE_OUTLIER_PROBABILITY = 0.1;
-    public static final double MAX_REASONABLE_MEAN_BIAS = 5.0;
-    public static final double MAX_REASONABLE_BIAS_VARIANCE = 1.0;
-
-    //the minor allele fraction of a segment must be less than one half by definition
-    private static final double MAX_MINOR_ALLELE_FRACTION = 0.5;
-
-    private AlleleFractionGlobalParameters globalParameters;
-    private AlleleFractionState.MinorFractions minorFractions;
-    private final int numPoints;
     private static final Logger logger = LogManager.getLogger(AlleleFractionInitializer.class);
 
+    private static final double INITIAL_OUTLIER_PROBABILITY = 0.01;
+    private static final double INITIAL_MEAN_BIAS = 1.0;
+    private static final double INITIAL_BIAS_VARIANCE = 0.1;    //this is an overestimate, but starting small makes it slow for
+                                                                //mean bias to escape a bad initial guess
+    private static final AlleleFractionGlobalParameters INITIAL_GLOBAL_PARAMETERS =
+        new AlleleFractionGlobalParameters(INITIAL_MEAN_BIAS, INITIAL_BIAS_VARIANCE, INITIAL_OUTLIER_PROBABILITY);
+
+    private static final double LOG_LIKELIHOOD_CONVERGENCE_THRESHOLD = 0.5;
+    private static final int MAX_ITERATIONS = 50;
+
+    //define maxima of search intervals for maximum likelihood -- parameter values above these would be ridiculous
+    static final double MAX_REASONABLE_OUTLIER_PROBABILITY = 0.1;
+    static final double MAX_REASONABLE_MEAN_BIAS = 5.0;
+    static final double MAX_REASONABLE_BIAS_VARIANCE = 1.0;
+
+    //the minor-allele fraction of a segment must be less than one half by definition
+    private static final double MAX_MINOR_ALLELE_FRACTION = 0.5;
+
+    private final AlleleFractionSegmentedData data;
+    private AlleleFractionGlobalParameters globalParameters;
+    private AlleleFractionState.MinorFractions minorFractions;
+
     /**
-     * Do the initialization
-     * @param data data
+     * This constructor performs the initialization.
      */
-    public AlleleFractionInitializer(final AlleleFractionData data) {
+    AlleleFractionInitializer(final AlleleFractionSegmentedData data) {
+        this.data = Utils.nonNull(data);
         globalParameters = INITIAL_GLOBAL_PARAMETERS;
-        minorFractions = initialMinorFractions(data);
-        numPoints = data.getNumPoints();
+        minorFractions = calculateInitialMinorFractions(data);
         double previousIterationLogLikelihood;
         double nextIterationLogLikelihood = Double.NEGATIVE_INFINITY;
         logger.info(String.format("Initializing allele-fraction model.  Iterating until log likelihood converges to within %.3f.",
@@ -73,9 +73,9 @@ public final class AlleleFractionInitializer {
         int iteration = 1;
         do {
             previousIterationLogLikelihood = nextIterationLogLikelihood;
-            globalParameters = new AlleleFractionGlobalParameters(estimateMeanBias(data), estimateBiasVariance(data),
-                    estimateOutlierProbability(data));
-            minorFractions = estimateMinorFractions(data);
+            globalParameters = new AlleleFractionGlobalParameters(
+                    estimateMeanBias(), estimateBiasVariance(), estimateOutlierProbability());
+            minorFractions = estimateMinorFractions();
 
             nextIterationLogLikelihood = AlleleFractionLikelihoods.logLikelihood(globalParameters, minorFractions, data);
             logger.info(String.format("Iteration %d, model log likelihood = %.3f.", iteration, nextIterationLogLikelihood));
@@ -84,46 +84,17 @@ public final class AlleleFractionInitializer {
                 nextIterationLogLikelihood - previousIterationLogLikelihood > LOG_LIKELIHOOD_CONVERGENCE_THRESHOLD);
     }
 
-    /**
-     * Subsample data for global variables.
-     */
-    public AlleleFractionInitializer(final RandomGenerator rng, final int numPointsSubsamplingLimit, final AlleleFractionData data) {
-        globalParameters = INITIAL_GLOBAL_PARAMETERS;
-        minorFractions = initialMinorFractions(data);
-        numPoints = data.getNumPoints();
-        double previousIterationLogLikelihood;
-        double nextIterationLogLikelihood = Double.NEGATIVE_INFINITY;
-        logger.info(String.format("Initializing allele-fraction model.  Iterating until log likelihood converges to within %.3f.",
-                LOG_LIKELIHOOD_CONVERGENCE_THRESHOLD));
-        final AlleleFractionData dataGlobal = data.getNumPoints() >= numPointsSubsamplingLimit ? data.subsample(rng, numPointsSubsamplingLimit) : data;
-        int iteration = 1;
-        do {
-            previousIterationLogLikelihood = nextIterationLogLikelihood;
-            globalParameters = new AlleleFractionGlobalParameters(estimateMeanBias(dataGlobal), estimateBiasVariance(dataGlobal),
-                    estimateOutlierProbability(dataGlobal));
-            minorFractions = estimateMinorFractions(data);
-
-            nextIterationLogLikelihood = AlleleFractionLikelihoods.logLikelihood(globalParameters, minorFractions, data);
-            logger.info(String.format("Iteration %d, model log likelihood = %.3f.", iteration, nextIterationLogLikelihood));
-            iteration++;
-        } while (iteration < MAX_ITERATIONS &&
-                nextIterationLogLikelihood - previousIterationLogLikelihood > LOG_LIKELIHOOD_CONVERGENCE_THRESHOLD);
+    AlleleFractionState getInitializedState() {
+        return new AlleleFractionState(
+                globalParameters.getMeanBias(), globalParameters.getBiasVariance(), globalParameters.getOutlierProbability(), minorFractions);
     }
 
     /**
-     *
-     * @return the initialized state of the Allele Fraction Model
-     */
-    public AlleleFractionState getInitializedState() {
-        return new AlleleFractionState(globalParameters.getMeanBias(), globalParameters.getBiasVariance(), globalParameters.getOutlierProbability(), minorFractions);
-    }
-
-    /**
-     *  Initialize minor fractions assuming no allelic bias <p></p>
+     * Initialize minor fractions assuming no allelic bias. <p></p>
      *
      * We integrate over f to get posterior probabilities (responsibilities) of alt / ref minor
-     * that is, responsibility of alt minor is int_{0 to 1/2} f^a (1-f)^r df
-     *          responsibility of ref minor is int_{0 to 1/2} f^r (1-f)^a df
+     * that is, responsibility of alt minor is int_{0 to 1/2} f^a (1 - f)^r df
+     *          responsibility of ref minor is int_{0 to 1/2} f^r (1 - f)^a df
      * these are proportional to I(1/2, a + 1, r + 1) and I(1/2, r + 1, a + 1),
      * respectively, where I is the (incomplete) regularized Beta function.
      * By definition these likelihoods sum to 1, ie they are already normalized. <p></p>
@@ -131,13 +102,13 @@ public final class AlleleFractionInitializer {
      * Finally, we set each minor fraction to the responsibility-weighted total count of
      * reads in minor allele divided by total reads, ignoring outliers.
      */
-    private AlleleFractionState.MinorFractions initialMinorFractions(final AlleleFractionData data) {
+    private AlleleFractionState.MinorFractions calculateInitialMinorFractions(final AlleleFractionSegmentedData data) {
         final int numSegments = data.getNumSegments();
         final AlleleFractionState.MinorFractions result = new AlleleFractionState.MinorFractions(numSegments);
         for (int segment = 0; segment < numSegments; segment++) {
             double responsibilityWeightedMinorAlleleReadCount = 0.0;
             double responsibilityWeightedTotalReadCount = 0.0;
-            for (final AllelicCount count : data.getCountsInSegment(segment)) {
+            for (final AllelicCount count : data.getIndexedAllelicCountsInSegment(segment)) {
                 final int a = count.getAltReadCount();
                 final int r = count.getRefReadCount();
                 double altMinorResponsibility;
@@ -156,37 +127,34 @@ public final class AlleleFractionInitializer {
         return result;
     }
 
-    private double estimateOutlierProbability(final AlleleFractionData data) {
-        final double scalingFactor = (double) numPoints / data.getNumPoints();
+    private double estimateOutlierProbability() {
         final Function<Double, Double> objective = outlierProbability ->
-                scalingFactor * AlleleFractionLikelihoods.logLikelihood(globalParameters.copyWithNewOutlierProbability(outlierProbability), minorFractions, data);
+                AlleleFractionLikelihoods.logLikelihood(globalParameters.copyWithNewOutlierProbability(outlierProbability), minorFractions, data);
         return OptimizationUtils.argmax(objective, 0.0, MAX_REASONABLE_OUTLIER_PROBABILITY, globalParameters.getOutlierProbability());
     }
 
-    private double estimateMeanBias(final AlleleFractionData data) {
-        final double scalingFactor = (double) numPoints / data.getNumPoints();
+    private double estimateMeanBias() {
         final Function<Double, Double> objective = meanBias ->
-                scalingFactor * AlleleFractionLikelihoods.logLikelihood(globalParameters.copyWithNewMeanBias(meanBias), minorFractions, data);
+                AlleleFractionLikelihoods.logLikelihood(globalParameters.copyWithNewMeanBias(meanBias), minorFractions, data);
         return OptimizationUtils.argmax(objective, 0.0, MAX_REASONABLE_MEAN_BIAS, globalParameters.getMeanBias());
     }
 
-    private double estimateBiasVariance(final AlleleFractionData data) {
-        final double scalingFactor = (double) numPoints / data.getNumPoints();
+    private double estimateBiasVariance() {
         final Function<Double, Double> objective = biasVariance ->
-                scalingFactor * AlleleFractionLikelihoods.logLikelihood(globalParameters.copyWithNewBiasVariance(biasVariance), minorFractions, data);
+                AlleleFractionLikelihoods.logLikelihood(globalParameters.copyWithNewBiasVariance(biasVariance), minorFractions, data);
         return OptimizationUtils.argmax(objective, 0.0, MAX_REASONABLE_BIAS_VARIANCE, globalParameters.getBiasVariance());
     }
 
-    private double estimateMinorFraction(final int segment, final AlleleFractionData data) {
+    private double estimateMinorFraction(final int segment) {
         final Function<Double, Double> objective = minorFraction ->
-            AlleleFractionLikelihoods.segmentLogLikelihood(globalParameters, minorFraction, data.getCountsInSegment(segment), data.getPoN());
+            AlleleFractionLikelihoods.segmentLogLikelihood(globalParameters, minorFraction, segment, data);
         return OptimizationUtils.argmax(objective, 0.0, MAX_MINOR_ALLELE_FRACTION, minorFractions.get(segment));
     }
 
-    private AlleleFractionState.MinorFractions estimateMinorFractions(final AlleleFractionData data) {
+    private AlleleFractionState.MinorFractions estimateMinorFractions() {
         return new AlleleFractionState.MinorFractions(
-                IntStream.range(0, data.getNumSegments())
-                .mapToDouble(segment -> estimateMinorFraction(segment, data))
-                .boxed().collect(Collectors.toList()));
+                IntStream.range(0, data.getNumSegments()).boxed()
+                        .map(this::estimateMinorFraction)
+                        .collect(Collectors.toList()));
     }
 }

@@ -1,11 +1,9 @@
 package org.broadinstitute.hellbender.tools.copynumber.legacy.allelic.model;
 
-import org.apache.commons.math3.random.RandomGenerator;
-import org.apache.commons.math3.random.RandomGeneratorFactory;
 import org.apache.spark.api.java.JavaSparkContext;
-import org.broadinstitute.hellbender.tools.exome.SegmentedGenome;
-import org.broadinstitute.hellbender.tools.pon.allelic.AllelicPanelOfNormals;
+import org.broadinstitute.hellbender.utils.Utils;
 import org.broadinstitute.hellbender.utils.mcmc.*;
+import org.broadinstitute.hellbender.utils.param.ParamUtils;
 
 import java.util.*;
 import java.util.function.Function;
@@ -13,29 +11,29 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 /**
- * Given a {@link SegmentedGenome} and counts of alt and ref reads over a list of het sites,
- * infers the minor allele fraction of each segment.  For example, a segment
- * with (alt,ref) counts (10,90), (11,93), (88,12), (90,10) probably has a minor allele fraction
+ * Given segments and counts of alt and ref reads over a list of het sites,
+ * infers the minor-allele fraction of each segment.  For example, a segment
+ * with (alt,ref) counts (10,90), (11,93), (88,12), (90,10) probably has a minor-allele fraction
  * somewhere around 0.1.  The model takes into account allelic bias due to mapping etc. by learning
  * a global gamma distribution on allelic bias ratios.
  *<p>
  * We define the bias ratio of each het locus to be the expected ratio of
  * mapped ref reads to mapped alt reads given equal amounts of DNA (that is, given
  * a germline het).  The model learns a common gamma distribution:
- *      bias ratio ~ Gamma(alpha = mu^2/sigma^2, beta = mu/sigma^2)
+ *      bias ratio ~ Gamma(alpha = mu^2 / sigma^2, beta = mu / sigma^2)
  * where mu and sigma^2 are the global mean and variance of bias ratios, and
  * alpha, beta are the natural parameters of the gamma distribution.
  *</p>
  * <p>
- * Each segment has a minor allele fraction f, and for each het within the locus
+ * Each segment has a minor-allele fraction f, and for each het within the locus
  * the number of alt reads is drawn from a binomial distribution with total count
- * n = #alt reads + #ref reads and alt probability f/(f + (1-f)*bias ratio) if the
- * locus is alt minor and (1-f)/(1-f + f*bias ratio) if the locus is ref minor.
+ * n = #alt reads + #ref reads and alt probability f / (f + (1 - f) * bias ratio) if the
+ * locus is alt minor and (1 - f) / (1 - f + f * bias ratio) if the locus is ref minor.
  *</p>
  * <p>
  * Conceptually, the model contains latent variables corresponding to the bias ratio
  * and indicators for alt minor/ref minor at each het locus.  However, we integrate them
- * out and the MCMC model below only contains the minor allele fractions and
+ * out and the MCMC model below only contains the minor-allele fractions and
  * the three hyperparameters of the model: the two parameters of the gamma distribution
  * along with the global outlier probability.
  *</p>
@@ -44,34 +42,25 @@ import java.util.stream.IntStream;
  * @author David Benjamin &lt;davidben@broadinstitute.org&gt;
  */
 public final class AlleleFractionModeller {
-    public static final double MAX_REASONABLE_MEAN_BIAS = AlleleFractionInitializer.MAX_REASONABLE_MEAN_BIAS;
-    public static final double MAX_REASONABLE_BIAS_VARIANCE = AlleleFractionInitializer.MAX_REASONABLE_BIAS_VARIANCE;
-    public static final double MINOR_ALLELE_FRACTION_PRIOR_ALPHA_DEFAULT = 1.;
+    private static final double MAX_REASONABLE_MEAN_BIAS = AlleleFractionInitializer.MAX_REASONABLE_MEAN_BIAS;
+    private static final double MAX_REASONABLE_BIAS_VARIANCE = AlleleFractionInitializer.MAX_REASONABLE_BIAS_VARIANCE;
+    private static final double MIN_MINOR_FRACTION_SAMPLING_WIDTH = 1E-3;
 
-    private static final int RANDOM_SEED = 1;
-    private static final RandomGenerator RNG = RandomGeneratorFactory.createRandomGenerator(new Random(RANDOM_SEED));
-    private static final int NUM_POINTS_SUBSAMPLING_LIMIT = 1000000; //for global variables, only sample up to this many data points
+    private final ParameterizedModel<AlleleFractionParameter, AlleleFractionState, AlleleFractionSegmentedData> model;
 
-    private final SegmentedGenome segmentedGenome;
-    private final ParameterizedModel<AlleleFractionParameter, AlleleFractionState, AlleleFractionData> model;
     private final List<Double> meanBiasSamples = new ArrayList<>();
     private final List<Double> biasVarianceSamples = new ArrayList<>();
     private final List<Double> outlierProbabilitySamples = new ArrayList<>();
     private final List<AlleleFractionState.MinorFractions> minorFractionsSamples = new ArrayList<>();
-    private final int numSegments;
 
-    public AlleleFractionModeller(final SegmentedGenome segmentedGenome, final AllelicPanelOfNormals allelicPoN) {
-        this(segmentedGenome, MINOR_ALLELE_FRACTION_PRIOR_ALPHA_DEFAULT, allelicPoN);
-    }
+    public AlleleFractionModeller(final AlleleFractionSegmentedData data,
+                                  final AlleleFractionPrior prior) {
+        Utils.nonNull(data);
+        Utils.nonNull(prior);
+        final AlleleFractionState initialState = new AlleleFractionInitializer(data).getInitializedState();
 
-    public AlleleFractionModeller(final SegmentedGenome segmentedGenome, final double minorAlleleFractionPriorAlpha, final AllelicPanelOfNormals allelicPoN) {
-        this.segmentedGenome = segmentedGenome;
-        final AlleleFractionData data = new AlleleFractionData(segmentedGenome, allelicPoN);
-        numSegments = data.getNumSegments();
-        final AlleleFractionState initialState = new AlleleFractionInitializer(RNG, NUM_POINTS_SUBSAMPLING_LIMIT, data).getInitializedState();
-
-        // Initialization got us to the mode of the likelihood
-        // if we approximate conditionals as normal we can guess the width from the curvature at the mode and use as the slice-sampling widths
+        //initialization gets us to the mode of the likelihood;
+        //if we approximate conditionals as normal, we can guess the width from the curvature at the mode and use as the slice-sampling widths
         final AlleleFractionGlobalParameters initialParameters = initialState.globalParameters();
         final AlleleFractionState.MinorFractions initialMinorFractions = initialState.minorFractions();
 
@@ -82,18 +71,20 @@ public final class AlleleFractionModeller {
         final double outlierProbabilitySamplingWidths = approximatePosteriorWidthAtMode(outlierProbability ->
                 AlleleFractionLikelihoods.logLikelihood(initialParameters.copyWithNewOutlierProbability(outlierProbability), initialMinorFractions, data), initialParameters.getOutlierProbability());
 
-        final List<Double> minorFractionsSliceSamplingWidths = IntStream.range(0, numSegments).mapToDouble(segment ->
-                approximatePosteriorWidthAtMode(f -> AlleleFractionLikelihoods.segmentLogLikelihood(initialParameters, f, data.getCountsInSegment(segment), allelicPoN), initialMinorFractions.get(segment)))
-                .boxed().collect(Collectors.toList());
+        final List<Double> minorFractionsSliceSamplingWidths = IntStream.range(0, data.getNumSegments()).boxed()
+                .map(segment -> approximatePosteriorWidthAtMode(
+                        f -> AlleleFractionLikelihoods.segmentLogLikelihood(initialParameters, f, segment, data), initialMinorFractions.get(segment)))
+                .map(w -> Math.max(w, MIN_MINOR_FRACTION_SAMPLING_WIDTH))
+                .collect(Collectors.toList());
 
-        final ParameterSampler<Double, AlleleFractionParameter, AlleleFractionState, AlleleFractionData> meanBiasSampler =
-                new AlleleFractionSamplers.MeanBiasSampler(MAX_REASONABLE_MEAN_BIAS, meanBiasSamplingWidths, NUM_POINTS_SUBSAMPLING_LIMIT);
-        final ParameterSampler<Double, AlleleFractionParameter, AlleleFractionState, AlleleFractionData> biasVarianceSampler =
-                new AlleleFractionSamplers.BiasVarianceSampler(MAX_REASONABLE_BIAS_VARIANCE, biasVarianceSamplingWidths, NUM_POINTS_SUBSAMPLING_LIMIT);
-        final ParameterSampler<Double, AlleleFractionParameter, AlleleFractionState, AlleleFractionData> outlierProbabilitySampler =
-                new AlleleFractionSamplers.OutlierProbabilitySampler(outlierProbabilitySamplingWidths, NUM_POINTS_SUBSAMPLING_LIMIT);
-        final ParameterSampler<AlleleFractionState.MinorFractions, AlleleFractionParameter, AlleleFractionState, AlleleFractionData> minorFractionsSampler =
-                new AlleleFractionSamplers.MinorFractionsSampler(minorAlleleFractionPriorAlpha, minorFractionsSliceSamplingWidths);
+        final ParameterSampler<Double, AlleleFractionParameter, AlleleFractionState, AlleleFractionSegmentedData> meanBiasSampler =
+                new AlleleFractionSamplers.MeanBiasSampler(MAX_REASONABLE_MEAN_BIAS, meanBiasSamplingWidths);
+        final ParameterSampler<Double, AlleleFractionParameter, AlleleFractionState, AlleleFractionSegmentedData> biasVarianceSampler =
+                new AlleleFractionSamplers.BiasVarianceSampler(MAX_REASONABLE_BIAS_VARIANCE, biasVarianceSamplingWidths);
+        final ParameterSampler<Double, AlleleFractionParameter, AlleleFractionState, AlleleFractionSegmentedData> outlierProbabilitySampler =
+                new AlleleFractionSamplers.OutlierProbabilitySampler(outlierProbabilitySamplingWidths);
+        final ParameterSampler<AlleleFractionState.MinorFractions, AlleleFractionParameter, AlleleFractionState, AlleleFractionSegmentedData> minorFractionsSampler =
+                new AlleleFractionSamplers.MinorFractionsSampler(prior, minorFractionsSliceSamplingWidths);
 
         model = new ParameterizedModel.GibbsBuilder<>(initialState, data)
                 .addParameterSampler(AlleleFractionParameter.MEAN_BIAS, meanBiasSampler, Double.class)
@@ -112,7 +103,7 @@ public final class AlleleFractionModeller {
      */
     public void fitMCMC(final int numSamples, final int numBurnIn) {
         //run MCMC
-        final GibbsSampler<AlleleFractionParameter, AlleleFractionState, AlleleFractionData> gibbsSampler = new GibbsSampler<>(numSamples, model);
+        final GibbsSampler<AlleleFractionParameter, AlleleFractionState, AlleleFractionSegmentedData> gibbsSampler = new GibbsSampler<>(numSamples, model);
         gibbsSampler.runMCMC();
 
         //update posterior samples
@@ -140,6 +131,7 @@ public final class AlleleFractionModeller {
 
     public List<List<Double>> getMinorFractionSamplesBySegment() {
         final List<List<Double>> result = new ArrayList<>();
+        final int numSegments = minorFractionsSamples.get(0).size();
         for (int segment = 0; segment < numSegments; segment++) {
             final List<Double> thisSegment = new ArrayList<>();
             for (final AlleleFractionState.MinorFractions sample : minorFractionsSamples) {
@@ -152,14 +144,17 @@ public final class AlleleFractionModeller {
 
     /**
      * Returns a list of {@link PosteriorSummary} elements summarizing the minor-allele-fraction posterior for each segment.
-     * Should only be called after {@link AlleleFractionModeller#fitMCMC(int, int)} has been called.
-     * @param credibleIntervalAlpha credible-interval alpha, must be in (0, 1)
+     * Should only be called after {@link #fitMCMC} has been called.
      * @param ctx                   {@link JavaSparkContext} used for mllib kernel density estimation
-     * @return                      list of {@link PosteriorSummary} elements summarizing the
-     *                              minor-allele-fraction posterior for each segment
      */
-    public List<PosteriorSummary> getMinorAlleleFractionsPosteriorSummaries(final double credibleIntervalAlpha, final JavaSparkContext ctx) {
-        final int numSegments = segmentedGenome.getSegments().size();
+    public List<PosteriorSummary> getMinorAlleleFractionsPosteriorSummaries(final double credibleIntervalAlpha,
+                                                                            final JavaSparkContext ctx) {
+        ParamUtils.inRange(credibleIntervalAlpha, 0., 1., "Credible-interval alpha must be in [0, 1].");
+        Utils.nonNull(ctx);
+        if (minorFractionsSamples.isEmpty()) {
+            throw new IllegalStateException("Attempted to get posterior summaries for minor-allele fractions before MCMC was performed.");
+        }
+        final int numSegments = minorFractionsSamples.get(0).size();
         final List<PosteriorSummary> posteriorSummaries = new ArrayList<>(numSegments);
         for (int segment = 0; segment < numSegments; segment++) {
             final int j = segment;
@@ -172,12 +167,16 @@ public final class AlleleFractionModeller {
 
     /**
      * Returns a Map of {@link PosteriorSummary} elements summarizing the global parameters.
-     * Should only be called after {@link AlleleFractionModeller#fitMCMC(int, int)} has been called.
-     * @param credibleIntervalAlpha credible-interval alpha, must be in (0, 1)
+     * Should only be called after {@link #fitMCMC} has been called.
      * @param ctx                   {@link JavaSparkContext} used for mllib kernel density estimation
-     * @return                      list of {@link PosteriorSummary} elements summarizing the global parameters
      */
-    public Map<AlleleFractionParameter, PosteriorSummary> getGlobalParameterPosteriorSummaries(final double credibleIntervalAlpha, final JavaSparkContext ctx) {
+    public Map<AlleleFractionParameter, PosteriorSummary> getGlobalParameterPosteriorSummaries(final double credibleIntervalAlpha,
+                                                                                               final JavaSparkContext ctx) {
+        ParamUtils.inRange(credibleIntervalAlpha, 0., 1., "Credible-interval alpha must be in [0, 1].");
+        Utils.nonNull(ctx);
+        if (meanBiasSamples.isEmpty()) {
+            throw new IllegalStateException("Attempted to get posterior summaries for global parameters before MCMC was performed.");
+        }
         final Map<AlleleFractionParameter, PosteriorSummary> posteriorSummaries = new LinkedHashMap<>();
         posteriorSummaries.put(AlleleFractionParameter.MEAN_BIAS, PosteriorSummaryUtils.calculateHighestPosteriorDensityAndDecilesSummary(meanBiasSamples, credibleIntervalAlpha, ctx));
         posteriorSummaries.put(AlleleFractionParameter.BIAS_VARIANCE, PosteriorSummaryUtils.calculateHighestPosteriorDensityAndDecilesSummary(biasVarianceSamples, credibleIntervalAlpha, ctx));
@@ -186,10 +185,11 @@ public final class AlleleFractionModeller {
     }
 
     //use width of a probability distribution given the position of its mode (estimated from Gaussian approximation) as step size
-    private static double approximatePosteriorWidthAtMode(final Function<Double, Double> logPDF, final double mode) {
+    private static double approximatePosteriorWidthAtMode(final Function<Double, Double> logPDF,
+                                                          final double mode) {
         final double absMode = Math.abs(mode);
-        final double epsilon = Math.min(1e-6, absMode / 2);    //adjust scale if mode is very near zero
-        final double defaultWidth = absMode / 10;              //if "mode" is not close to true mode of logPDF, approximation may not apply; just use 1/10 of absMode in this case
+        final double epsilon = Math.min(1E-6, absMode / 2);    //adjust scale if mode is very near zero
+        final double defaultWidth = absMode / 10;              //if "mode" is not close to true mode of logPDF, approximation may not apply; just use 1 / 10 of absMode in this case
         final double secondDerivative = (logPDF.apply(mode + epsilon) - 2 * logPDF.apply(mode) + logPDF.apply(mode - epsilon)) / (epsilon * epsilon);
         return secondDerivative < 0 ? Math.sqrt(-1.0 / secondDerivative) : defaultWidth;
     }

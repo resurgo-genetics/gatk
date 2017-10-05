@@ -32,7 +32,7 @@ final class CopyRatioSamplers {
     //the product of Gaussian likelihoods for each non-outlier point t:
     //  log[product_{non-outlier t} variance^(-1/2) * exp(-(log2cr_t - mean_t)^2 / (2 * variance))] + constant
     //where mean_t is identical for all points in a segment
-    static final class VarianceSampler implements ParameterSampler<Double, CopyRatioParameter, CopyRatioState, CopyRatioData> {
+    static final class VarianceSampler implements ParameterSampler<Double, CopyRatioParameter, CopyRatioState, CopyRatioSegmentedData> {
         private final double varianceMin;
         private final double varianceMax;
         private final double varianceSliceSamplingWidth;
@@ -48,14 +48,14 @@ final class CopyRatioSamplers {
         @Override
         public Double sample(final RandomGenerator rng, 
                              final CopyRatioState state, 
-                             final CopyRatioData dataCollection) {
+                             final CopyRatioSegmentedData data) {
             logger.debug("Sampling variance...");
             final Function<Double, Double> logConditionalPDF = newVariance -> {
                 final double gaussianLogNormalization = 0.5 * Math.log(newVariance);
                 double ll = 0.;
-                for (int segment = 0; segment < dataCollection.getNumSegments(); segment++) {
-                    final List<CopyRatioData.IndexedCopyRatio> indexedCopyRatiosInSegment = dataCollection.getIndexedCopyRatiosInSegment(segment);
-                    for (final CopyRatioData.IndexedCopyRatio indexedCopyRatio : indexedCopyRatiosInSegment) {
+                for (int segment = 0; segment < data.getNumSegments(); segment++) {
+                    final List<CopyRatioSegmentedData.IndexedCopyRatio> indexedCopyRatiosInSegment = data.getIndexedCopyRatiosInSegment(segment);
+                    for (final CopyRatioSegmentedData.IndexedCopyRatio indexedCopyRatio : indexedCopyRatiosInSegment) {
                         if (!state.outlierIndicator(indexedCopyRatio.getIndex())) {
                             ll -= normalTerm(indexedCopyRatio.getLog2CopyRatioValue(), state.segmentMean(segment), newVariance) + gaussianLogNormalization;
                         }
@@ -70,7 +70,7 @@ final class CopyRatioSamplers {
     //samples log conditional posterior for the outlier-probability parameter, assuming Beta(alpha, beta) prior;
     //this is given by:
     //  log Beta(alpha + number of outlier points, beta + number of non-outlier points) + constant
-    static final class OutlierProbabilitySampler implements ParameterSampler<Double, CopyRatioParameter, CopyRatioState, CopyRatioData> {
+    static final class OutlierProbabilitySampler implements ParameterSampler<Double, CopyRatioParameter, CopyRatioState, CopyRatioSegmentedData> {
         private final double outlierProbabilityPriorAlpha;
         private final double outlierProbabilityPriorBeta;
 
@@ -83,19 +83,19 @@ final class CopyRatioSamplers {
         @Override
         public Double sample(final RandomGenerator rng, 
                              final CopyRatioState state, 
-                             final CopyRatioData dataCollection) {
+                             final CopyRatioSegmentedData data) {
             logger.debug("Sampling outlier probability...");
-            final int numOutliers = (int) IntStream.range(0, dataCollection.getNumPoints()).filter(state::outlierIndicator).count();
+            final int numOutliers = (int) IntStream.range(0, data.getNumPoints()).filter(state::outlierIndicator).count();
             return new BetaDistribution(rng,
                     outlierProbabilityPriorAlpha + numOutliers,
-                    outlierProbabilityPriorBeta + dataCollection.getNumPoints() - numOutliers).sample();
+                    outlierProbabilityPriorBeta + data.getNumPoints() - numOutliers).sample();
         }
     }
 
     //samples log conditional posteriors for the segment-mean parameters, assuming uniform priors bounded by minimum and maximum log2 copy-ratio values;
     //for each segment s, this is given by the product of Gaussian likelihoods for each non-outlier point t:
     //  log[product_{non-outlier t in s} exp(-(log2cr_t - mean_s)^2 / (2 * variance))] + constant
-    static final class SegmentMeansSampler implements ParameterSampler<CopyRatioState.SegmentMeans, CopyRatioParameter, CopyRatioState, CopyRatioData> {
+    static final class SegmentMeansSampler implements ParameterSampler<CopyRatioState.SegmentMeans, CopyRatioParameter, CopyRatioState, CopyRatioSegmentedData> {
         private final double meanMin;
         private final double meanMax;
         private final double meanSliceSamplingWidth;
@@ -111,10 +111,10 @@ final class CopyRatioSamplers {
         @Override
         public CopyRatioState.SegmentMeans sample(final RandomGenerator rng,
                                                   final CopyRatioState state, 
-                                                  final CopyRatioData dataCollection) {
-            final List<Double> means = new ArrayList<>(dataCollection.getNumSegments());
-            for (int segment = 0; segment < dataCollection.getNumSegments(); segment++) {
-                final List<CopyRatioData.IndexedCopyRatio> indexedCopyRatiosInSegment = dataCollection.getIndexedCopyRatiosInSegment(segment);
+                                                  final CopyRatioSegmentedData data) {
+            final List<Double> means = new ArrayList<>(data.getNumSegments());
+            for (int segment = 0; segment < data.getNumSegments(); segment++) {
+                final List<CopyRatioSegmentedData.IndexedCopyRatio> indexedCopyRatiosInSegment = data.getIndexedCopyRatiosInSegment(segment);
                 if (indexedCopyRatiosInSegment.isEmpty()) {
                     means.add(Double.NaN);
                 } else {
@@ -140,7 +140,7 @@ final class CopyRatioSamplers {
     //note that we compute the normalizing constant, so that we can sample a new indicator value by simply sampling
     //uniformly in [0, 1] and checking whether the resulting value is less than the probability of being an outlier
     //(corresponding to the first line in the unnormalized expression above)
-    static final class OutlierIndicatorsSampler implements ParameterSampler<CopyRatioState.OutlierIndicators, CopyRatioParameter, CopyRatioState, CopyRatioData> {
+    static final class OutlierIndicatorsSampler implements ParameterSampler<CopyRatioState.OutlierIndicators, CopyRatioParameter, CopyRatioState, CopyRatioSegmentedData> {
         private final double outlierUniformLogLikelihood;
 
         OutlierIndicatorsSampler(final double outlierUniformLogLikelihood) {
@@ -150,16 +150,16 @@ final class CopyRatioSamplers {
         @Override
         public CopyRatioState.OutlierIndicators sample(final RandomGenerator rng,
                                                        final CopyRatioState state,
-                                                       final CopyRatioData dataCollection) {
+                                                       final CopyRatioSegmentedData data) {
             logger.debug("Sampling outlier indicators...");
             final double outlierUnnormalizedLogProbability =
                     Math.log(state.outlierProbability()) + outlierUniformLogLikelihood;
             final double notOutlierUnnormalizedLogProbabilityPrefactor =
                     Math.log(1. - state.outlierProbability()) - 0.5 * Math.log(2 * Math.PI * state.variance());
             final List<Boolean> indicators = new ArrayList<>();
-            for (int segment = 0; segment < dataCollection.getNumSegments(); segment++) {
-                final List<CopyRatioData.IndexedCopyRatio> indexedCopyRatiosInSegment = dataCollection.getIndexedCopyRatiosInSegment(segment);
-                for (final CopyRatioData.IndexedCopyRatio indexedCopyRatio : indexedCopyRatiosInSegment) {
+            for (int segment = 0; segment < data.getNumSegments(); segment++) {
+                final List<CopyRatioSegmentedData.IndexedCopyRatio> indexedCopyRatiosInSegment = data.getIndexedCopyRatiosInSegment(segment);
+                for (final CopyRatioSegmentedData.IndexedCopyRatio indexedCopyRatio : indexedCopyRatiosInSegment) {
                     final double notOutlierUnnormalizedLogProbability =
                             notOutlierUnnormalizedLogProbabilityPrefactor
                                     - normalTerm(indexedCopyRatio.getLog2CopyRatioValue(), state.segmentMean(segment), state.variance());

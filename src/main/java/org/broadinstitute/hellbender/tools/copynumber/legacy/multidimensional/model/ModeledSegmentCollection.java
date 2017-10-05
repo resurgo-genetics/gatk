@@ -14,7 +14,7 @@ import java.util.function.Function;
  * @author Samuel Lee &lt;slee@broadinstitute.org&gt;
  */
 public final class ModeledSegmentCollection extends TSVLocatableCollection<ModeledSegment> {
-    public static final String DOUBLE_FORMAT = "%6.6f";
+    private static final String DOUBLE_FORMAT = "%6.6f";
 
     enum ModeledSegmentTableColumn {
         CONTIG, 
@@ -50,24 +50,24 @@ public final class ModeledSegmentCollection extends TSVLocatableCollection<Model
         final double minorAlleleFractionPosterior90 = dataLine.getDouble(ModeledSegmentTableColumn.MINOR_ALLELE_FRACTION_POSTERIOR_90);
         final SimpleInterval interval = new SimpleInterval(contig, start, end);
         return new ModeledSegment(interval, numPointsCopyRatio, numPointsAlleleFraction, 
-                log2CopyRatioPosteriorMode, log2CopyRatioPosterior10, log2CopyRatioPosterior50, log2CopyRatioPosterior90,
-                minorAlleleFractionPosteriorMode, minorAlleleFractionPosterior10, minorAlleleFractionPosterior50, minorAlleleFractionPosterior90);
+                new ModeledSegment.SimplePosteriorSummary(log2CopyRatioPosteriorMode, log2CopyRatioPosterior10, log2CopyRatioPosterior50, log2CopyRatioPosterior90),
+                new ModeledSegment.SimplePosteriorSummary(minorAlleleFractionPosteriorMode, minorAlleleFractionPosterior10, minorAlleleFractionPosterior50, minorAlleleFractionPosterior90));
     };
 
-    private static final BiConsumer<ModeledSegment, DataLine> MODELED_SEGMENT_RECORD_AND_DATA_LINE_BI_CONSUMER = (alleleFractionSegment, dataLine) ->
-            dataLine.append(alleleFractionSegment.getContig())
-                    .append(alleleFractionSegment.getStart())
-                    .append(alleleFractionSegment.getEnd())
-                    .append(alleleFractionSegment.getNumPointsCopyRatio())
-                    .append(alleleFractionSegment.getNumPointsAlleleFraction())
-                    .append(String.format(DOUBLE_FORMAT, alleleFractionSegment.getLog2CopyRatioPosteriorMode()))
-                    .append(String.format(DOUBLE_FORMAT, alleleFractionSegment.getLog2CopyRatioPosterior10()))
-                    .append(String.format(DOUBLE_FORMAT, alleleFractionSegment.getLog2CopyRatioPosterior50()))
-                    .append(String.format(DOUBLE_FORMAT, alleleFractionSegment.getLog2CopyRatioPosterior90()))
-                    .append(String.format(DOUBLE_FORMAT, alleleFractionSegment.getMinorAlleleFractionPosteriorMode()))
-                    .append(String.format(DOUBLE_FORMAT, alleleFractionSegment.getMinorAlleleFractionPosterior10()))
-                    .append(String.format(DOUBLE_FORMAT, alleleFractionSegment.getMinorAlleleFractionPosterior50()))
-                    .append(String.format(DOUBLE_FORMAT, alleleFractionSegment.getMinorAlleleFractionPosterior90()));
+    private static final BiConsumer<ModeledSegment, DataLine> MODELED_SEGMENT_RECORD_AND_DATA_LINE_BI_CONSUMER = (modeledSegment, dataLine) ->
+            dataLine.append(modeledSegment.getContig())
+                    .append(modeledSegment.getStart())
+                    .append(modeledSegment.getEnd())
+                    .append(modeledSegment.getNumPointsCopyRatio())
+                    .append(modeledSegment.getNumPointsAlleleFraction())
+                    .append(String.format(DOUBLE_FORMAT, modeledSegment.getLog2CopyRatioSimplePosteriorSummary().getMode()))
+                    .append(String.format(DOUBLE_FORMAT, modeledSegment.getLog2CopyRatioSimplePosteriorSummary().getDecile10()))
+                    .append(String.format(DOUBLE_FORMAT, modeledSegment.getLog2CopyRatioSimplePosteriorSummary().getDecile50()))
+                    .append(String.format(DOUBLE_FORMAT, modeledSegment.getLog2CopyRatioSimplePosteriorSummary().getDecile90()))
+                    .append(String.format(DOUBLE_FORMAT, modeledSegment.getMinorAlleleFractionSimplePosteriorSummary().getMode()))
+                    .append(String.format(DOUBLE_FORMAT, modeledSegment.getMinorAlleleFractionSimplePosteriorSummary().getDecile10()))
+                    .append(String.format(DOUBLE_FORMAT, modeledSegment.getMinorAlleleFractionSimplePosteriorSummary().getDecile50()))
+                    .append(String.format(DOUBLE_FORMAT, modeledSegment.getMinorAlleleFractionSimplePosteriorSummary().getDecile90()));
 
     public ModeledSegmentCollection(final File inputFile) {
         super(inputFile, ModeledSegmentTableColumn.COLUMNS, MODELED_SEGMENT_DATA_LINE_TO_RECORD_FUNCTION, MODELED_SEGMENT_RECORD_AND_DATA_LINE_BI_CONSUMER);

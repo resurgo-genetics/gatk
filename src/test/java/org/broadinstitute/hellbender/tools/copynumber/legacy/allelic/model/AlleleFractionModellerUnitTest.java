@@ -3,25 +3,12 @@ package org.broadinstitute.hellbender.tools.copynumber.legacy.allelic.model;
 import htsjdk.samtools.util.Log;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.broadinstitute.hellbender.engine.spark.SparkContextFactory;
-import org.broadinstitute.hellbender.tools.exome.Genome;
-import org.broadinstitute.hellbender.tools.exome.ReadCountCollectionUtils;
-import org.broadinstitute.hellbender.tools.exome.SegmentUtils;
-import org.broadinstitute.hellbender.tools.exome.SegmentedGenome;
-import org.broadinstitute.hellbender.tools.exome.allelefraction.AlleleFractionModeller;
-import org.broadinstitute.hellbender.tools.exome.allelefraction.AlleleFractionParameter;
-import org.broadinstitute.hellbender.tools.exome.allelefraction.AlleleFractionState;
-import org.broadinstitute.hellbender.tools.exome.alleliccount.AllelicCountCollection;
-import org.broadinstitute.hellbender.tools.pon.allelic.AllelicPanelOfNormals;
 import org.broadinstitute.hellbender.utils.LoggingUtils;
-import org.broadinstitute.hellbender.utils.SimpleInterval;
 import org.broadinstitute.hellbender.utils.mcmc.PosteriorSummary;
 import org.broadinstitute.hellbender.utils.test.BaseTest;
 import org.testng.Assert;
-import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-import java.io.File;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -52,6 +39,8 @@ public final class AlleleFractionModellerUnitTest extends BaseTest {
         final JavaSparkContext ctx = SparkContextFactory.getTestSparkContext();
 
         final String sampleName = "test";
+        final double minorAlleleFractionPriorAlpha = 1.;
+        final AlleleFractionPrior prior = new AlleleFractionPrior(minorAlleleFractionPriorAlpha);
 
         final int numSamples = 150;
         final int numBurnIn = 50;
@@ -71,7 +60,7 @@ public final class AlleleFractionModellerUnitTest extends BaseTest {
         final AlleleFractionSimulatedData simulatedData = new AlleleFractionSimulatedData(
                 sampleName, averageHetsPerSegment, numSegments, averageDepth, meanBiasSimulated, biasVarianceSimulated, outlierProbability);
 
-        final AlleleFractionModeller modeller = new AlleleFractionModeller(simulatedData.getData());
+        final AlleleFractionModeller modeller = new AlleleFractionModeller(simulatedData.getData(), prior);
         modeller.fitMCMC(numSamples, numBurnIn);
 
         final List<Double> meanBiasSamples = modeller.getmeanBiasSamples();
@@ -83,7 +72,7 @@ public final class AlleleFractionModellerUnitTest extends BaseTest {
         final List<Double> outlierProbabilitySamples = modeller.getOutlierProbabilitySamples();
         Assert.assertEquals(outlierProbabilitySamples.size(), numSamples - numBurnIn);
 
-        final List<org.broadinstitute.hellbender.tools.exome.allelefraction.AlleleFractionState.MinorFractions> minorFractionsSamples = modeller.getMinorFractionsSamples();
+        final List<AlleleFractionState.MinorFractions> minorFractionsSamples = modeller.getMinorFractionsSamples();
         Assert.assertEquals(minorFractionsSamples.size(), numSamples - numBurnIn);
         for (final AlleleFractionState.MinorFractions sample : minorFractionsSamples) {
             Assert.assertEquals(sample.size(), numSegments);

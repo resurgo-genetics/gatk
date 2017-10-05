@@ -5,6 +5,7 @@ import org.broadinstitute.hellbender.utils.mcmc.ParameterizedState;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 
 /**
  * The state of the allele-fraction model, containing: <p>
@@ -18,22 +19,23 @@ import java.util.Arrays;
  * @author David Benjamin &lt;davidben@broadinstitute.org&gt;
  * @author Samuel Lee &lt;slee@broadinstitute.org&gt;
  */
-public final class AlleleFractionState extends ParameterizedState<AlleleFractionParameter> {
-    static final double MIN_MINOR_FRACTION = 0.0;   //by definition!
-    static final double MAX_MINOR_FRACTION = 0.5;   //by definition!
-
+final class AlleleFractionState extends ParameterizedState<AlleleFractionParameter> {
     static final class MinorFractions extends ArrayList<Double> {
         private static final long serialVersionUID = 1029384756L;
 
         MinorFractions(final int numSegments) {
             super(numSegments);
         }
+
+        MinorFractions(final List<Double> minorFractions) {
+            super(new ArrayList<>(minorFractions));
+        }
     }
 
-    public AlleleFractionState(final double meanBias,
-                               final double biasVariance,
-                               final double outlierProbability,
-                               final MinorFractions minorFractions) {
+    AlleleFractionState(final double meanBias,
+                        final double biasVariance,
+                        final double outlierProbability,
+                        final MinorFractions minorFractions) {
         super(Arrays.asList(
                 new Parameter<>(AlleleFractionParameter.MEAN_BIAS, meanBias),
                 new Parameter<>(AlleleFractionParameter.BIAS_VARIANCE, biasVariance),

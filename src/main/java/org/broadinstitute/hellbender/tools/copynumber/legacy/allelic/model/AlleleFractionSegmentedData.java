@@ -17,14 +17,14 @@ import java.util.stream.IntStream;
  *
  * @author Samuel Lee &lt;slee@broadinstitute.org&gt;
  */
-public final class AlleleFractionData implements DataCollection {
+public final class AlleleFractionSegmentedData implements DataCollection {
     private final AllelicCountCollection allelicCounts;
     private final List<SimpleInterval> segments;
 
     private final List<List<IndexedAllelicCount>> indexedAllelicCountsPerSegment = new ArrayList<>();
 
-    AlleleFractionData(final AllelicCountCollection allelicCounts,
-                       final List<SimpleInterval> segments) {
+    public AlleleFractionSegmentedData(final AllelicCountCollection allelicCounts,
+                                       final List<SimpleInterval> segments) {
         this.allelicCounts = Utils.nonNull(allelicCounts);
         this.segments = Utils.nonEmpty(segments).stream().sorted(TSVLocatableCollection.LEXICOGRAPHICAL_ORDER_COMPARATOR).collect(Collectors.toList());
 
@@ -41,6 +41,10 @@ public final class AlleleFractionData implements DataCollection {
             indexedAllelicCountsPerSegment.add(indexedAllelicCountsInSegment);
             index += allelicCountsInSegment.size();
         }
+    }
+
+    List<SimpleInterval> getSegments() {
+        return Collections.unmodifiableList(segments);
     }
 
     int getNumSegments() {

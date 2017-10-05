@@ -30,8 +30,7 @@ public final class CopyRatioModeller {
     private static final double OUTLIER_PROBABILITY_PRIOR_ALPHA = 5.;
     private static final double OUTLIER_PROBABILITY_PRIOR_BETA = 95.;
 
-    private final CopyRatioData data;
-    private final ParameterizedModel<CopyRatioParameter, CopyRatioState, CopyRatioData> model;
+    private final ParameterizedModel<CopyRatioParameter, CopyRatioState, CopyRatioSegmentedData> model;
 
     private final List<Double> varianceSamples = new ArrayList<>();
     private final List<Double> outlierProbabilitySamples = new ArrayList<>();
@@ -39,11 +38,11 @@ public final class CopyRatioModeller {
     private final List<CopyRatioState.OutlierIndicators> outlierIndicatorsSamples = new ArrayList<>();
 
     /**
-     * Constructs a copy-ratio model given {@link CopyRatioData} with copy ratios and segments.
+     * Constructs a copy-ratio model given {@link CopyRatioSegmentedData} with copy ratios and segments.
      * Initial point estimates of parameters are set to empirical estimates where available.
      */
-    CopyRatioModeller(final CopyRatioData data) {
-        this.data = Utils.nonNull(data);
+    public CopyRatioModeller(final CopyRatioSegmentedData data) {
+        Utils.nonNull(data);
 
         //set widths for slice sampling of variance and segment-mean posteriors using empirical variance estimate.
         //variance posterior is inverse chi-squared, segment-mean posteriors are Gaussian; the below expressions
@@ -65,13 +64,13 @@ public final class CopyRatioModeller {
                         data.estimateSegmentMeans(), new CopyRatioState.OutlierIndicators(Collections.nCopies(data.getNumPoints(), false)));
 
         //define ParameterSamplers
-        final ParameterSampler<Double, CopyRatioParameter, CopyRatioState, CopyRatioData> varianceSampler =
+        final ParameterSampler<Double, CopyRatioParameter, CopyRatioState, CopyRatioSegmentedData> varianceSampler =
                 new CopyRatioSamplers.VarianceSampler(VARIANCE_MIN, varianceMax, varianceSliceSamplingWidth);
-        final ParameterSampler<Double, CopyRatioParameter, CopyRatioState, CopyRatioData> outlierProbabilitySampler =
+        final ParameterSampler<Double, CopyRatioParameter, CopyRatioState, CopyRatioSegmentedData> outlierProbabilitySampler =
                 new CopyRatioSamplers.OutlierProbabilitySampler(OUTLIER_PROBABILITY_PRIOR_ALPHA, OUTLIER_PROBABILITY_PRIOR_BETA);
-        final ParameterSampler<CopyRatioState.SegmentMeans, CopyRatioParameter, CopyRatioState, CopyRatioData> segmentMeansSampler =
+        final ParameterSampler<CopyRatioState.SegmentMeans, CopyRatioParameter, CopyRatioState, CopyRatioSegmentedData> segmentMeansSampler =
                 new CopyRatioSamplers.SegmentMeansSampler(LOG2_COPY_RATIO_MIN, LOG2_COPY_RATIO_MAX, meanSliceSamplingWidth);
-        final ParameterSampler<CopyRatioState.OutlierIndicators, CopyRatioParameter, CopyRatioState, CopyRatioData> outlierIndicatorsSampler =
+        final ParameterSampler<CopyRatioState.OutlierIndicators, CopyRatioParameter, CopyRatioState, CopyRatioSegmentedData> outlierIndicatorsSampler =
                 new CopyRatioSamplers.OutlierIndicatorsSampler(outlierUniformLogLikelihood);
 
         model = new ParameterizedModel.GibbsBuilder<>(initialState, data)
@@ -89,13 +88,13 @@ public final class CopyRatioModeller {
      * @param numSamples    total number of samples per posterior
      * @param numBurnIn     number of burn-in samples to discard
      */
-    void fitMCMC(final int numSamples,
-                 final int numBurnIn) {
+    public void fitMCMC(final int numSamples,
+                        final int numBurnIn) {
         ParamUtils.isPositiveOrZero(numBurnIn, "Number of burn-in samples must be non-negative.");
         Utils.validateArg(numBurnIn < numSamples, "Number of samples must be greater than number of burn-in samples.");
 
         //run MCMC
-        final GibbsSampler<CopyRatioParameter, CopyRatioState, CopyRatioData> gibbsSampler = new GibbsSampler<>(numSamples, model);
+        final GibbsSampler<CopyRatioParameter, CopyRatioState, CopyRatioSegmentedData> gibbsSampler = new GibbsSampler<>(numSamples, model);
         gibbsSampler.runMCMC();
 
         //update posterior samples
@@ -105,53 +104,35 @@ public final class CopyRatioModeller {
         outlierIndicatorsSamples.addAll(gibbsSampler.getSamples(CopyRatioParameter.OUTLIER_INDICATORS, CopyRatioState.OutlierIndicators.class, numBurnIn));
     }
 
-    /**
-     * Returns an unmodifiable view of the list of samples of the variance posterior.
-     * @return  unmodifiable view of the list of samples of the variance posterior
-     */
     public List<Double> getVarianceSamples() {
         return Collections.unmodifiableList(varianceSamples);
     }
 
-    /**
-     * Returns an unmodifiable view of the list of samples of the outlier-probability posterior.
-     * @return  unmodifiable view of the list of samples of the outlier-probability posterior
-     */
     public List<Double> getOutlierProbabilitySamples() {
         return Collections.unmodifiableList(outlierProbabilitySamples);
     }
 
-    /**
-     * Returns an unmodifiable view of the list of samples of the segment-means posterior, represented as a list of
-     * {@link CopyRatioState.SegmentMeans} objects.
-     * @return  unmodifiable view of the list of samples of the segment-means posterior
-     */
     public List<CopyRatioState.SegmentMeans> getSegmentMeansSamples() {
         return Collections.unmodifiableList(segmentMeansSamples);
     }
 
-    /**
-     * Returns an unmodifiable view of the list of samples of the outlier-indicators posterior, represented as a list of
-     * {@link CopyRatioState.OutlierIndicators} objects.
-     * @return  unmodifiable view of the list of samples of the outlier-indicators posterior
-     */
     public List<CopyRatioState.OutlierIndicators> getOutlierIndicatorsSamples() {
         return Collections.unmodifiableList(outlierIndicatorsSamples);
     }
 
     /**
      * Returns a list of {@link PosteriorSummary} elements summarizing the segment-mean posterior for each segment.
-     * Should only be called after {@link CopyRatioModeller#fitMCMC(int, int)} has been called.
-     * @param credibleIntervalAlpha credible-interval alpha, must be in (0, 1)
+     * Should only be called after {@link #fitMCMC} has been called.
      * @param ctx                   {@link JavaSparkContext} used for mllib kernel density estimation
-     * @return                      list of {@link PosteriorSummary} elements summarizing the
-     *                              segment-mean posterior for each segment
      */
     public List<PosteriorSummary> getSegmentMeansPosteriorSummaries(final double credibleIntervalAlpha,
                                                                     final JavaSparkContext ctx) {
         ParamUtils.inRange(credibleIntervalAlpha, 0., 1., "Credible-interval alpha must be in [0, 1].");
         Utils.nonNull(ctx);
-        final int numSegments = data.getNumSegments();
+        if (segmentMeansSamples.isEmpty()) {
+            throw new IllegalStateException("Attempted to get posterior summaries for segment means before MCMC was performed.");
+        }
+        final int numSegments = segmentMeansSamples.get(0).size();
         final List<PosteriorSummary> posteriorSummaries = new ArrayList<>(numSegments);
         for (int segment = 0; segment < numSegments; segment++) {
             final int j = segment;
@@ -164,15 +145,16 @@ public final class CopyRatioModeller {
 
     /**
      * Returns a Map of {@link PosteriorSummary} elements summarizing the global parameters.
-     * Should only be called after {@link CopyRatioModeller#fitMCMC(int, int)} has been called.
-     * @param credibleIntervalAlpha credible-interval alpha, must be in (0, 1)
+     * Should only be called after {@link #fitMCMC} has been called.
      * @param ctx                   {@link JavaSparkContext} used for mllib kernel density estimation
-     * @return                      list of {@link PosteriorSummary} elements summarizing the global parameters
      */
     public Map<CopyRatioParameter, PosteriorSummary> getGlobalParameterPosteriorSummaries(final double credibleIntervalAlpha,
                                                                                           final JavaSparkContext ctx) {
         ParamUtils.inRange(credibleIntervalAlpha, 0., 1., "Credible-interval alpha must be in [0, 1].");
         Utils.nonNull(ctx);
+        if (varianceSamples.isEmpty()) {
+            throw new IllegalStateException("Attempted to get posterior summaries for global parameters before MCMC was performed.");
+        }
         final Map<CopyRatioParameter, PosteriorSummary> posteriorSummaries = new LinkedHashMap<>();
         posteriorSummaries.put(CopyRatioParameter.VARIANCE, PosteriorSummaryUtils.calculateHighestPosteriorDensityAndDecilesSummary(varianceSamples, credibleIntervalAlpha, ctx));
         posteriorSummaries.put(CopyRatioParameter.OUTLIER_PROBABILITY, PosteriorSummaryUtils.calculateHighestPosteriorDensityAndDecilesSummary(outlierProbabilitySamples, credibleIntervalAlpha, ctx));

@@ -259,7 +259,7 @@ final class SegmentUnioner {
     }
 
     private static SimpleInterval mergeSegments(final SimpleInterval segment1,
-                                            final SimpleInterval segment2) {
+                                                final SimpleInterval segment2) {
         Utils.validateArg(segment1.getContig().equals(segment2.getContig()),
                 String.format("Cannot join segments %s and %s on different chromosomes.", segment1.toString(), segment2.toString()));
         final int start = Math.min(segment1.getStart(), segment2.getStart());

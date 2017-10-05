@@ -5,7 +5,6 @@ import org.apache.commons.math3.stat.descriptive.moment.Mean;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.broadinstitute.hellbender.engine.spark.SparkContextFactory;
 import org.broadinstitute.hellbender.tools.copynumber.legacy.coverage.copyratio.CopyRatioCollection;
-import org.broadinstitute.hellbender.tools.copynumber.legacy.coverage.segmentation.CopyRatioSegment;
 import org.broadinstitute.hellbender.tools.copynumber.legacy.coverage.segmentation.CopyRatioSegmentCollection;
 import org.broadinstitute.hellbender.utils.LoggingUtils;
 import org.broadinstitute.hellbender.utils.mcmc.PosteriorSummary;
@@ -112,7 +111,7 @@ public final class CopyRatioModellerUnitTest extends BaseTest {
         //load data
         final CopyRatioCollection copyRatios = new CopyRatioCollection(COPY_RATIOS_FILE);
         final CopyRatioSegmentCollection segmentsTruth = new CopyRatioSegmentCollection(COPY_RATIO_SEGMENTS_TRUTH_FILE);
-        final CopyRatioData data = new CopyRatioData(copyRatios, segmentsTruth.getIntervals());
+        final CopyRatioSegmentedData data = new CopyRatioSegmentedData(copyRatios, segmentsTruth.getIntervals());
 
         //run MCMC
         final CopyRatioModeller modeller = new CopyRatioModeller(data);
@@ -139,9 +138,8 @@ public final class CopyRatioModellerUnitTest extends BaseTest {
                 OUTLIER_PROBABILITY_POSTERIOR_STANDARD_DEVIATION_TRUTH), 0., RELATIVE_ERROR_THRESHOLD);
 
         //check statistics of segment-mean posterior samples (i.e., posterior means and standard deviations)
-        final List<Double> meansTruth = segmentsTruth.getRecords().stream()
-                .map(CopyRatioSegment::getMeanLog2CopyRatio)
-                .collect(Collectors.toList());
+        final List<Double> meansTruth = new XReadLines(COPY_RATIO_SEGMENTS_TRUTH_FILE)
+                .readLines().stream().map(Double::parseDouble).collect(Collectors.toList());
         int numMeansOutsideOneSigma = 0;
         int numMeansOutsideTwoSigma = 0;
         int numMeansOutsideThreeSigma = 0;
@@ -176,7 +174,8 @@ public final class CopyRatioModellerUnitTest extends BaseTest {
                 0., RELATIVE_ERROR_THRESHOLD);
 
         //check accuracy of latent outlier-indicator posterior samples
-        final List<CopyRatioState.OutlierIndicators> outlierIndicatorSamples = modeller.getOutlierIndicatorsSamples();
+        final List<CopyRatioState.OutlierIndicators> outlierIndicatorSamples =
+                modeller.getOutlierIndicatorsSamples();
         int numIndicatorsCorrect = 0;
         final int numIndicatorSamples = outlierIndicatorSamples.size();
         final List<Integer> outlierIndicatorsTruthAsInt = new XReadLines(OUTLIER_INDICATORS_TRUTH_FILE)
