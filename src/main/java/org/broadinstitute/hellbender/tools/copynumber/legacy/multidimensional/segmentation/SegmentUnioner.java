@@ -16,7 +16,6 @@ import org.broadinstitute.hellbender.tools.copynumber.legacy.coverage.copyratio.
 import org.broadinstitute.hellbender.tools.copynumber.legacy.coverage.segmentation.CopyRatioSegmentCollection;
 import org.broadinstitute.hellbender.tools.copynumber.legacy.formats.TSVLocatableCollection;
 import org.broadinstitute.hellbender.tools.copynumber.utils.segmentation.KernelSegmenter;
-import org.broadinstitute.hellbender.utils.IntervalUtils;
 import org.broadinstitute.hellbender.utils.SimpleInterval;
 import org.broadinstitute.hellbender.utils.Utils;
 

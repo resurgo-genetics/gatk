@@ -129,15 +129,15 @@ public final class AlleleFractionModeller {
         return Collections.unmodifiableList(minorFractionsSamples);
     }
 
-    public List<List<Double>> getMinorFractionSamplesBySegment() {
+    public List<List<Double>> getMinorFractionSamplesPerSegment() {
         final List<List<Double>> result = new ArrayList<>();
         final int numSegments = minorFractionsSamples.get(0).size();
         for (int segment = 0; segment < numSegments; segment++) {
-            final List<Double> thisSegment = new ArrayList<>();
+            final List<Double> minorFractionSamplesInSegment = new ArrayList<>();
             for (final AlleleFractionState.MinorFractions sample : minorFractionsSamples) {
-                thisSegment.add(sample.get(segment));
+                minorFractionSamplesInSegment.add(sample.get(segment));
             }
-            result.add(thisSegment);
+            result.add(minorFractionSamplesInSegment);
         }
         return result;
     }

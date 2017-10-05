@@ -78,7 +78,7 @@ public final class AlleleFractionModellerUnitTest extends BaseTest {
             Assert.assertEquals(sample.size(), numSegments);
         }
 
-        final List<List<Double>> minorFractionsSamplesBySegment = modeller.getMinorFractionSamplesBySegment();
+        final List<List<Double>> minorFractionsSamplesBySegment = modeller.getMinorFractionSamplesPerSegment();
 
         final double mcmcMeanBias = meanBiasSamples.stream().mapToDouble(x -> x).average().getAsDouble();
         final double mcmcBiasVariance = biasVarianceSamples.stream().mapToDouble(x -> x).average().getAsDouble();
