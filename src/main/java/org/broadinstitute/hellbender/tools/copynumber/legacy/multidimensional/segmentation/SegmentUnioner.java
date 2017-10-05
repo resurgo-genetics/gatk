@@ -57,7 +57,7 @@ final class SegmentUnioner {
         allelicCountOverlapDetector = allelicCounts.getOverlapDetector();
         unionedSegments = constructUnionedSegments(
                 copyRatioSegments, denoisedCopyRatios, copyRatioMidpointOverlapDetector,
-                alleleFractionSegments, allelicCounts, allelicCountOverlapDetector);
+                alleleFractionSegments, allelicCountOverlapDetector);
     }
 
     List<CRAFSegment> constructUnionedCRAFSegments() {
@@ -85,18 +85,19 @@ final class SegmentUnioner {
                                                                  final CopyRatioCollection denoisedCopyRatios,
                                                                  final OverlapDetector<CopyRatio> copyRatioMidpointOverlapDetector,
                                                                  final AlleleFractionSegmentCollection alleleFractionSegments,
-                                                                 final AllelicCountCollection allelicCounts,
                                                                  final OverlapDetector<AllelicCount> allelicCountOverlapDetector) {
         final SortedMap<String, List<Breakpoint>> breakpointsByContig = collectBreakpointsByContig(copyRatioSegments, alleleFractionSegments);
         final List<SimpleInterval> untrimmedSegments = constructUntrimmedSegments(copyRatioMidpointOverlapDetector, allelicCountOverlapDetector, breakpointsByContig);
         logger.info(String.format("%d untrimmed segments created...", untrimmedSegments.size()));
 
         //merge spurious segments containing only copy-ratio intervals that were created by allele-fraction breakpoints
+        logger.info("Merging spurious copy-ratio segments using default linear kernel...");
         final List<SimpleInterval> spuriousCopyRatioMergedSegments = mergeSpuriousSegments(
                 untrimmedSegments, copyRatioSegments, copyRatioMidpointOverlapDetector, allelicCountOverlapDetector, COPY_RATIO_KERNEL);
         logger.info(String.format("%d segments remain after merging spurious copy-ratio segments...", spuriousCopyRatioMergedSegments.size()));
 
         //merge spurious segments containing only allelic-count sites that were created by copy-ratio breakpoints
+        logger.info(String.format("Merging spurious allele-fraction segments using default Gaussian kernel (variance = %4.2f)...", ALLELE_FRACTION_KERNEL_VARIANCE));
         final List<SimpleInterval> spuriousAlleleFractionMergedSegments = mergeSpuriousSegments(
                 spuriousCopyRatioMergedSegments, alleleFractionSegments, allelicCountOverlapDetector, copyRatioMidpointOverlapDetector, ALLELE_FRACTION_KERNEL);
         logger.info(String.format("%d segments remain after merging spurious allele-fraction segments...", spuriousAlleleFractionMergedSegments.size()));

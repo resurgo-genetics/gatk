@@ -299,7 +299,7 @@ public final class ModelSegments extends SparkCommandLineProgram {
     private int numBurnInAlleleFraction = 50;
 
     @Argument(
-            doc = "Number of 95% credible-interval widths to use for copy-ratio segmentation smoothing.",
+            doc = "Number of 10% equal-tailed credible-interval widths to use for copy-ratio segmentation smoothing.",
             fullName = SMOOTHING_CREDIBLE_INTERVAL_THRESHOLD_COPY_RATIO_LONG_NAME,
             shortName = SMOOTHING_CREDIBLE_INTERVAL_THRESHOLD_COPY_RATIO_SHORT_NAME,
             optional = true,
@@ -308,7 +308,7 @@ public final class ModelSegments extends SparkCommandLineProgram {
     private double smoothingCredibleIntervalThresholdCopyRatio = 4.;
 
     @Argument(
-            doc = "Number of 95% credible-interval widths to use for allele-fraction segmentation smoothing.",
+            doc = "Number of 10% equal-tailed credible-interval widths to use for allele-fraction segmentation smoothing.",
             fullName = SMOOTHING_CREDIBLE_INTERVAL_THRESHOLD_ALLELE_FRACTION_LONG_NAME,
             shortName = SMOOTHING_CREDIBLE_INTERVAL_THRESHOLD_ALLELE_FRACTION_SHORT_NAME,
             optional = true,
@@ -385,7 +385,7 @@ public final class ModelSegments extends SparkCommandLineProgram {
                 numSamplesAlleleFraction, numBurnInAlleleFraction, ctx);
 
         //write initial segments and parameters to file
-        writeModeledSegmentsAndParameterFiles(crafSegments.getSampleName(), modeller, BEGIN_FIT_FILE_TAG);
+        writeModeledSegmentsAndParameterFiles(modeller, BEGIN_FIT_FILE_TAG);
 
         //segmentation smoothing
         modeller.smoothSegments(
@@ -393,7 +393,7 @@ public final class ModelSegments extends SparkCommandLineProgram {
                 smoothingCredibleIntervalThresholdCopyRatio, smoothingCredibleIntervalThresholdAlleleFraction);
 
         //write final segments and parameters to file
-        writeModeledSegmentsAndParameterFiles(crafSegments.getSampleName(), modeller, FINAL_FIT_FILE_TAG);
+        writeModeledSegmentsAndParameterFiles(modeller, FINAL_FIT_FILE_TAG);
 
         ctx.setLogLevel(originalLogLevel);
         logger.info("SUCCESS: ModelSegments run complete.");
@@ -463,8 +463,7 @@ public final class ModelSegments extends SparkCommandLineProgram {
                         numChangepointsPenaltyFactorAlleleFraction, numChangepointsPenaltyFactorAlleleFraction);
     }
 
-    private void writeModeledSegmentsAndParameterFiles(final String sampleName,
-                                                       final CRAFModeller modeller,
+    private void writeModeledSegmentsAndParameterFiles(final CRAFModeller modeller,
                                                        final String fileTag) {
         final ModeledSegmentCollection modeledSegments = modeller.getModeledSegments();
         writeSegments(modeledSegments, fileTag + SEGMENTS_FILE_SUFFIX);

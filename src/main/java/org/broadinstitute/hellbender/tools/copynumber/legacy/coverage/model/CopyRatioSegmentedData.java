@@ -43,13 +43,15 @@ public final class CopyRatioSegmentedData implements DataCollection {
         //segment assignment is based on midpoint of copy-ratio interval
         final OverlapDetector<CopyRatio> copyRatioMidpointOverlapDetector = copyRatios.getMidpointOverlapDetector();
         int index = 0;
-        for (final SimpleInterval segment : segments) {
+        for (int segmentIndex = 0; segmentIndex < segments.size(); segmentIndex++) {
+            final SimpleInterval segment = segments.get(segmentIndex);
             final List<CopyRatio> copyRatiosInSegment = copyRatioMidpointOverlapDetector.getOverlaps(segment).stream()
                     .sorted(TSVLocatableCollection.LEXICOGRAPHICAL_ORDER_COMPARATOR)
                     .collect(Collectors.toList());
             final int segmentStartIndex = index;
+            final int si = segmentIndex;
             final List<IndexedCopyRatio> indexedCopyRatiosInSegment = IntStream.range(0, copyRatiosInSegment.size()).boxed()
-                    .map(i -> new IndexedCopyRatio(copyRatiosInSegment.get(i), segmentStartIndex + i))
+                    .map(i -> new IndexedCopyRatio(copyRatiosInSegment.get(i), segmentStartIndex + i, si))
                     .collect(Collectors.toList());
             indexedCopyRatiosPerSegment.add(indexedCopyRatiosInSegment);
             index += copyRatiosInSegment.size();
@@ -104,15 +106,22 @@ public final class CopyRatioSegmentedData implements DataCollection {
 
     static final class IndexedCopyRatio extends CopyRatio {
         private final int index;
+        private final int segmentIndex;
 
         private IndexedCopyRatio(final CopyRatio copyRatio,
-                                 final int index) {
+                                 final int index,
+                                 final int segmentIndex) {
             super(copyRatio.getInterval(), copyRatio.getLog2CopyRatioValue());
             this.index = index;
+            this.segmentIndex = segmentIndex;
         }
 
         int getIndex() {
             return index;
+        }
+
+        int getSegmentIndex() {
+            return segmentIndex;
         }
     }
 }

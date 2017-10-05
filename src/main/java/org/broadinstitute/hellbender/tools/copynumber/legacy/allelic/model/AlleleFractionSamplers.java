@@ -4,14 +4,12 @@ import org.apache.commons.math3.distribution.BetaDistribution;
 import org.apache.commons.math3.random.RandomGenerator;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.broadinstitute.hellbender.tools.copynumber.allelic.alleliccount.AllelicCount;
-import org.broadinstitute.hellbender.tools.copynumber.legacy.coverage.model.CopyRatioSegmentedData;
-import org.broadinstitute.hellbender.tools.pon.allelic.AllelicPanelOfNormals;
 import org.broadinstitute.hellbender.utils.mcmc.ParameterSampler;
 import org.broadinstitute.hellbender.utils.mcmc.SliceSampler;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -24,6 +22,9 @@ import java.util.stream.IntStream;
  */
 final class AlleleFractionSamplers {
     private static final Logger logger = LogManager.getLogger(AlleleFractionSamplers.class);
+
+    private static final int NUM_POINTS_GLOBAL_SUBSAMPLE_THRESHOLD = 10000;
+    private static final int NUM_POINTS_SEGMENT_SUBSAMPLE_THRESHOLD = 1000;
 
     private AlleleFractionSamplers() {}
 
@@ -44,8 +45,10 @@ final class AlleleFractionSamplers {
                              final AlleleFractionState state,
                              final AlleleFractionSegmentedData data) {
             logger.debug("Sampling mean bias...");
+            final Function<AlleleFractionGlobalParameters, Double> logLikelihoodEstimate = logLikelihoodFromSubsample(
+                    rng, state.minorFractions(), data, NUM_POINTS_GLOBAL_SUBSAMPLE_THRESHOLD);
             return new SliceSampler(rng,
-                    x -> AlleleFractionLikelihoods.logLikelihood(state.globalParameters().copyWithNewMeanBias(x),  state.minorFractions(), data),
+                    x -> logLikelihoodEstimate.apply(state.globalParameters().copyWithNewMeanBias(x)),
                     MIN_MEAN_BIAS, maxMeanBias, meanBiasSliceSamplingWidth)
                     .sample(state.meanBias());
         }
@@ -68,8 +71,10 @@ final class AlleleFractionSamplers {
                              final AlleleFractionState state,
                              final AlleleFractionSegmentedData data) {
             logger.debug("Sampling bias variance...");
+            final Function<AlleleFractionGlobalParameters, Double> logLikelihoodEstimate = logLikelihoodFromSubsample(
+                    rng, state.minorFractions(), data, NUM_POINTS_GLOBAL_SUBSAMPLE_THRESHOLD);
             return new SliceSampler(rng,
-                    x -> AlleleFractionLikelihoods.logLikelihood(state.globalParameters().copyWithNewBiasVariance(x), state.minorFractions(), data),
+                    x -> logLikelihoodEstimate.apply(state.globalParameters().copyWithNewBiasVariance(x)),
                     MIN_BIAS_VARIANCE, maxBiasVariance, biasVarianceSliceSamplingWidth)
                     .sample(state.biasVariance());
         }
@@ -90,8 +95,10 @@ final class AlleleFractionSamplers {
                              final AlleleFractionState state,
                              final AlleleFractionSegmentedData data) {
             logger.debug("Sampling outlier probability...");
+            final Function<AlleleFractionGlobalParameters, Double> logLikelihoodEstimate = logLikelihoodFromSubsample(
+                    rng, state.minorFractions(), data, NUM_POINTS_GLOBAL_SUBSAMPLE_THRESHOLD);
             return new SliceSampler(rng,
-                    x -> AlleleFractionLikelihoods.logLikelihood(state.globalParameters().copyWithNewOutlierProbability(x), state.minorFractions(), data),
+                    x -> logLikelihoodEstimate.apply(state.globalParameters().copyWithNewOutlierProbability(x)),
                     MIN_OUTLIER_PROBABILITY, MAX_OUTLIER_PROBABILITY, outlierProbabilitySliceSamplingWidth)
                     .sample(state.outlierProbability());
         }
@@ -102,7 +109,6 @@ final class AlleleFractionSamplers {
         private static double MIN_MINOR_FRACTION = 0.;
         private static double MAX_MINOR_FRACTION = 0.5;
         private static final double PRIOR_BETA = 1.;
-        private static final int NUM_POINTS_SUBSAMPLE_THRESHOLD = 1000;
 
         private final Function<Double, Double> logPrior;
         private final List<Double> sliceSamplingWidths;
@@ -118,23 +124,59 @@ final class AlleleFractionSamplers {
             final List<Double> minorFractions = new ArrayList<>(data.getNumSegments());
             for (int segment = 0; segment < data.getNumSegments(); segment++) {
                 logger.debug(String.format("Sampling minor fraction for segment %d...", segment));
-                if (data.getIndexedAllelicCountsInSegment(segment).isEmpty()){
+                final List<AlleleFractionSegmentedData.IndexedAllelicCount> allelicCountsInSegment =
+                        data.getIndexedAllelicCountsInSegment(segment);
+                if (allelicCountsInSegment.isEmpty()){
                     minorFractions.add(Double.NaN);
                 } else {
-                    //subsample the data if we are above the threshold
-                    final List<AlleleFractionSegmentedData.IndexedAllelicCount> allelicCounts = data.getIndexedAllelicCountsInSegment(segment);
-                    final List<AlleleFractionSegmentedData.IndexedAllelicCount> subsampledAllelicCounts = allelicCounts.size() > NUM_POINTS_SUBSAMPLE_THRESHOLD
-                            ? IntStream.range(0, NUM_POINTS_SUBSAMPLE_THRESHOLD).boxed().map(i -> rng.nextInt(allelicCounts.size())).map(allelicCounts::get).collect(Collectors.toList())
-                            : allelicCounts;
-                    final double scalingFactor = (double) allelicCounts.size() / subsampledAllelicCounts.size();
-                    final Function<Double, Double> segmentLogLikelihood = f -> scalingFactor * AlleleFractionLikelihoods.segmentLogLikelihood(state.globalParameters(), f, subsampledAllelicCounts);
+                    final Function<Double, Double> segmentLogLikelihoodEstimate = segmentLogLikelihoodFromSubsample(
+                            rng, state.globalParameters(), allelicCountsInSegment, NUM_POINTS_SEGMENT_SUBSAMPLE_THRESHOLD);
                     final SliceSampler sampler = new SliceSampler(rng,
-                            f -> logPrior.apply(f) + segmentLogLikelihood.apply(f),
+                            f -> logPrior.apply(f) + segmentLogLikelihoodEstimate.apply(f),
                             MIN_MINOR_FRACTION, MAX_MINOR_FRACTION, sliceSamplingWidths.get(segment));
                     minorFractions.add(sampler.sample(state.segmentMinorFraction(segment)));
                 }
             }
             return new AlleleFractionState.MinorFractions(minorFractions);
         }
+    }
+
+    private static List<AlleleFractionSegmentedData.IndexedAllelicCount> subsample(final RandomGenerator rng,
+                                                                                   final List<AlleleFractionSegmentedData.IndexedAllelicCount> allelicCounts,
+                                                                                   final int numPointsSubsampleThreshold) {
+        //subsample the data if we are above the threshold
+        return allelicCounts.size() > numPointsSubsampleThreshold
+                ? IntStream.range(0, numPointsSubsampleThreshold).boxed().map(i -> rng.nextInt(allelicCounts.size())).map(allelicCounts::get).collect(Collectors.toList())
+                : allelicCounts;
+    }
+
+    private static Function<AlleleFractionGlobalParameters, Double> logLikelihoodFromSubsample(final RandomGenerator rng,
+                                                                                               final AlleleFractionState.MinorFractions minorFractions,
+                                                                                               final AlleleFractionSegmentedData data,
+                                                                                               final int numPointsSubsampleThreshold) {
+        final List<AlleleFractionSegmentedData.IndexedAllelicCount> subsampledAllelicCounts =
+                subsample(rng, data.getIndexedAllelicCounts(), numPointsSubsampleThreshold);
+        final double scalingFactor = (double) data.getNumPoints() / subsampledAllelicCounts.size();
+        final Map<Integer, List<AlleleFractionSegmentedData.IndexedAllelicCount>> segmentIndexToSubsampledAllelicCountsInSegmentMap =
+                subsampledAllelicCounts.stream()
+                        .collect(Collectors.groupingBy(AlleleFractionSegmentedData.IndexedAllelicCount::getSegmentIndex, Collectors.toList()));
+        return parameters -> {
+            double logLikelihood = 0.;
+            for (final int segmentIndex : segmentIndexToSubsampledAllelicCountsInSegmentMap.keySet()) {
+                logLikelihood += AlleleFractionLikelihoods.segmentLogLikelihood(
+                        parameters, minorFractions.get(segmentIndex), segmentIndexToSubsampledAllelicCountsInSegmentMap.get(segmentIndex));
+            }
+            return scalingFactor * logLikelihood;
+        };
+    }
+
+    private static Function<Double, Double> segmentLogLikelihoodFromSubsample(final RandomGenerator rng,
+                                                                              final AlleleFractionGlobalParameters parameters,
+                                                                              final List<AlleleFractionSegmentedData.IndexedAllelicCount> allelicCountsInSegment,
+                                                                              final int numPointsSubsampleThreshold) {
+        final List<AlleleFractionSegmentedData.IndexedAllelicCount> subsampledAllelicCountsInSegment =
+                subsample(rng, allelicCountsInSegment, numPointsSubsampleThreshold);
+        final double scalingFactor = (double) allelicCountsInSegment.size() / subsampledAllelicCountsInSegment.size();
+        return minorFraction -> scalingFactor * AlleleFractionLikelihoods.segmentLogLikelihood(parameters, minorFraction, subsampledAllelicCountsInSegment);
     }
 }

@@ -4,6 +4,7 @@ import htsjdk.samtools.util.OverlapDetector;
 import org.broadinstitute.hellbender.tools.copynumber.allelic.alleliccount.AllelicCount;
 import org.broadinstitute.hellbender.tools.copynumber.allelic.alleliccount.AllelicCountCollection;
 import org.broadinstitute.hellbender.tools.copynumber.legacy.formats.TSVLocatableCollection;
+import org.broadinstitute.hellbender.utils.IndexRange;
 import org.broadinstitute.hellbender.utils.SimpleInterval;
 import org.broadinstitute.hellbender.utils.Utils;
 import org.broadinstitute.hellbender.utils.mcmc.DataCollection;
@@ -21,25 +22,31 @@ public final class AlleleFractionSegmentedData implements DataCollection {
     private final AllelicCountCollection allelicCounts;
     private final List<SimpleInterval> segments;
 
-    private final List<List<IndexedAllelicCount>> indexedAllelicCountsPerSegment = new ArrayList<>();
+    private final List<IndexedAllelicCount> indexedAllelicCounts;
+    private final List<IndexRange> indexRangesPerSegment;
 
     public AlleleFractionSegmentedData(final AllelicCountCollection allelicCounts,
                                        final List<SimpleInterval> segments) {
         this.allelicCounts = Utils.nonNull(allelicCounts);
         this.segments = Utils.nonEmpty(segments).stream().sorted(TSVLocatableCollection.LEXICOGRAPHICAL_ORDER_COMPARATOR).collect(Collectors.toList());
 
+        indexedAllelicCounts = new ArrayList<>(allelicCounts.size());
+        indexRangesPerSegment = new ArrayList<>(segments.size());
+
         final OverlapDetector<AllelicCount> allelicCountOverlapDetector = allelicCounts.getOverlapDetector();
-        int index = 0;
-        for (final SimpleInterval segment : segments) {
+        int startIndex = 0;
+        for (int segmentIndex = 0; segmentIndex < segments.size(); segmentIndex++) {
+            final SimpleInterval segment = segments.get(segmentIndex);
             final List<AllelicCount> allelicCountsInSegment = allelicCountOverlapDetector.getOverlaps(segment).stream()
                     .sorted(TSVLocatableCollection.LEXICOGRAPHICAL_ORDER_COMPARATOR)
                     .collect(Collectors.toList());
-            final int segmentStartIndex = index;
-            final List<IndexedAllelicCount> indexedAllelicCountsInSegment = IntStream.range(0, allelicCountsInSegment.size()).boxed()
-                    .map(i -> new IndexedAllelicCount(allelicCountsInSegment.get(i), segmentStartIndex + i))
-                    .collect(Collectors.toList());
-            indexedAllelicCountsPerSegment.add(indexedAllelicCountsInSegment);
-            index += allelicCountsInSegment.size();
+            final int segmentStartIndex = startIndex;
+            final int si = segmentIndex;
+            IntStream.range(0, allelicCountsInSegment.size()).boxed()
+                    .map(i -> new IndexedAllelicCount(allelicCountsInSegment.get(i), segmentStartIndex + i, si))
+                    .forEach(indexedAllelicCounts::add);
+            indexRangesPerSegment.add(new IndexRange(segmentStartIndex, segmentStartIndex + allelicCountsInSegment.size()));
+            startIndex += allelicCountsInSegment.size();
         }
     }
 
@@ -55,21 +62,33 @@ public final class AlleleFractionSegmentedData implements DataCollection {
         return allelicCounts.size();
     }
 
-    List<IndexedAllelicCount> getIndexedAllelicCountsInSegment(final int segment) {
-        return Collections.unmodifiableList(indexedAllelicCountsPerSegment.get(segment));
+    List<IndexedAllelicCount> getIndexedAllelicCounts() {
+        return Collections.unmodifiableList(indexedAllelicCounts);
+    }
+
+    List<IndexedAllelicCount> getIndexedAllelicCountsInSegment(final int segmentIndex) {
+        return Collections.unmodifiableList(indexedAllelicCounts.subList(
+                indexRangesPerSegment.get(segmentIndex).from, indexRangesPerSegment.get(segmentIndex).to));
     }
 
     static final class IndexedAllelicCount extends AllelicCount {
         private final int index;
+        private final int segmentIndex;
 
         private IndexedAllelicCount(final AllelicCount allelicCount,
-                                    final int index) {
+                                    final int index,
+                                    final int segmentIndex) {
             super(allelicCount.getInterval(), allelicCount.getRefReadCount(), allelicCount.getAltReadCount(), allelicCount.getRefNucleotide(), allelicCount.getAltNucleotide());
             this.index = index;
+            this.segmentIndex = segmentIndex;
         }
 
         int getIndex() {
             return index;
+        }
+
+        int getSegmentIndex() {
+            return segmentIndex;
         }
     }
 }
