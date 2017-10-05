@@ -1,6 +1,5 @@
 package org.broadinstitute.hellbender.tools.copynumber.legacy.allelic.model;
 
-import org.apache.commons.math3.random.RandomGenerator;
 import org.apache.commons.math3.special.Gamma;
 import org.apache.commons.math3.util.FastMath;
 import org.broadinstitute.hellbender.tools.copynumber.allelic.alleliccount.AllelicCount;
@@ -51,6 +50,7 @@ final class AlleleFractionLikelihoods {
     private static final FunctionCache logCache = new FunctionCache(FastMath::log);
 
     private static final class FunctionCache extends LinkedHashMap<Double, Double> {
+        private static final long serialVersionUID = 19841647L;
         private static final int MAX_SIZE = 100_000;
 
         private final Function<Double, Double> mappingFunction;
