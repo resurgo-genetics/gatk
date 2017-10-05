@@ -55,9 +55,7 @@ public final class AlleleFractionKernelSegmenter {
                         LinkedHashMap::new,
                         Collectors.mapping(Pair::getValue, Collectors.toList())));
         final double[] alternateAlleleFractions = allelicCounts.getRecords().stream()
-                .mapToDouble(ac -> ac.getRefReadCount() + ac.getAltReadCount() == 0
-                        ? 0.
-                        : (double) ac.getAltReadCount() / (ac.getRefReadCount() + ac.getAltReadCount()))
+                .mapToDouble(AllelicCount::getAlternateAlleleFraction)
                 .toArray();
         alternateAlleleFractionsPerChromosome = IntStream.range(0, allelicCounts.getRecords().size()).boxed()
                 .map(i -> new ImmutablePair<>(

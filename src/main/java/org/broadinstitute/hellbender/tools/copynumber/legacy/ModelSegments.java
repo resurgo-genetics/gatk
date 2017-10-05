@@ -432,7 +432,7 @@ public final class ModelSegments extends SparkCommandLineProgram {
         filteredAllelicCounts = new AllelicCountCollection(
                 unfilteredAllelicCounts.getSampleName(),
                 unfilteredAllelicCounts.getRecords().stream()
-                        .filter(ac -> ac.getRefReadCount() + ac.getAltReadCount() >= minTotalAlleleCount)
+                        .filter(ac -> ac.getTotalReadCount() >= minTotalAlleleCount)
                         .collect(Collectors.toList()));
         logger.info(String.format("Retained %d / %d sites after filtering on total count...",
                 filteredAllelicCounts.getRecords().size(), unfilteredAllelicCounts.getRecords().size()));
@@ -442,7 +442,7 @@ public final class ModelSegments extends SparkCommandLineProgram {
                 unfilteredAllelicCounts.getSampleName(),
                 filteredAllelicCounts.getRecords().stream()
                         .filter(ac -> new BinomialTest().binomialTest(
-                                ac.getRefReadCount() + ac.getAltReadCount(),
+                                ac.getTotalReadCount(),
                                 Math.min(ac.getAltReadCount(), ac.getRefReadCount()),
                                 genotypingBaseErrorRate,
                                 AlternativeHypothesis.TWO_SIDED) <= genotypingPValueThreshold)

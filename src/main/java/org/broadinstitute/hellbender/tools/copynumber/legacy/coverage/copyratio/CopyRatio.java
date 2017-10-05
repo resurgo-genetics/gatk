@@ -69,4 +69,12 @@ public class CopyRatio implements Locatable {
         result = 31 * result + (int) (temp ^ (temp >>> 32));
         return result;
     }
+
+    @Override
+    public String toString() {
+        return "CopyRatio{" +
+                "interval=" + interval +
+                ", log2CopyRatioValue=" + log2CopyRatioValue +
+                '}';
+    }
 }

@@ -4,6 +4,7 @@ import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.Locatable;
 import htsjdk.samtools.util.OverlapDetector;
 import org.apache.commons.collections4.ListUtils;
+import org.apache.commons.math3.util.FastMath;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.broadinstitute.hellbender.exceptions.GATKException;
@@ -20,13 +21,26 @@ import org.broadinstitute.hellbender.utils.SimpleInterval;
 import org.broadinstitute.hellbender.utils.Utils;
 
 import java.util.*;
+import java.util.function.BiFunction;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * @author Samuel Lee &lt;slee@broadinstitute.org&gt;
  */
 final class SegmentUnioner {
     private static final Logger logger = LogManager.getLogger(SegmentUnioner.class);
+
+    //some hardcoded values to use for merging spurious middles via kernel segmentation
+    private static final BiFunction<CopyRatio, CopyRatio, Double> COPY_RATIO_KERNEL = (x, y) ->
+            x.getLog2CopyRatioValue() * y.getLog2CopyRatioValue();
+    private static final double ALLELE_FRACTION_KERNEL_VARIANCE = 0.01;
+    private static final BiFunction<AllelicCount, AllelicCount, Double> ALLELE_FRACTION_KERNEL = (x, y) ->
+            FastMath.exp(-(x.getAlternateAlleleFraction() - y.getAlternateAlleleFraction()) *
+                    (x.getAlternateAlleleFraction() - y.getAlternateAlleleFraction()) /
+                    (2. * ALLELE_FRACTION_KERNEL_VARIANCE));
+    private static final int KERNEL_APPROXIMATION_DIMENSION = 20;
+    private static final int WINDOW_SIZE_DIVISOR = 10;
 
     private final OverlapDetector<CopyRatio> copyRatioMidpointOverlapDetector;
     private final OverlapDetector<AllelicCount> allelicCountOverlapDetector;
@@ -76,32 +90,16 @@ final class SegmentUnioner {
         final SortedMap<String, List<Breakpoint>> breakpointsByContig = collectBreakpointsByContig(copyRatioSegments, alleleFractionSegments);
         final List<SimpleInterval> untrimmedSegments = constructUntrimmedSegments(copyRatioMidpointOverlapDetector, allelicCountOverlapDetector, breakpointsByContig);
         logger.info(String.format("%d untrimmed segments created...", untrimmedSegments.size()));
-        untrimmedSegments.stream()
-                .map(s -> new CRAFSegment(
-                        s,
-                        copyRatioMidpointOverlapDetector.getOverlaps(s).stream()
-                                .map(CopyRatio::getLog2CopyRatioValue)
-                                .collect(Collectors.toList()),
-                        new ArrayList<>(allelicCountOverlapDetector.getOverlaps(s))))
-                .forEach(System.out::println);
 
         //merge spurious segments containing only copy-ratio intervals that were created by allele-fraction breakpoints
         final List<SimpleInterval> spuriousCopyRatioMergedSegments = mergeSpuriousSegments(
-                untrimmedSegments, copyRatioSegments, copyRatioMidpointOverlapDetector, allelicCountOverlapDetector);
+                untrimmedSegments, copyRatioSegments, copyRatioMidpointOverlapDetector, allelicCountOverlapDetector, COPY_RATIO_KERNEL);
         logger.info(String.format("%d segments remain after merging spurious copy-ratio segments...", spuriousCopyRatioMergedSegments.size()));
+
         //merge spurious segments containing only allelic-count sites that were created by copy-ratio breakpoints
         final List<SimpleInterval> spuriousAlleleFractionMergedSegments = mergeSpuriousSegments(
-                spuriousCopyRatioMergedSegments, alleleFractionSegments, allelicCountOverlapDetector, copyRatioMidpointOverlapDetector);
+                spuriousCopyRatioMergedSegments, alleleFractionSegments, allelicCountOverlapDetector, copyRatioMidpointOverlapDetector, ALLELE_FRACTION_KERNEL);
         logger.info(String.format("%d segments remain after merging spurious allele-fraction segments...", spuriousAlleleFractionMergedSegments.size()));
-
-        spuriousAlleleFractionMergedSegments.stream()
-                .map(s -> new CRAFSegment(
-                        s,
-                        copyRatioMidpointOverlapDetector.getOverlaps(s).stream()
-                                .map(CopyRatio::getLog2CopyRatioValue)
-                                .collect(Collectors.toList()),
-                        new ArrayList<>(allelicCountOverlapDetector.getOverlaps(s))))
-                .forEach(System.out::println);
 
         logger.info("Trimming combined segments...");
         //for trimming segments in the final step, we need an overlap detector built from the full copy-ratio intervals
@@ -167,8 +165,8 @@ final class SegmentUnioner {
             final List<SimpleInterval> combinedSegments,
             final TSVLocatableCollection<FirstTypeSegment> originalFirstTypeSegments,
             final OverlapDetector<FirstType> firstTypeOverlapDetector,
-            final OverlapDetector<SecondType> secondTypeOverlapDetector) {
-
+            final OverlapDetector<SecondType> secondTypeOverlapDetector,
+            final BiFunction<FirstType, FirstType, Double> kernelForFirstTypeSegmentation) {
         //get starts and ends of original first-type segments
         final Set<SimpleInterval> originalFirstTypeSegmentStarts =
                 originalFirstTypeSegments.getIntervals().stream()
@@ -202,21 +200,59 @@ final class SegmentUnioner {
                 final SimpleInterval previousSegment = mergedSegments.get(previousIndex);
                 mergedSegments.set(previousIndex, mergeSegments(previousSegment, segment));
             } else {
-                //remerge segments introduced in the middle
-                logger.info("Spurious middle skipped...");
-                
-                //get adjacent segments
-                
+                //remerge segments introduced in the middle by examining adjacent segments
+                logger.debug(String.format("Merging spurious middle segment: %s (number of data points = %d)",
+                        segment, firstTypeOverlapDetector.getOverlaps(segment).size()));
+                final int previousIndex = mergedSegments.size() - 1;
+                final SimpleInterval previousSegment = mergedSegments.get(previousIndex);
+                final SimpleInterval nextSegment = combinedSegments.get(combinedSegments.indexOf(segment) + 1);
+
+                //if either adjacent segment does not contain points of the first type, then do not merge with adjacent segments
+                if (firstTypeOverlapDetector.getOverlaps(previousSegment).isEmpty() || firstTypeOverlapDetector.getOverlaps(nextSegment).isEmpty()) {
+                    logger.debug("An adjacent segment was empty, not merging spurious middle segment...");
+                    mergedSegments.add(segment);
+                    continue;
+                }
+
+                //get points of the first type from current and adjacent segments
+                final List<FirstType> firstTypePoints = Stream.of(previousSegment, segment, nextSegment)
+                        .flatMap(s -> firstTypeOverlapDetector.getOverlaps(s).stream())
+                        .sorted(TSVLocatableCollection.LEXICOGRAPHICAL_ORDER_COMPARATOR)
+                        .collect(Collectors.toList());
+
                 //create kernel segmenter for points of first type contained in all three segments (left + middle + right)
+                final KernelSegmenter<FirstType> segmenter = new KernelSegmenter<>(firstTypePoints);
 
                 //test for single changepoint with one window size and no penalty
+                final int bestChangepointIndex = segmenter.findChangepoints(
+                        1,
+                        kernelForFirstTypeSegmentation,
+                        Math.min(KERNEL_APPROXIMATION_DIMENSION, firstTypePoints.size()),
+                        Collections.singletonList(Math.max(firstTypePoints.size() / WINDOW_SIZE_DIVISOR, 2)),    //try to pick a relatively big window size, but we are only guaranteed to have at least 3 points)
+                        0., 0.,                     //no penalty guarantees one changepoint
+                        KernelSegmenter.ChangepointSortOrder.BACKWARD_SELECTION).get(0);
+                final FirstType bestChangepoint = firstTypePoints.get(bestChangepointIndex);
+                logger.debug(String.format("Best changepoint: %s", bestChangepoint));
 
                 //if changepoint falls within middle (i.e., spurious) segment,
                 //then create new breakpoint there and merge resulting segments to the left and right
-
                 //else if changepoint falls in left (right) segment, then merge middle segment to the right (left)
-
-                mergedSegments.add(segment);
+                if (firstTypeOverlapDetector.getOverlaps(segment).contains(bestChangepoint)) {
+                    final FirstType pointAfterBestChangepoint = firstTypePoints.get(bestChangepointIndex + 1);
+                    final SimpleInterval newLeftSegment = new SimpleInterval(segment.getContig(), previousSegment.getStart(), bestChangepoint.getEnd());
+                    final SimpleInterval newRightSegment = new SimpleInterval(segment.getContig(), pointAfterBestChangepoint.getStart(), nextSegment.getEnd());
+                    logger.debug(String.format("Best changepoints found in current segment, creating new segments: %s, %s", newLeftSegment, newRightSegment));
+                    mergedSegments.set(previousIndex, newLeftSegment);
+                    mergedSegments.add(newRightSegment);
+                    segmentsIter.next();
+                } else if (firstTypeOverlapDetector.getOverlaps(previousSegment).contains(bestChangepoint)) {
+                    logger.debug("Best changepoint found in adjacent segment to left, merging middle segment to the right...");
+                    mergedSegments.add(mergeSegments(segment, nextSegment));
+                    segmentsIter.next();
+                } else {
+                    logger.debug("Best changepoint found in adjacent segment to right, merging middle segment to the left...");
+                    mergedSegments.set(previousIndex, mergeSegments(previousSegment, segment));
+                }
             }
         }
         return mergedSegments;
