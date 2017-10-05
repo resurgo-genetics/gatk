@@ -147,7 +147,7 @@ public final class AlleleFractionInitializer {
 
     private double estimateMinorFraction(final int segment) {
         final Function<Double, Double> objective = minorFraction ->
-            AlleleFractionLikelihoods.segmentLogLikelihood(globalParameters, minorFraction, segment, data);
+            AlleleFractionLikelihoods.segmentLogLikelihood(globalParameters, minorFraction, data.getIndexedAllelicCountsInSegment(segment));
         return OptimizationUtils.argmax(objective, 0.0, MAX_MINOR_ALLELE_FRACTION, minorFractions.get(segment));
     }
 

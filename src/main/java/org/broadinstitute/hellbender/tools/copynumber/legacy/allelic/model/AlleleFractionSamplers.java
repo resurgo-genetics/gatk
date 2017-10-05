@@ -4,6 +4,8 @@ import org.apache.commons.math3.distribution.BetaDistribution;
 import org.apache.commons.math3.random.RandomGenerator;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.broadinstitute.hellbender.tools.copynumber.allelic.alleliccount.AllelicCount;
+import org.broadinstitute.hellbender.tools.copynumber.legacy.coverage.model.CopyRatioSegmentedData;
 import org.broadinstitute.hellbender.tools.pon.allelic.AllelicPanelOfNormals;
 import org.broadinstitute.hellbender.utils.mcmc.ParameterSampler;
 import org.broadinstitute.hellbender.utils.mcmc.SliceSampler;
@@ -12,6 +14,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 /**
  * Sampler classes for the allele-fraction model.
@@ -65,8 +68,8 @@ final class AlleleFractionSamplers {
                              final AlleleFractionState state,
                              final AlleleFractionSegmentedData data) {
             logger.debug("Sampling bias variance...");
-            return new SliceSampler(rng, x -> AlleleFractionLikelihoods.logLikelihood(
-                    state.globalParameters().copyWithNewBiasVariance(x), state.minorFractions(), data),
+            return new SliceSampler(rng,
+                    x -> AlleleFractionLikelihoods.logLikelihood(state.globalParameters().copyWithNewBiasVariance(x), state.minorFractions(), data),
                     MIN_BIAS_VARIANCE, maxBiasVariance, biasVarianceSliceSamplingWidth)
                     .sample(state.biasVariance());
         }
@@ -87,8 +90,8 @@ final class AlleleFractionSamplers {
                              final AlleleFractionState state,
                              final AlleleFractionSegmentedData data) {
             logger.debug("Sampling outlier probability...");
-            return new SliceSampler(rng, x -> AlleleFractionLikelihoods.logLikelihood(
-                    state.globalParameters().copyWithNewOutlierProbability(x), state.minorFractions(), data),
+            return new SliceSampler(rng,
+                    x -> AlleleFractionLikelihoods.logLikelihood(state.globalParameters().copyWithNewOutlierProbability(x), state.minorFractions(), data),
                     MIN_OUTLIER_PROBABILITY, MAX_OUTLIER_PROBABILITY, outlierProbabilitySliceSamplingWidth)
                     .sample(state.outlierProbability());
         }
@@ -96,51 +99,42 @@ final class AlleleFractionSamplers {
 
     // sample minor fractions of all segments
     protected static final class MinorFractionsSampler implements ParameterSampler<AlleleFractionState.MinorFractions, AlleleFractionParameter, AlleleFractionState, AlleleFractionSegmentedData> {
-        private final List<PerSegmentMinorFractionSampler> perSegmentSamplers = new ArrayList<>();
+        private static double MIN_MINOR_FRACTION = 0.;
+        private static double MAX_MINOR_FRACTION = 0.5;
+        private static final double PRIOR_BETA = 1.;
+        private static final int NUM_POINTS_SUBSAMPLE_THRESHOLD = 1000;
+
+        private final Function<Double, Double> logPrior;
+        private final List<Double> sliceSamplingWidths;
 
         MinorFractionsSampler(final AlleleFractionPrior prior,
                               final List<Double> sliceSamplingWidths) {
-            final int numSegments = sliceSamplingWidths.size();
-            for (int segment = 0; segment < numSegments; segment++) {
-                perSegmentSamplers.add(new PerSegmentMinorFractionSampler(segment, prior.getMinorAlleleFractionPriorAlpha(), sliceSamplingWidths.get(segment)));
-            }
+            logPrior = f -> new BetaDistribution(null, prior.getMinorAlleleFractionPriorAlpha(), PRIOR_BETA).logDensity(2 * f);
+            this.sliceSamplingWidths = sliceSamplingWidths;
         }
 
         @Override
         public AlleleFractionState.MinorFractions sample(final RandomGenerator rng, final AlleleFractionState state, final AlleleFractionSegmentedData data) {
-            return new AlleleFractionState.MinorFractions(perSegmentSamplers.stream()
-                    .map(sampler -> sampler.sample(rng, state, data)).collect(Collectors.toList()));
-        }
-    }
-
-    // sample minor fraction of a single segment
-    private static final class PerSegmentMinorFractionSampler implements ParameterSampler<Double, AlleleFractionParameter, AlleleFractionState, AlleleFractionSegmentedData> {
-        private static double MIN_MINOR_FRACTION = 0.;
-        private static double MAX_MINOR_FRACTION = 0.5;
-        private static final double PRIOR_BETA = 1.;
-
-        private final int segmentIndex;
-        private final double sliceSamplingWidth;
-        private final Function<Double, Double> logPrior;
-
-        PerSegmentMinorFractionSampler(final int segmentIndex,
-                                       final double priorAlpha,
-                                       final double sliceSamplingWidth) {
-            this.segmentIndex = segmentIndex;
-            this.sliceSamplingWidth = sliceSamplingWidth;
-            logPrior = f -> new BetaDistribution(null, priorAlpha, PRIOR_BETA).logDensity(2 * f);
-        }
-
-        @Override
-        public Double sample(final RandomGenerator rng, final AlleleFractionState state, final AlleleFractionSegmentedData data) {
-            logger.debug(String.format("Sampling minor fraction for segment %d...", segmentIndex));
-            if (data.getIndexedAllelicCountsInSegment(segmentIndex).isEmpty()) {
-                return Double.NaN;
+            final List<Double> minorFractions = new ArrayList<>(data.getNumSegments());
+            for (int segment = 0; segment < data.getNumSegments(); segment++) {
+                logger.debug(String.format("Sampling minor fraction for segment %d...", segment));
+                if (data.getIndexedAllelicCountsInSegment(segment).isEmpty()){
+                    minorFractions.add(Double.NaN);
+                } else {
+                    //subsample the data if we are above the threshold
+                    final List<AlleleFractionSegmentedData.IndexedAllelicCount> allelicCounts = data.getIndexedAllelicCountsInSegment(segment);
+                    final List<AlleleFractionSegmentedData.IndexedAllelicCount> subsampledAllelicCounts = allelicCounts.size() > NUM_POINTS_SUBSAMPLE_THRESHOLD
+                            ? IntStream.range(0, NUM_POINTS_SUBSAMPLE_THRESHOLD).boxed().map(i -> rng.nextInt(allelicCounts.size())).map(allelicCounts::get).collect(Collectors.toList())
+                            : allelicCounts;
+                    final double scalingFactor = (double) allelicCounts.size() / subsampledAllelicCounts.size();
+                    final Function<Double, Double> segmentLogLikelihood = f -> scalingFactor * AlleleFractionLikelihoods.segmentLogLikelihood(state.globalParameters(), f, subsampledAllelicCounts);
+                    final SliceSampler sampler = new SliceSampler(rng,
+                            f -> logPrior.apply(f) + segmentLogLikelihood.apply(f),
+                            MIN_MINOR_FRACTION, MAX_MINOR_FRACTION, sliceSamplingWidths.get(segment));
+                    minorFractions.add(sampler.sample(state.segmentMinorFraction(segment)));
+                }
             }
-            return new SliceSampler(rng, f -> logPrior.apply(f) + AlleleFractionLikelihoods.segmentLogLikelihood(
-                    state.globalParameters(), f, segmentIndex, data),
-                    MIN_MINOR_FRACTION, MAX_MINOR_FRACTION, sliceSamplingWidth)
-                    .sample(state.segmentMinorFraction(segmentIndex));
+            return new AlleleFractionState.MinorFractions(minorFractions);
         }
     }
 }

@@ -73,7 +73,7 @@ public final class AlleleFractionModeller {
 
         final List<Double> minorFractionsSliceSamplingWidths = IntStream.range(0, data.getNumSegments()).boxed()
                 .map(segment -> approximatePosteriorWidthAtMode(
-                        f -> AlleleFractionLikelihoods.segmentLogLikelihood(initialParameters, f, segment, data), initialMinorFractions.get(segment)))
+                        f -> AlleleFractionLikelihoods.segmentLogLikelihood(initialParameters, f, data.getIndexedAllelicCountsInSegment(segment)), initialMinorFractions.get(segment)))
                 .map(w -> Math.max(w, MIN_MINOR_FRACTION_SAMPLING_WIDTH))
                 .collect(Collectors.toList());
 

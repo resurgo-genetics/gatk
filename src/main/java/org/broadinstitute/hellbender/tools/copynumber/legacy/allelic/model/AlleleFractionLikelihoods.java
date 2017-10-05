@@ -1,11 +1,13 @@
 package org.broadinstitute.hellbender.tools.copynumber.legacy.allelic.model;
 
+import org.apache.commons.math3.random.RandomGenerator;
 import org.apache.commons.math3.special.Gamma;
 import org.apache.commons.math3.util.FastMath;
 import org.broadinstitute.hellbender.tools.copynumber.allelic.alleliccount.AllelicCount;
 import org.broadinstitute.hellbender.utils.GATKProtectedMathUtils;
 
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.IntStream;
@@ -71,8 +73,7 @@ final class AlleleFractionLikelihoods {
 
     static double segmentLogLikelihood(final AlleleFractionGlobalParameters parameters,
                                        final double minorFraction,
-                                       final int segment,
-                                       final AlleleFractionSegmentedData data) {
+                                       final List<AlleleFractionSegmentedData.IndexedAllelicCount> allelicCountsInSegment) {
         final double alpha = parameters.getAlpha();
         final double beta = parameters.getBeta();
         final double pi = parameters.getOutlierProbability();
@@ -86,7 +87,7 @@ final class AlleleFractionLikelihoods {
         final double logMajorFraction = log(majorFraction);
 
         double logLikelihood = 0.;
-        for (final AllelicCount allelicCount : data.getIndexedAllelicCountsInSegment(segment)) {
+        for (final AllelicCount allelicCount : allelicCountsInSegment) {
             final int a = allelicCount.getAltReadCount();
             final int r = allelicCount.getRefReadCount();
             final int n = a + r;
@@ -125,7 +126,7 @@ final class AlleleFractionLikelihoods {
                                        final AlleleFractionState.MinorFractions minorFractions,
                                        final AlleleFractionSegmentedData data) {
         return IntStream.range(0, data.getNumSegments())
-                .mapToDouble(s -> segmentLogLikelihood(parameters, minorFractions.get(s), s, data))
+                .mapToDouble(segment -> segmentLogLikelihood(parameters, minorFractions.get(segment), data.getIndexedAllelicCountsInSegment(segment)))
                 .sum();
     }
 
