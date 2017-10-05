@@ -1524,6 +1524,17 @@ public final class IntervalUtilsUnitTest extends BaseTest {
         output14.add(new SimpleInterval("1", 3501, 4000));
         output14.add(new SimpleInterval("1", 5000, 5000));
 
+        // One interval overlaps two partly, but not really, since different contig.
+        final List<Locatable> input15_1 = new ArrayList<>();
+        final List<Locatable> input15_2 = new ArrayList<>();
+        final List<Locatable> output15 = new ArrayList<>();
+        input15_1.add(new SimpleInterval("1", 1000, 2000));
+        input15_1.add(new SimpleInterval("1", 3000, 4000));
+        input15_1.add(new SimpleInterval("2", 5000, 5000));
+        input15_2.add(new SimpleInterval("2", 1500, 3500));
+        output15.addAll(input15_1);
+        output15.addAll(input15_2);
+
         return new Object[][]{
                 {input1_1, input1_2, output1},
                 {input2_1, input2_2, output2},
@@ -1539,6 +1550,7 @@ public final class IntervalUtilsUnitTest extends BaseTest {
                 {input12_1, input12_2, output12},
                 {input13_1, input13_2, output13},
                 {input14_1, input14_2, output14},
+                {input15_1, input15_2, output15},
         };
     }
 

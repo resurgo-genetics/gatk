@@ -1157,19 +1157,19 @@ public final class IntervalUtils {
      *
      * @param locatables1 list of locatables
      * @param locatables2 list of locatables
-     * @return segments from the union'ed breakpoints of locatable1 and locatable2.  If both inputs are null, return an
-     *   empty list.
+     * @return Locatables from the union'ed breakpoints of locatable1 and locatable2.  If both inputs are null, return an
+     *   empty list.  Please note that returned values are new copies.
      */
-    static public List<Locatable> unionIntervals(final List<Locatable> locatables1, final List<Locatable> locatables2) {
+    static public <T extends Locatable> List<Locatable> unionIntervals(final List<T> locatables1, final List<T> locatables2) {
         if ((locatables1 == null) && (locatables2 == null)) {
             return Collections.emptyList();
         }
 
         if (CollectionUtils.isEmpty(locatables1)) {
-            return locatables2;
+            return locatables2.stream().map(l -> new SimpleInterval(l)).collect(Collectors.toList());
         }
         if (CollectionUtils.isEmpty(locatables2)) {
-            return locatables1;
+            return locatables1.stream().map(l -> new SimpleInterval(l)).collect(Collectors.toList());
         }
         final List<Locatable> masterList = new ArrayList<>();
         masterList.addAll(locatables1);
@@ -1220,6 +1220,8 @@ public final class IntervalUtils {
                 int end = (isCurrentBreakpointStart && isNextBreakpointStart ? nextBreakpoint - 1 : nextBreakpoint);
 
                 // If the current breakpoint is an end and the next is a start, then we want to shrink both ends.
+                //  Note that this could indicate that we are between intervals for one list of locatables,
+                //   but not the other.
                 final boolean isBetweenIntervals = !isCurrentBreakpointStart && isNextBreakpointStart;
                 if (isBetweenIntervals) {
                     start++;
