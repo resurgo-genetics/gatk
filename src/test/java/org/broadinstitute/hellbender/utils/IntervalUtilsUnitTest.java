@@ -1533,8 +1533,9 @@ public final class IntervalUtilsUnitTest extends BaseTest {
         input15_1.add(new SimpleInterval("1", 3000, 4000));
         input15_1.add(new SimpleInterval("2", 5000, 5000));
         input15_2.add(new SimpleInterval("2", 1500, 3500));
-        output15.addAll(input15_1);
+        output15.addAll(input15_1.subList(0,2));
         output15.addAll(input15_2);
+        output15.add(input15_1.get(2));
 
         return new Object[][]{
                 {input1_1, input1_2, output1},

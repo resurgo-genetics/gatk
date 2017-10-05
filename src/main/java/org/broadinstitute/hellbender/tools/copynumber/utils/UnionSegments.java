@@ -7,6 +7,7 @@ import htsjdk.samtools.util.Locatable;
 import org.broadinstitute.barclay.argparser.Argument;
 import org.broadinstitute.barclay.argparser.CommandLineProgramProperties;
 import org.broadinstitute.hellbender.cmdline.ExomeStandardArgumentDefinitions;
+import org.broadinstitute.hellbender.cmdline.StandardArgumentDefinitions;
 import org.broadinstitute.hellbender.cmdline.programgroups.CopyNumberProgramGroup;
 import org.broadinstitute.hellbender.engine.GATKTool;
 import org.broadinstitute.hellbender.exceptions.UserException;
@@ -29,6 +30,8 @@ import java.util.stream.Collectors;
         programGroup = CopyNumberProgramGroup.class)
 public class UnionSegments extends GATKTool {
 
+    public static final String COLUMNS_OF_INTEREST_LONG_NAME = "columnsOfInterest";
+    public static final String COLUMNS_OF_INTEREST_SHORT_NAME = "cols";
     @Argument(
             doc = "Input segment files -- must be specified twice, but order does not matter.",
             fullName = ExomeStandardArgumentDefinitions.SEGMENT_FILE_LONG_NAME,
@@ -39,14 +42,15 @@ public class UnionSegments extends GATKTool {
 
     @Argument(
             doc="List of columns in either segment file that should be reported in the output file.  If the column header exists in both, it will have an append.",
-            fullName = "columnsOfInterest", shortName = "cols", minElements = 1
+            fullName = COLUMNS_OF_INTEREST_LONG_NAME, shortName = COLUMNS_OF_INTEREST_SHORT_NAME, minElements = 1
     )
-    protected Set<String> columnsOfInterest;
+    protected Set<String> columnsOfInterest = new HashSet<>();
 
-    @Override
-    public boolean requiresReference() {
-        return true;
-    }
+    @Argument(
+            doc="Output tsv file with union'ed segments",
+            shortName = StandardArgumentDefinitions.OUTPUT_SHORT_NAME,
+            fullName = StandardArgumentDefinitions.OUTPUT_LONG_NAME)
+    protected File outputFile;
 
     @Override
     public void traverse() {
@@ -58,9 +62,11 @@ public class UnionSegments extends GATKTool {
             // Create a map of input to output headers.  I.e. the annotation in the segment1 to the output that should be written in the final file.
             //  This assumes that the keys in each entry of the list is the same.
             // TODO: If we want to support more than two segment files, this is the only bit that requires thinking.
+            // TODO: Once above TODO is solved, move this logic into a utility class.
             final Set<String> intersectingAnnotations = Sets.intersection(segments1.get(0).getAnnotations().keySet(), segments2.get(0).getAnnotations().keySet());
 
             // Create the obvious mappings that are identity then tack on new annotations for conflicts.
+            // These are mappings that take the header name from the segment files and map to an output header to avoid conflicts.
             final Map<String, String> input1ToOutputHeaderMap = Utils.stream(segments1.get(0).getAnnotations().keySet().iterator()).filter(a -> !intersectingAnnotations.contains(a))
                     .collect(Collectors.toMap(Function.identity(), Function.identity()));
             Utils.stream(intersectingAnnotations.iterator()).forEach(a -> input1ToOutputHeaderMap.put(a, a+"_1"));
@@ -72,22 +78,44 @@ public class UnionSegments extends GATKTool {
             final List<SimpleAnnotatedGenomicRegion> finalList = annotateUnionedIntervals(segments1, segments2,
                     getBestAvailableSequenceDictionary(), Lists.newArrayList(input1ToOutputHeaderMap, input2ToOutputHeaderMap));
 
-            // TODO: Write output
+            // TODO: Capture sample names in the comments if possible.
+            // TODO:  Allow choice in output names of interval headers.
+            final VersatileAnnotatedRegionParser writer = new VersatileAnnotatedRegionParser();
+            writer.writeAnnotatedRegionsAsTsv(finalList, outputFile, Collections.emptyList(),
+                    "contig", "start", "end");
 
         } catch (final IOException ioe) {
             throw new UserException.BadInput("Could not parse input file", ioe);
         }
     }
 
+    /**
+     *  Create a union of segments1 and segments2 as described in {@link IntervalUtils::unionIntervals} and annotate
+     *   the union with annotations of interest in segments1 and segments2.
+     *
+     * @param segments1 a list of simple annotated regions
+     * @param segments2 a list of simple annotated regions
+     * @param dictionary a sequence dictionary
+     * @param inputToOutputHeaderMaps a list of maps (of length 2) for segments1 and segments2 respectively.
+     *                                Each maps the annotation name as it appears in the segment list to the output annotation name it should get.
+     *                                This is required typically to avoid conflicts in the output annotation names.
+     *
+     * @return a list of simple annotated regions that is a union of segments1 and segments2 and contains all the annotations specified
+     *  in inputToOutputHeaderMaps.
+     */
     private List<SimpleAnnotatedGenomicRegion> annotateUnionedIntervals(final List<SimpleAnnotatedGenomicRegion> segments1, final List<SimpleAnnotatedGenomicRegion> segments2,
                                                                         final SAMSequenceDictionary dictionary, final List<Map<String, String>> inputToOutputHeaderMaps) {
 
-        // We assume that the union'ed intervals are sorted.
-        final List<Locatable> unionIntervals = IntervalUtils.unionIntervals(segments1.stream().map(s -> s.getInterval()).collect(Collectors.toList()),
-                segments2.stream().map(s -> s.getInterval()).collect(Collectors.toList()));
+        final List<List<SimpleAnnotatedGenomicRegion>> segmentLists = Lists.newArrayList(segments1, segments2);
 
-        final List<List<SimpleAnnotatedGenomicRegion>> segmentList = Lists.newArrayList(segments1, segments2);
-        final List<Map<Locatable, List<SimpleAnnotatedGenomicRegion>>> unionIntervalsToSegmentsMaps = segmentList.stream()
+        // We assume that the union'ed intervals are sorted.
+        final List<Locatable> unionIntervals = IntervalUtils.unionIntervals(
+                segments1.stream().map(SimpleAnnotatedGenomicRegion::getInterval)
+                        .collect(Collectors.toList()),
+                segments2.stream().map(SimpleAnnotatedGenomicRegion::getInterval)
+                        .collect(Collectors.toList()));
+
+        final List<Map<Locatable, List<SimpleAnnotatedGenomicRegion>>> unionIntervalsToSegmentsMaps = segmentLists.stream()
                 .map(segs -> IntervalUtils.createOverlapMap(unionIntervals, segs, dictionary)).collect(Collectors.toList());
 
         final List<SimpleAnnotatedGenomicRegion> result = new ArrayList<>();
@@ -95,19 +123,15 @@ public class UnionSegments extends GATKTool {
         for (final Locatable interval: unionIntervals) {
             final Map<String, String> intervalAnnotationMap = new HashMap<>();
 
-            for (int i = 0; i< unionIntervalsToSegmentsMaps.size(); i ++) {
+            for (int i = 0; i < unionIntervalsToSegmentsMaps.size(); i ++) {
                 final Map<Locatable, List<SimpleAnnotatedGenomicRegion>> unionIntervalsToSegmentsMap = unionIntervalsToSegmentsMaps.get(i);
                 final SimpleAnnotatedGenomicRegion seg = unionIntervalsToSegmentsMap.get(interval).get(0);
-                inputToOutputHeaderMaps.get(i).entrySet().stream()
-                        .forEach(e -> intervalAnnotationMap.put(e.getValue(), seg.getAnnotations().get(e.getKey())));
+                inputToOutputHeaderMaps.get(i)
+                        .forEach((k,v) -> intervalAnnotationMap.put(v, seg.getAnnotations().get(k)));
             }
 
             result.add(new SimpleAnnotatedGenomicRegion(new SimpleInterval(interval), intervalAnnotationMap));
         }
-
         return result;
     }
-
-
-
 }

@@ -1166,10 +1166,10 @@ public final class IntervalUtils {
         }
 
         if (CollectionUtils.isEmpty(locatables1)) {
-            return locatables2.stream().map(l -> new SimpleInterval(l)).collect(Collectors.toList());
+            return locatables2.stream().map(SimpleInterval::new).collect(Collectors.toList());
         }
         if (CollectionUtils.isEmpty(locatables2)) {
-            return locatables1.stream().map(l -> new SimpleInterval(l)).collect(Collectors.toList());
+            return locatables1.stream().map(SimpleInterval::new).collect(Collectors.toList());
         }
         final List<Locatable> masterList = new ArrayList<>();
         masterList.addAll(locatables1);
@@ -1195,7 +1195,7 @@ public final class IntervalUtils {
             //  breakpoint that is a start and a breakpoint that is end, yet have the same position.  This is especially
             //  important for single base intervals.
             // TODO: Shorten the code here
-            final List<Pair<Integer, Boolean>> breakpoints = contigToBreakpoints.get(contig).stream().collect(Collectors.toList());
+            final List<Pair<Integer, Boolean>> breakpoints = new ArrayList<>(contigToBreakpoints.get(contig));
             breakpoints.sort((p1, p2) -> {
                 final int firstComparison = p1.getLeft().compareTo(p2.getLeft());
                 if (firstComparison != 0) {
