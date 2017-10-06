@@ -210,15 +210,15 @@ task ModelSegments {
             --denoisedCopyRatios ${denoised_copy_ratios} \
             --allelicCounts ${allelic_counts} \
             --maxNumSegmentsPerChromosome ${default="500" max_num_segments_per_chromosome} \
-            --minTotalAlleleCount ${default="20" min_total_allele_count} \
-            --genotypingPValueThreshold ${default="0.01" genotyping_p_value_threshold} \
+            --minTotalAlleleCount ${default="30" min_total_allele_count} \
+            --genotypingPValueThreshold ${default="0.001" genotyping_p_value_threshold} \
             --genotypingBaseErrorRate ${default="0.01" genotyping_base_error_rate} \
             --kernelVarianceCopyRatio ${default="0.0" kernel_variance_copy_ratio} \
             --kernelVarianceAlleleFraction ${default="0.01" kernel_variance_allele_fraction} \
             --kernelApproximationDimension ${default="100" kernel_approximation_dimension} \
             --windowSizes ${sep= " --windowSizes " window_sizes} \
             --numChangepointsPenaltyFactorCopyRatio ${default="1.0" num_changepoints_penalty_factor_copy_ratio} \
-            --numChangepointsPenaltyFactorAlleleFraction ${default="10.0" num_changepoints_penalty_factor_allele_fraction} \
+            --numChangepointsPenaltyFactorAlleleFraction ${default="1.0" num_changepoints_penalty_factor_allele_fraction} \
             --minorAlleleFractionPriorAlpha ${default="25.0" minor_allele_fraction_prior_alpha} \
             --numSamplesCopyRatio ${default=100 num_samples_copy_ratio} \
             --numBurnInCopyRatio ${default=50 num_burn_in_copy_ratio} \

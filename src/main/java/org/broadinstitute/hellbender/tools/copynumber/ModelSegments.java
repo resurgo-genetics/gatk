@@ -156,13 +156,13 @@ public final class ModelSegments extends CommandLineProgram {
     private int maxNumSegmentsPerChromosome = 1000;
 
     @Argument(
-            doc = "Minimum total count required to include allelic count in allele-fraction segmentation.",
+            doc = "Minimum total count for filtering allelic counts.",
             fullName = MINIMUM_TOTAL_ALLELE_COUNT_LONG_NAME,
             shortName = MINIMUM_TOTAL_ALLELE_COUNT_SHORT_NAME,
             minValue = 0,
             optional = true
     )
-    private int minTotalAlleleCount = 20;
+    private int minTotalAlleleCount = 30;
 
     @Argument(
             doc = "P-value threshold for genotyping and filtering homozygous allelic counts.",
@@ -170,7 +170,7 @@ public final class ModelSegments extends CommandLineProgram {
             shortName = GENOTYPING_P_VALUE_THRESHOLD_SHORT_NAME,
             optional = true
     )
-    private double genotypingPValueThreshold = 1E-2;
+    private double genotypingPValueThreshold = 1E-3;
 
     @Argument(
             doc = "Base error rate for genotyping and filtering homozygous allelic counts.",
@@ -248,7 +248,7 @@ public final class ModelSegments extends CommandLineProgram {
             minValue = 0.,
             optional = true
     )
-    private double numChangepointsPenaltyFactorAlleleFraction = 10.;
+    private double numChangepointsPenaltyFactorAlleleFraction = 1.;
 
     @Argument(
             doc = "Alpha hyperparameter for the 4-parameter beta-distribution prior on segment minor-allele fraction. " +
@@ -338,7 +338,6 @@ public final class ModelSegments extends CommandLineProgram {
     //initialize data/segment variables, some of which may be optional
     private CopyRatioCollection denoisedCopyRatios = null;
     private CopyRatioSegmentCollection copyRatioSegments = null;
-    private AllelicCountCollection filteredAllelicCounts = null;
     private AllelicCountCollection hetAllelicCounts = null;
     private AlleleFractionSegmentCollection alleleFractionSegments = null;
 
@@ -427,7 +426,7 @@ public final class ModelSegments extends CommandLineProgram {
         logger.info(String.format("Reading allelic-counts file (%s)...", inputAllelicCountsFile));
         final AllelicCountCollection unfilteredAllelicCounts = new AllelicCountCollection(inputAllelicCountsFile);
         logger.info(String.format("Filtering allelic counts with total count less than %d...", minTotalAlleleCount));
-        filteredAllelicCounts = new AllelicCountCollection(
+        final AllelicCountCollection filteredAllelicCounts = new AllelicCountCollection(
                 unfilteredAllelicCounts.getSampleName(),
                 unfilteredAllelicCounts.getRecords().stream()
                         .filter(ac -> ac.getTotalReadCount() >= minTotalAlleleCount)
@@ -453,9 +452,9 @@ public final class ModelSegments extends CommandLineProgram {
     }
 
     private void performAlleleFractionSegmentation() {
-        logger.info("Starting segmentation of all allelic counts passing total-count filter...");
+        logger.info("Starting segmentation of heterozygous allelic counts...");
         final int maxNumChangepointsPerChromosome = maxNumSegmentsPerChromosome - 1;
-        alleleFractionSegments = new AlleleFractionKernelSegmenter(filteredAllelicCounts)
+        alleleFractionSegments = new AlleleFractionKernelSegmenter(hetAllelicCounts)
                 .findSegmentation(maxNumChangepointsPerChromosome, kernelVarianceAlleleFraction, kernelApproximationDimension,
                         ImmutableSet.copyOf(windowSizes).asList(),
                         numChangepointsPenaltyFactorAlleleFraction, numChangepointsPenaltyFactorAlleleFraction);

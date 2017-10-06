@@ -82,11 +82,13 @@ final class AlleleFractionSamplers {
 
     protected static final class OutlierProbabilitySampler implements ParameterSampler<Double, AlleleFractionParameter, AlleleFractionState, AlleleFractionSegmentedData> {
         private static final double MIN_OUTLIER_PROBABILITY = 0.;
-        private static final double MAX_OUTLIER_PROBABILITY = 1.;
 
+        private final double maxOutlierProbability;
         private final double outlierProbabilitySliceSamplingWidth;
 
-        OutlierProbabilitySampler(final double outlierProbabilitySliceSamplingWidth) {
+        OutlierProbabilitySampler(final double maxOutlierProbability,
+                                  final double outlierProbabilitySliceSamplingWidth) {
+            this.maxOutlierProbability = maxOutlierProbability;
             this.outlierProbabilitySliceSamplingWidth = outlierProbabilitySliceSamplingWidth;
         }
 
@@ -99,7 +101,7 @@ final class AlleleFractionSamplers {
                     rng, state.minorFractions(), data, NUM_POINTS_GLOBAL_SUBSAMPLE_THRESHOLD);
             return new SliceSampler(rng,
                     x -> logLikelihoodEstimate.apply(state.globalParameters().copyWithNewOutlierProbability(x)),
-                    MIN_OUTLIER_PROBABILITY, MAX_OUTLIER_PROBABILITY, outlierProbabilitySliceSamplingWidth)
+                    MIN_OUTLIER_PROBABILITY, maxOutlierProbability, outlierProbabilitySliceSamplingWidth)
                     .sample(state.outlierProbability());
         }
     }

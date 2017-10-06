@@ -52,6 +52,7 @@ public final class AlleleFractionModeller {
 
     private static final double MAX_REASONABLE_MEAN_BIAS = AlleleFractionInitializer.MAX_REASONABLE_MEAN_BIAS;
     private static final double MAX_REASONABLE_BIAS_VARIANCE = AlleleFractionInitializer.MAX_REASONABLE_BIAS_VARIANCE;
+    static final double MAX_REASONABLE_OUTLIER_PROBABILITY = AlleleFractionInitializer.MAX_REASONABLE_OUTLIER_PROBABILITY;
     private static final double MIN_MINOR_FRACTION_SAMPLING_WIDTH = 1E-3;
 
     private final String sampleName;
@@ -100,7 +101,7 @@ public final class AlleleFractionModeller {
         final ParameterSampler<Double, AlleleFractionParameter, AlleleFractionState, AlleleFractionSegmentedData> biasVarianceSampler =
                 new AlleleFractionSamplers.BiasVarianceSampler(MAX_REASONABLE_BIAS_VARIANCE, biasVarianceSamplingWidths);
         final ParameterSampler<Double, AlleleFractionParameter, AlleleFractionState, AlleleFractionSegmentedData> outlierProbabilitySampler =
-                new AlleleFractionSamplers.OutlierProbabilitySampler(outlierProbabilitySamplingWidths);
+                new AlleleFractionSamplers.OutlierProbabilitySampler(MAX_REASONABLE_OUTLIER_PROBABILITY, outlierProbabilitySamplingWidths);
         final ParameterSampler<AlleleFractionState.MinorFractions, AlleleFractionParameter, AlleleFractionState, AlleleFractionSegmentedData> minorFractionsSampler =
                 new AlleleFractionSamplers.MinorFractionsSampler(prior, minorFractionsSliceSamplingWidths);
 
