@@ -1235,8 +1235,11 @@ public final class IntervalUtils {
                 } else {
                     numCurrentEnds++;
                 }
-                if ((!isBetweenIntervals) ||
-                        (numCurrentStarts > numCurrentEnds)) {
+
+                // We also need to check if start > end, since we could have been between intervals that were one adjacent,
+                //   so we don't want to add an interval for that.
+                if (((!isBetweenIntervals) || (numCurrentStarts > numCurrentEnds)) &&
+                        start <= end){
                     result.add(new SimpleInterval(contig, start, end));
                 }
             }

@@ -3,6 +3,7 @@ package org.broadinstitute.hellbender.tools.copynumber.utils;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import htsjdk.samtools.SAMSequenceDictionary;
+import htsjdk.samtools.SAMSequenceRecord;
 import htsjdk.samtools.util.Locatable;
 import org.broadinstitute.barclay.argparser.Argument;
 import org.broadinstitute.barclay.argparser.CommandLineProgramProperties;
@@ -75,8 +76,16 @@ public class UnionSegments extends GATKTool {
                     .collect(Collectors.toMap(Function.identity(), Function.identity()));
             Utils.stream(intersectingAnnotations.iterator()).forEach(a -> input2ToOutputHeaderMap.put(a, a+"_2"));
 
+            // Use the best available sequence dictionary, but if that is not available (i.e. null),
+            //   create one from the segment files.
+            final SAMSequenceDictionary sequenceDictionary = getBestAvailableSequenceDictionary() != null ?
+                    getBestAvailableSequenceDictionary() :
+                    createSAMSequenceDictionaryFromIntervals(Lists.newArrayList(segments1, segments2).stream()
+                            .flatMap(List::stream)
+                            .collect(Collectors.toList()));
+
             final List<SimpleAnnotatedGenomicRegion> finalList = annotateUnionedIntervals(segments1, segments2,
-                    getBestAvailableSequenceDictionary(), Lists.newArrayList(input1ToOutputHeaderMap, input2ToOutputHeaderMap));
+                    sequenceDictionary, Lists.newArrayList(input1ToOutputHeaderMap, input2ToOutputHeaderMap));
 
             // TODO: Capture sample names in the comments if possible.
             // TODO:  Allow choice in output names of interval headers.
@@ -115,6 +124,7 @@ public class UnionSegments extends GATKTool {
                 segments2.stream().map(SimpleAnnotatedGenomicRegion::getInterval)
                         .collect(Collectors.toList()));
 
+        // Create a list of maps where each entry corresponds to union'ed intervals to the regions in segmentList_i
         final List<Map<Locatable, List<SimpleAnnotatedGenomicRegion>>> unionIntervalsToSegmentsMaps = segmentLists.stream()
                 .map(segs -> IntervalUtils.createOverlapMap(unionIntervals, segs, dictionary)).collect(Collectors.toList());
 
@@ -125,13 +135,25 @@ public class UnionSegments extends GATKTool {
 
             for (int i = 0; i < unionIntervalsToSegmentsMaps.size(); i ++) {
                 final Map<Locatable, List<SimpleAnnotatedGenomicRegion>> unionIntervalsToSegmentsMap = unionIntervalsToSegmentsMaps.get(i);
-                final SimpleAnnotatedGenomicRegion seg = unionIntervalsToSegmentsMap.get(interval).get(0);
+                final int j = i;
                 inputToOutputHeaderMaps.get(i)
-                        .forEach((k,v) -> intervalAnnotationMap.put(v, seg.getAnnotations().get(k)));
+                        .forEach((k,v) -> intervalAnnotationMap.put(v, segmentLists.get(j).get(0).getAnnotations().get(k)));
             }
 
             result.add(new SimpleAnnotatedGenomicRegion(new SimpleInterval(interval), intervalAnnotationMap));
         }
         return result;
+    }
+
+    private SAMSequenceDictionary createSAMSequenceDictionaryFromIntervals(final List<Locatable> locatables) {
+        final Map<String, Integer> contigsToLengthMap = Utils.stream(locatables.stream().map(Locatable::getContig).collect(Collectors.toSet()).iterator())
+                .collect(Collectors.toMap(Function.identity(), l -> 0));
+        locatables.stream().forEach(l -> {
+            if (contigsToLengthMap.get(l.getContig()) < l.getEnd())
+                contigsToLengthMap.put(l.getContig(), l.getEnd());
+        });
+
+        return new SAMSequenceDictionary(contigsToLengthMap.entrySet().stream()
+                .map(e -> new SAMSequenceRecord(e.getKey(), e.getValue())).collect(Collectors.toList()));
     }
 }
