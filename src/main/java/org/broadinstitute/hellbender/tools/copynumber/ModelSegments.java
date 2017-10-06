@@ -361,9 +361,11 @@ public final class ModelSegments extends CommandLineProgram {
         //if one of the data sources is unavailable, create a corresponding empty collection using the sample name from the available source
         if (denoisedCopyRatios == null) {
             denoisedCopyRatios = new CopyRatioCollection(hetAllelicCounts.getSampleName(), Collections.emptyList());
+            copyRatioSegments = new CopyRatioSegmentCollection(hetAllelicCounts.getSampleName(), Collections.emptyList());
         }
         if (hetAllelicCounts == null) {
             hetAllelicCounts = new AllelicCountCollection(denoisedCopyRatios.getSampleName(), Collections.emptyList());
+            alleleFractionSegments = new AlleleFractionSegmentCollection(denoisedCopyRatios.getSampleName(), Collections.emptyList());
         }
 
         //union segments (combine copy-ratio and allele-fraction breakpoints, if available)
@@ -371,7 +373,7 @@ public final class ModelSegments extends CommandLineProgram {
                 copyRatioSegments, denoisedCopyRatios, alleleFractionSegments, hetAllelicCounts);
         writeSegments(crafSegments, CRAF_SEGMENTS_FILE_SUFFIX);
 
-        logger.info("Beginning modeling...");
+        logger.info("Modeling available denoised copy ratios and heterozygous allelic counts...");
         //initial MCMC model fitting performed by CRAFModeller constructor
         final AlleleFractionPrior alleleFractionPrior = new AlleleFractionPrior(minorAlleleFractionPriorAlpha);
         final CRAFModeller modeller = new CRAFModeller(
@@ -413,7 +415,7 @@ public final class ModelSegments extends CommandLineProgram {
     }
 
     private void performCopyRatioSegmentation() {
-        logger.info("Starting copy-ratio segmentation...");
+        logger.info("Starting segmentation of denoised copy ratios...");
         final int maxNumChangepointsPerChromosome = maxNumSegmentsPerChromosome - 1;
         copyRatioSegments = new CopyRatioKernelSegmenter(denoisedCopyRatios)
                 .findSegmentation(maxNumChangepointsPerChromosome, kernelVarianceCopyRatio, kernelApproximationDimension,
@@ -451,7 +453,7 @@ public final class ModelSegments extends CommandLineProgram {
     }
 
     private void performAlleleFractionSegmentation() {
-        logger.info("Starting allele-fraction segmentation...");
+        logger.info("Starting segmentation of all allelic counts passing total-count filter...");
         final int maxNumChangepointsPerChromosome = maxNumSegmentsPerChromosome - 1;
         alleleFractionSegments = new AlleleFractionKernelSegmenter(filteredAllelicCounts)
                 .findSegmentation(maxNumChangepointsPerChromosome, kernelVarianceAlleleFraction, kernelApproximationDimension,

@@ -106,6 +106,7 @@ final class SegmentUnioner {
         final OverlapDetector<CopyRatio> copyRatioOverlapDetector = denoisedCopyRatios.getOverlapDetector();
         return spuriousAlleleFractionMergedSegments.stream()
                 .map(s -> trimSegments(s, copyRatioOverlapDetector, allelicCountOverlapDetector))
+                .filter(Objects::nonNull)
                 .collect(Collectors.toList());
     }
 
@@ -262,7 +263,7 @@ final class SegmentUnioner {
      * Given a segment and collections of copy ratios and allelic counts, returns a trimmed segment produced by
      * removing the empty portions at the start and the end of the original segment that do not overlap the
      * copy ratios and allelic counts that overlap with the original segment.
-     * If this procedure would remove the entire segment, the original segment is returned instead.
+     * If this procedure would remove the entire segment, {@code null} is returned instead.
      */
     private static SimpleInterval trimSegments(final SimpleInterval segment,
                                                final OverlapDetector<CopyRatio> copyRatioOverlapDetector,
@@ -273,22 +274,29 @@ final class SegmentUnioner {
         final int numCopyRatiosOverlappingSegment = copyRatiosOverlappingSegment.size();
         final int numAllelicCountsInSegment = allelicCountsInSegment.size();
 
+        if (numCopyRatiosOverlappingSegment == 0 && numAllelicCountsInSegment == 0) {
+            return null;
+        }
+
         int start = segment.getStart();
         int end = segment.getEnd();
 
-        if (numCopyRatiosOverlappingSegment > 0) {
+        if (numCopyRatiosOverlappingSegment == 0 && numAllelicCountsInSegment > 0) {
+            //if there are no targets overlapping interval, use SNPs to determine trimmed interval
+            start = allelicCountsInSegment.stream().mapToInt(AllelicCount::getStart).min().getAsInt();
+            end = allelicCountsInSegment.stream().mapToInt(AllelicCount::getEnd).max().getAsInt();
+        } else if (numCopyRatiosOverlappingSegment > 0) {
             //if segment start does not fall within first copy-ratio interval, use start of first copy-ratio interval as start of trimmed segment
             start = Math.max(start, copyRatiosOverlappingSegment.stream().mapToInt(CopyRatio::getStart).min().getAsInt());
             //if segment end does not fall within last copy-ratio interval, use end of last copy-ratio interval as end of trimmed segment
             end = Math.min(end, copyRatiosOverlappingSegment.stream().mapToInt(CopyRatio::getEnd).max().getAsInt());
-        }
-        if (numAllelicCountsInSegment > 0) {
             //if there are also allelic counts within segment, check to see if they give a larger trimmed segment
-            start = Math.min(start, allelicCountsInSegment.stream().mapToInt(AllelicCount::getStart).min().getAsInt());
-            end = Math.max(end, allelicCountsInSegment.stream().mapToInt(AllelicCount::getEnd).max().getAsInt());
+            if (numAllelicCountsInSegment > 0) {
+                start = Math.min(start, allelicCountsInSegment.stream().mapToInt(AllelicCount::getStart).min().getAsInt());
+                end = Math.max(end, allelicCountsInSegment.stream().mapToInt(AllelicCount::getEnd).max().getAsInt());
+            }
         }
-        if (start < segment.getStart() || end > segment.getEnd() || end < start ||
-                (numCopyRatiosOverlappingSegment == 0 && numAllelicCountsInSegment == 0)) {
+        if (start < segment.getStart() || end > segment.getEnd() || end < start) {
             throw new GATKException.ShouldNeverReachHereException("Something went wrong in trimming interval.");
         }
         return new SimpleInterval(segment.getContig(), start, end);

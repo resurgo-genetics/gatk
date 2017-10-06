@@ -16,7 +16,6 @@ import java.io.File;
 import java.util.List;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 /**
@@ -68,45 +67,25 @@ public final class CRAFSegmentCollection extends LocatableCollection<CRAFSegment
                                                       final CopyRatioCollection denoisedCopyRatios,
                                                       final AlleleFractionSegmentCollection alleleFractionSegments,
                                                       final AllelicCountCollection allelicCounts) {
-        Utils.validateArg(!(copyRatioSegments == null && alleleFractionSegments == null),
-                "Must provide at least a copy-ratio segmentation or an allele-fraction segmentation.");
-
         final String sampleName;
         final List<CRAFSegment> crafSegments;
 
-        if (alleleFractionSegments == null) {
-            Utils.nonNull(denoisedCopyRatios);
-            Utils.validateArg(copyRatioSegments.getSampleName().equals(denoisedCopyRatios.getSampleName()),
-                    "Sample names from copy-ratio segmentation and denoised copy ratios must match.");
-            sampleName = copyRatioSegments.getSampleName();
-            crafSegments = copyRatioSegments.getRecords().stream()
-                    .map(s -> new CRAFSegment(s.getInterval(), s.getNumPoints(), 0, s.getMeanLog2CopyRatio()))
-                    .collect(Collectors.toList());
-        } else if (copyRatioSegments == null) {
-            Utils.nonNull(allelicCounts);
-            Utils.validateArg(alleleFractionSegments.getSampleName().equals(allelicCounts.getSampleName()),
-                    "Sample names from allele-fraction segmentation and allelic counts must match.");
-            sampleName = alleleFractionSegments.getSampleName();
-            crafSegments = alleleFractionSegments.getRecords().stream()
-                    .map(s -> new CRAFSegment(s.getInterval(), 0, s.getNumPoints(), Double.NaN))
-                    .collect(Collectors.toList());
-        } else {
-            Utils.validateArg(Stream.of(
-                    Utils.nonNull(copyRatioSegments).getSampleName(),
-                    Utils.nonNull(denoisedCopyRatios).getSampleName(),
-                    Utils.nonNull(alleleFractionSegments).getSampleName(),
-                    Utils.nonNull(allelicCounts).getSampleName())
-                            .distinct().count() == 1,
-                    "Sample names from all inputs must match.");
-            sampleName = copyRatioSegments.getSampleName();
+        Utils.validateArg(Stream.of(
+                Utils.nonNull(copyRatioSegments).getSampleName(),
+                Utils.nonNull(denoisedCopyRatios).getSampleName(),
+                Utils.nonNull(alleleFractionSegments).getSampleName(),
+                Utils.nonNull(allelicCounts).getSampleName())
+                        .distinct().count() == 1,
+                "Sample names from all inputs must match.");
+        sampleName = copyRatioSegments.getSampleName();
 
-            //union copy-ratio and allele-fraction segments
-            logger.info(String.format("Combining %d copy-ratio segments and %d allele-fraction segments...",
-                    copyRatioSegments.getRecords().size(), alleleFractionSegments.getRecords().size()));
-            crafSegments = new SegmentUnioner(copyRatioSegments, denoisedCopyRatios, alleleFractionSegments, allelicCounts)
-                    .constructUnionedCRAFSegments();
-            logger.info(String.format("After combining segments, %d segments remain...", crafSegments.size()));
-        }
+        //union copy-ratio and allele-fraction segments
+        logger.info(String.format("Combining %d copy-ratio segments and %d allele-fraction segments...",
+                copyRatioSegments.getRecords().size(), alleleFractionSegments.getRecords().size()));
+        crafSegments = new SegmentUnioner(copyRatioSegments, denoisedCopyRatios, alleleFractionSegments, allelicCounts)
+                .constructUnionedCRAFSegments();
+        logger.info(String.format("After combining segments, %d segments remain...", crafSegments.size()));
+
         return new CRAFSegmentCollection(sampleName, crafSegments);
     }
 }

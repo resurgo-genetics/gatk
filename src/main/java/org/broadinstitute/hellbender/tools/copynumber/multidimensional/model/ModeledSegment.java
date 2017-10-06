@@ -22,7 +22,7 @@ public class ModeledSegment implements Locatable {
                           final SimplePosteriorSummary log2CopyRatioSimplePosteriorSummary,
                           final SimplePosteriorSummary minorAlleleFractionSimplePosteriorSummary) {
         Utils.validateArg(numPointsCopyRatio > 0 || numPointsAlleleFraction > 0,
-                "Number of copy-ratio points or number of allele-fraction points must be positive.");
+                String.format("Number of copy-ratio points or number of allele-fraction points must be positive: %s", interval));
         this.interval = Utils.nonNull(interval);
         this.numPointsCopyRatio = numPointsCopyRatio;
         this.numPointsAlleleFraction = numPointsAlleleFraction;

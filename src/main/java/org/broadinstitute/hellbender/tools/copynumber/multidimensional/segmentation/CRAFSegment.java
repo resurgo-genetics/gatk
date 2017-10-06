@@ -20,7 +20,7 @@ public class CRAFSegment implements Locatable {
                        final double meanLog2CopyRatio) {
         Utils.nonNull(interval);
         Utils.validateArg(numPointsCopyRatio > 0 || numPointsAlleleFraction > 0,
-                "Number of copy-ratio points or number of allele-fraction points must be positive.");
+                String.format("Number of copy-ratio points or number of allele-fraction points must be positive: %s", interval));
         this.interval = interval;
         this.numPointsCopyRatio = numPointsCopyRatio;
         this.numPointsAlleleFraction = numPointsAlleleFraction;

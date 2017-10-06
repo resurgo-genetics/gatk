@@ -7,11 +7,9 @@ import org.broadinstitute.hellbender.tools.copynumber.allelic.alleliccount.Allel
 import org.broadinstitute.hellbender.tools.copynumber.allelic.alleliccount.AllelicCountCollection;
 import org.broadinstitute.hellbender.tools.copynumber.allelic.model.AlleleFractionModeller;
 import org.broadinstitute.hellbender.tools.copynumber.allelic.model.AlleleFractionPrior;
-import org.broadinstitute.hellbender.tools.copynumber.allelic.model.AlleleFractionSegmentedData;
 import org.broadinstitute.hellbender.tools.copynumber.coverage.copyratio.CopyRatio;
 import org.broadinstitute.hellbender.tools.copynumber.coverage.copyratio.CopyRatioCollection;
 import org.broadinstitute.hellbender.tools.copynumber.coverage.model.CopyRatioModeller;
-import org.broadinstitute.hellbender.tools.copynumber.coverage.model.CopyRatioSegmentedData;
 import org.broadinstitute.hellbender.tools.copynumber.multidimensional.segmentation.CRAFSegmentCollection;
 import org.broadinstitute.hellbender.utils.SimpleInterval;
 import org.broadinstitute.hellbender.utils.Utils;
@@ -171,7 +169,7 @@ public final class CRAFModeller {
                                            final double intervalThresholdMinorAlleleFraction,
                                            final boolean doModelFit) {
         logger.info("Number of segments before smoothing iteration: " + modeledSegments.size());
-        final List<ModeledSegment> mergedSegments = SimilarSegments.mergeSimilarSegments(modeledSegments, intervalThresholdSegmentMean, intervalThresholdMinorAlleleFraction);
+        final List<ModeledSegment> mergedSegments = SimilarSegmentUtils.mergeSimilarSegments(modeledSegments, intervalThresholdSegmentMean, intervalThresholdMinorAlleleFraction);
         logger.info("Number of segments after smoothing iteration: " + mergedSegments.size());
         currentSegments = mergedSegments.stream().map(ModeledSegment::getInterval).collect(Collectors.toList());
         if (doModelFit) {
@@ -207,7 +205,7 @@ public final class CRAFModeller {
     /**
      * Contains private methods for similar-segment merging.
      */
-    private static final class SimilarSegments {
+    private static final class SimilarSegmentUtils {
         /**
          * Returns a new, modifiable list of segments with similar segments (i.e., adjacent segments with both
          * segment-mean and minor-allele-fractions posteriors similar; posteriors are similar if the difference between
@@ -226,9 +224,9 @@ public final class CRAFModeller {
                 final ModeledSegment segment1 = mergedSegments.get(index);
                 final ModeledSegment segment2 = mergedSegments.get(index + 1);
                 if (segment1.getContig().equals(segment2.getContig()) &&
-                        SimilarSegments.areSimilar(segment1, segment2,
+                        areSimilar(segment1, segment2,
                                 intervalThresholdSegmentMean, intervalThresholdMinorAlleleFraction)) {
-                    mergedSegments.set(index, SimilarSegments.merge(segment1, segment2));
+                    mergedSegments.set(index, merge(segment1, segment2));
                     mergedSegments.remove(index + 1);
                     index--; //if merge performed, stay on current segment during next iteration
                 }

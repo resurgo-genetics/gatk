@@ -10,6 +10,9 @@ import org.testng.annotations.Test;
 
 import java.io.File;
 
+/**
+ * @author Samuel Lee &lt;slee@broadinstitute.org&gt;
+ */
 public final class PlotDenoisedCopyRatiosIntegrationTest extends CommandLineProgramTest {
     private static final String TEST_SUB_DIR = toolsTestDir + "copynumber/legacy/plotting/";
 

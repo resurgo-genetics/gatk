@@ -3,7 +3,6 @@ package org.broadinstitute.hellbender.tools.copynumber.allelic.model;
 import htsjdk.samtools.util.OverlapDetector;
 import org.broadinstitute.hellbender.tools.copynumber.allelic.alleliccount.AllelicCount;
 import org.broadinstitute.hellbender.tools.copynumber.allelic.alleliccount.AllelicCountCollection;
-import org.broadinstitute.hellbender.tools.copynumber.formats.NamedSample;
 import org.broadinstitute.hellbender.tools.copynumber.formats.collections.LocatableCollection;
 import org.broadinstitute.hellbender.utils.IndexRange;
 import org.broadinstitute.hellbender.utils.SimpleInterval;

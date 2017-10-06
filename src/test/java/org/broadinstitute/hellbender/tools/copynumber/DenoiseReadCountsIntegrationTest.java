@@ -1,8 +1,7 @@
-package org.broadinstitute.hellbender.tools.copynumber.legacy;
+package org.broadinstitute.hellbender.tools.copynumber;
 
 import org.broadinstitute.hellbender.CommandLineProgramTest;
 import org.broadinstitute.hellbender.cmdline.StandardArgumentDefinitions;
-import org.broadinstitute.hellbender.tools.copynumber.DenoiseReadCounts;
 import org.broadinstitute.hellbender.tools.copynumber.coverage.copyratio.CopyRatioCollection;
 import org.broadinstitute.hellbender.tools.copynumber.formats.CopyNumberStandardArgument;
 import org.broadinstitute.hellbender.utils.test.ArgumentsBuilder;

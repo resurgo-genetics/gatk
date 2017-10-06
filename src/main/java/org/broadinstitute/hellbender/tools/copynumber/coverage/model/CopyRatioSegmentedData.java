@@ -23,7 +23,7 @@ import java.util.stream.IntStream;
  *
  * @author Samuel Lee &lt;slee@broadinstitute.org&gt;
  */
-public final class CopyRatioSegmentedData implements DataCollection {
+final class CopyRatioSegmentedData implements DataCollection {
     private final CopyRatioCollection copyRatios;
     private final List<SimpleInterval> segments;
     private final double minLog2CopyRatioValue;
