@@ -31,12 +31,10 @@ public final class SmithWatermanIntelAligner implements SmithWatermanAligner {
      * Create a new SW native pairwise aligner
      */
     public SmithWatermanIntelAligner() {
-
         final boolean isSupported = SmithWaterman.load(null);
         if (!isSupported) {
             throw new UserException.HardwareFeatureException("Machine does not support AVX SmithWaterman.");
         }
-
     }
 
     /**
@@ -47,9 +45,14 @@ public final class SmithWatermanIntelAligner implements SmithWatermanAligner {
      */
     @Override
     public SmithWatermanAlignment align(final byte[] reference, final byte[] alternate, final SWParameters parameters, final SWOverhangStrategy overhangStrategy) {
-
         return alignerWrapper.align(reference, alternate,parameters,overhangStrategy);
-
     }
 
+    /**
+     * Close the aligner
+     */
+    @Override
+    public void close() {
+        alignerWrapper.close();
+    }
 }

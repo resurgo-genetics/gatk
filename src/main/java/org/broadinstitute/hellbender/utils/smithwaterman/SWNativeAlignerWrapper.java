@@ -19,6 +19,7 @@ import java.util.List;
  */
 public final class SWNativeAlignerWrapper implements SmithWatermanAligner {
     private final SWAlignerNativeBinding aligner;
+    private long totalComputeTime = 0;
 
     public SWNativeAlignerWrapper(final SWAlignerNativeBinding aligner) {
         this.aligner = aligner;
@@ -26,6 +27,7 @@ public final class SWNativeAlignerWrapper implements SmithWatermanAligner {
 
     @Override
     public SmithWatermanAlignment align(final byte[] reference, final byte[] alternate, final SWParameters parameters, final SWOverhangStrategy overhangStrategy){
+        long startTime = System.nanoTime();
 
         Utils.nonNull(parameters);
         Utils.nonNull(overhangStrategy);
@@ -38,22 +40,30 @@ public final class SWNativeAlignerWrapper implements SmithWatermanAligner {
             matchIndex = Utils.lastIndexOf(reference, alternate);
         }
 
+        final SmithWatermanAlignment alignmentResult;
+
         if (matchIndex != -1) {
             // generate the alignment result when the substring search was successful
             final List<CigarElement> lce = new ArrayList<>(alternate.length);
             lce.add(new CigarElement(alternate.length, CigarOperator.M));
-            return new SWNativeResultWrapper(AlignmentUtils.consolidateCigar(new Cigar(lce)), matchIndex);
+            alignmentResult = new SWNativeResultWrapper(AlignmentUtils.consolidateCigar(new Cigar(lce)), matchIndex);
         }
         else {
             // run full Smith-Waterman
             final SWNativeAlignerResult alignment = aligner.align(reference, alternate,parameters,overhangStrategy);
-            return new SWNativeResultWrapper(alignment);
+            alignmentResult =  new SWNativeResultWrapper(alignment);
         }
 
+        totalComputeTime += System.nanoTime() - startTime;
+        return alignmentResult;
     }
 
+    /**
+     * Report total compute time and close aligner
+     */
     @Override
     public void close() {
+        logger.info(String.format("Total compute time in native Smith-Waterman : %.2f sec", totalComputeTime * 1e-9));
         aligner.close();
     }
 
@@ -81,6 +91,4 @@ public final class SWNativeAlignerWrapper implements SmithWatermanAligner {
             return alignmentOffset;
         }
     }
-
-
 }

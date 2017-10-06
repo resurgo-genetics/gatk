@@ -196,7 +196,7 @@ dependencies {
     // Dependency change for including MLLib
     compile('com.esotericsoftware:reflectasm:1.10.0:shaded')
 
-    compile('com.intel.gkl:gkl:0.5.5-5-g3af6084-SNAPSHOT') {
+    compile('com.intel.gkl:gkl:0.6.0-12-g8105880-SNAPSHOT') {
         exclude module: 'htsjdk'
     }
 

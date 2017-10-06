@@ -12,8 +12,7 @@ import java.util.function.Supplier;
  * Interface and factory for Smith-Waterman aligners
  */
 public interface SmithWatermanAligner extends Closeable {
-
-    static final Logger logger = LogManager.getLogger(SmithWatermanAligner.class);
+    Logger logger = LogManager.getLogger(SmithWatermanAligner.class);
 
     // match=1, mismatch = -1/3, gap=-(1+k/3)
     SWParameters ORIGINAL_DEFAULT = new SWParameters(3, -1, -4, -3);
@@ -43,21 +42,10 @@ public interface SmithWatermanAligner extends Closeable {
 
     enum Implementation {
         /**
-         * use the AVX enabled  Smith-Waterman aligner that runs on your hardware
-         */
-
-        AVX_ENABLED( () ->{
-                final SmithWatermanIntelAligner aligner = new SmithWatermanIntelAligner();
-                logger.info("Using AVX acclerated SmithWaterman implementation");
-                return aligner;
-            }
-        ),
-
-        /**
          * use the fastest available Smith-Waterman aligner that runs on your hardware
          */
 
-        FASTEST_AVAILABLE( () ->{
+        FASTEST_AVAILABLE( () -> {
             try {
                 final SmithWatermanIntelAligner aligner = new SmithWatermanIntelAligner();
                 logger.info("Using AVX acclerated SmithWaterman implementation");
@@ -67,6 +55,16 @@ public interface SmithWatermanAligner extends Closeable {
                 return SmithWatermanJavaAligner.getInstance();
             }
         }),
+
+        /**
+         * use the AVX enabled Smith-Waterman aligner
+         */
+        AVX_ENABLED( () -> {
+            final SmithWatermanIntelAligner aligner = new SmithWatermanIntelAligner();
+            logger.info("Using AVX acclerated SmithWaterman implementation");
+            return aligner;
+        }
+        ),
 
         /**
          * use the pure java implementation of Smith-Waterman, works on all hardware
