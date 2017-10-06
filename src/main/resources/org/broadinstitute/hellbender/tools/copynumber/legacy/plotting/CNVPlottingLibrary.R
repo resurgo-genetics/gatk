@@ -45,10 +45,10 @@ PlotCopyRatiosWithModeledSegments = function(denoised_copy_ratios_df, modeled_se
        colors = c("coral", "dodgerblue")
        points(x=genomic_coordinates, y=denoised_copy_ratios, col=colors[s %% 2 + 1], pch=".", cex=point_size)
 
-       copy_ratio_posterior_mode = 2^modeled_segments_df[s, "LOG2_COPY_RATIO_POSTERIOR_MODE"]
        copy_ratio_posterior_10 = 2^modeled_segments_df[s, "LOG2_COPY_RATIO_POSTERIOR_10"]
+       copy_ratio_posterior_50 = 2^modeled_segments_df[s, "LOG2_COPY_RATIO_POSTERIOR_50"]
        copy_ratio_posterior_90 = 2^modeled_segments_df[s, "LOG2_COPY_RATIO_POSTERIOR_90"]
-       segments(x0=segment_start, y0=copy_ratio_posterior_mode, x1=segment_end, y1=copy_ratio_posterior_mode, col="black", lwd=2, lty=1)
+       segments(x0=segment_start, y0=copy_ratio_posterior_50, x1=segment_end, y1=copy_ratio_posterior_50, col="black", lwd=2, lty=1)
        rect(xleft=segment_start, ybottom=copy_ratio_posterior_10, xright=segment_end, ytop=copy_ratio_posterior_90, lwd=1, lty=1)
 
        points_start_index = points_start_index + num_points
@@ -78,16 +78,16 @@ PlotAlternateAlleleFractionsWithModeledSegments = function(allelic_counts_df, mo
        colors = c("coral", "dodgerblue")
        points(x=genomic_coordinates, y=alternate_allele_fractions, col=colors[s %% 2 + 1], pch=".", cex=point_size)
 
-       minor_allele_fraction_posterior_mode = modeled_segments_df[s, "MINOR_ALLELE_FRACTION_POSTERIOR_MODE"]
        minor_allele_fraction_posterior_10 = modeled_segments_df[s, "MINOR_ALLELE_FRACTION_POSTERIOR_10"]
+       minor_allele_fraction_posterior_50 = modeled_segments_df[s, "MINOR_ALLELE_FRACTION_POSTERIOR_50"]
        minor_allele_fraction_posterior_90 = modeled_segments_df[s, "MINOR_ALLELE_FRACTION_POSTERIOR_90"]
-       segments(x0=segment_start, y0=minor_allele_fraction_posterior_mode, x1=segment_end, y1=minor_allele_fraction_posterior_mode, col="black", lwd=2, lty=1)
+       segments(x0=segment_start, y0=minor_allele_fraction_posterior_50, x1=segment_end, y1=minor_allele_fraction_posterior_50, col="black", lwd=2, lty=1)
        rect(xleft=segment_start, ybottom=minor_allele_fraction_posterior_10, xright=segment_end, ytop=minor_allele_fraction_posterior_90, lwd=1, lty=1)
 
-       major_allele_fraction_posterior_mode = 1 - minor_allele_fraction_posterior_mode
        major_allele_fraction_posterior_10 = 1 - minor_allele_fraction_posterior_10
+       major_allele_fraction_posterior_50 = 1 - minor_allele_fraction_posterior_50
        major_allele_fraction_posterior_90 = 1 - minor_allele_fraction_posterior_90
-       segments(x0=segment_start, y0=major_allele_fraction_posterior_mode, x1=segment_end, y1=major_allele_fraction_posterior_mode, col="black", lwd=2, lty=1)
+       segments(x0=segment_start, y0=major_allele_fraction_posterior_50, x1=segment_end, y1=major_allele_fraction_posterior_50, col="black", lwd=2, lty=1)
        rect(xleft=segment_start, ybottom=major_allele_fraction_posterior_90, xright=segment_end, ytop=major_allele_fraction_posterior_10, lwd=1, lty=1)
 
        points_start_index = points_start_index + num_points

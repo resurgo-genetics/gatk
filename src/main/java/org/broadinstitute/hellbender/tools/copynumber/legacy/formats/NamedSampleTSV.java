@@ -21,7 +21,7 @@ import java.util.stream.Collectors;
  *
  * @author Samuel Lee &lt;slee@broadinstitute.org&gt;
  */
-public abstract class NamedSampleTSV<T> implements NamedSampleFile {
+public abstract class NamedSampleTSV<T> {
     private final String sampleName;
     private final List<T> records;
     private final TableColumnCollection mandatoryColumns;

@@ -181,8 +181,8 @@ final class SegmentUnioner {
         final ListIterator<SimpleInterval> segmentsIter = combinedSegments.listIterator();
         while (segmentsIter.hasNext()) {
             final SimpleInterval segment = segmentsIter.next();
-            //do not remerge segments containing points of the other type
-            if (secondTypeOverlapDetector.overlapsAny(segment)) {
+            //do not remerge segments containing points of the other type or segments from the original segmentation
+            if (secondTypeOverlapDetector.overlapsAny(segment) || originalFirstTypeSegments.getIntervals().contains(segment)) {
                 mergedSegments.add(segment);
                 continue;
             }
@@ -199,7 +199,7 @@ final class SegmentUnioner {
                 final int previousIndex = mergedSegments.size() - 1;
                 final SimpleInterval previousSegment = mergedSegments.get(previousIndex);
                 mergedSegments.set(previousIndex, mergeSegments(previousSegment, segment));
-            } else {
+            } else if (!originalFirstTypeSegmentStarts.contains(segmentStart) && !originalFirstTypeSegmentEnds.contains(segmentEnd)) {
                 //remerge segments introduced in the middle by examining adjacent segments
                 logger.debug(String.format("Merging spurious middle segment: %s (number of data points = %d)",
                         segment, firstTypeOverlapDetector.getOverlaps(segment).size()));
