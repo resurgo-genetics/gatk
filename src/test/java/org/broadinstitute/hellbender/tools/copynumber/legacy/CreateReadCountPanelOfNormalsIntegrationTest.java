@@ -1,6 +1,7 @@
 package org.broadinstitute.hellbender.tools.copynumber.legacy;
 
 import org.broadinstitute.hellbender.CommandLineProgramTest;
+import org.broadinstitute.hellbender.tools.copynumber.CreateReadCountPanelOfNormals;
 
 /**
  * Integration test for {@link CreateReadCountPanelOfNormals}.

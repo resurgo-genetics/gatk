@@ -2,8 +2,9 @@ package org.broadinstitute.hellbender.tools.copynumber.legacy;
 
 import org.broadinstitute.hellbender.CommandLineProgramTest;
 import org.broadinstitute.hellbender.cmdline.StandardArgumentDefinitions;
-import org.broadinstitute.hellbender.tools.copynumber.legacy.coverage.caller.CalledCopyRatioSegmentCollection;
-import org.broadinstitute.hellbender.tools.copynumber.legacy.formats.CopyNumberStandardArgument;
+import org.broadinstitute.hellbender.tools.copynumber.CallCopyRatioSegments;
+import org.broadinstitute.hellbender.tools.copynumber.coverage.caller.CalledCopyRatioSegmentCollection;
+import org.broadinstitute.hellbender.tools.copynumber.formats.CopyNumberStandardArgument;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 

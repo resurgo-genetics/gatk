@@ -2,8 +2,9 @@ package org.broadinstitute.hellbender.tools.copynumber.legacy;
 
 import org.broadinstitute.hellbender.CommandLineProgramTest;
 import org.broadinstitute.hellbender.cmdline.StandardArgumentDefinitions;
-import org.broadinstitute.hellbender.tools.copynumber.legacy.coverage.copyratio.CopyRatioCollection;
-import org.broadinstitute.hellbender.tools.copynumber.legacy.formats.CopyNumberStandardArgument;
+import org.broadinstitute.hellbender.tools.copynumber.DenoiseReadCounts;
+import org.broadinstitute.hellbender.tools.copynumber.coverage.copyratio.CopyRatioCollection;
+import org.broadinstitute.hellbender.tools.copynumber.formats.CopyNumberStandardArgument;
 import org.broadinstitute.hellbender.utils.test.ArgumentsBuilder;
 import org.testng.Assert;
 import org.testng.annotations.DataProvider;
