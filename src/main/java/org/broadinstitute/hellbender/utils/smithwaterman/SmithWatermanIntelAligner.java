@@ -10,14 +10,14 @@ import org.broadinstitute.hellbender.exceptions.UserException;
 
 public final class SmithWatermanIntelAligner implements SmithWatermanAligner {
 
-    private static final SmithWatermanIntelAligner ALIGNER = new SmithWatermanIntelAligner();
+    //private static final SmithWatermanIntelAligner ALIGNER = new SmithWatermanIntelAligner();
 
     /**
      * return the stateless singleton instance of SmithWatermanIntelAligner
      */
-    public static SmithWatermanIntelAligner getInstance() {
-        return ALIGNER;
-    }
+    //public static SmithWatermanIntelAligner getInstance() {
+    //    return ALIGNER;
+    //}
 
     private final SWAlignerNativeBinding SmithWaterman = new IntelSmithWaterman();
 
