@@ -1,10 +1,6 @@
 package org.broadinstitute.hellbender.tools.copynumber.legacy.formats;
 
-import htsjdk.samtools.util.Locatable;
-import htsjdk.samtools.util.OverlapDetector;
 import org.broadinstitute.hellbender.exceptions.UserException;
-import org.broadinstitute.hellbender.utils.IntervalUtils;
-import org.broadinstitute.hellbender.utils.SimpleInterval;
 import org.broadinstitute.hellbender.utils.Utils;
 import org.broadinstitute.hellbender.utils.io.IOUtils;
 import org.broadinstitute.hellbender.utils.tsv.*;
@@ -13,24 +9,19 @@ import java.io.File;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.List;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
- * Represents a coordinate-sorted collection of records that extend {@link Locatable}
- * (although contigs are assumed to be non-null when writing to file) associated with a sample name, a set of
+ * Represents a collection of records associated with a sample name, a set of
  * mandatory column headers given by a {@link TableColumnCollection}, and lambdas for
- * reading and writing records.  Records are sorted using {@link IntervalUtils#LEXICOGRAPHICAL_ORDER_COMPARATOR}.
- * See TSVLocatableCollectionUnitTest for a simple example of a subclass.
+ * reading and writing records.
  *
  * @author Samuel Lee &lt;slee@broadinstitute.org&gt;
  */
-public abstract class TSVLocatableCollection<T extends Locatable> {
-    public static final Comparator<Locatable> LEXICOGRAPHICAL_ORDER_COMPARATOR = IntervalUtils.LEXICOGRAPHICAL_ORDER_COMPARATOR;
-
+public abstract class NamedSampleTSV<T> implements NamedSampleFile {
     private final String sampleName;
     private final List<T> records;
     private final TableColumnCollection mandatoryColumns;
@@ -40,15 +31,14 @@ public abstract class TSVLocatableCollection<T extends Locatable> {
     /**
      * Constructor given the sample name, the list of records, the mandatory column headers,
      * and the lambdas for reading and writing records.
-     * Records are sorted using {@code LEXICOGRAPHICAL_ORDER_COMPARATOR}.
      */
-    public TSVLocatableCollection(final String sampleName,
-                                  final List<T> records,
-                                  final TableColumnCollection mandatoryColumns,
-                                  final Function<DataLine, T> dataLineToRecordFunction,
-                                  final BiConsumer<T, DataLine> recordAndDataLineBiConsumer) {
+    public NamedSampleTSV(final String sampleName,
+                          final List<T> records,
+                          final TableColumnCollection mandatoryColumns,
+                          final Function<DataLine, T> dataLineToRecordFunction,
+                          final BiConsumer<T, DataLine> recordAndDataLineBiConsumer) {
         this.sampleName = Utils.nonNull(sampleName);
-        this.records = Utils.nonNull(records).stream().sorted(LEXICOGRAPHICAL_ORDER_COMPARATOR).collect(Collectors.toList());
+        this.records = Utils.nonNull(records);
         this.mandatoryColumns = Utils.nonNull(mandatoryColumns);
         this.dataLineToRecordFunction = Utils.nonNull(dataLineToRecordFunction);
         this.recordAndDataLineBiConsumer = Utils.nonNull(recordAndDataLineBiConsumer);
@@ -58,12 +48,11 @@ public abstract class TSVLocatableCollection<T extends Locatable> {
      * Constructor given an input file, the mandatory column headers, and the lambdas for reading and writing records.
      * The sample name is read from a comment string in the file and the list of records is read using
      * the column headers and the appropriate lambda.
-     * @throws UserException.BadInput if records are not sorted using {@code LEXICOGRAPHICAL_ORDER_COMPARATOR}
      */
-    public TSVLocatableCollection(final File inputFile,
-                                  final TableColumnCollection mandatoryColumns,
-                                  final Function<DataLine, T> dataLineToRecordFunction,
-                                  final BiConsumer<T, DataLine> recordAndDataLineBiConsumer) {
+    public NamedSampleTSV(final File inputFile,
+                          final TableColumnCollection mandatoryColumns,
+                          final Function<DataLine, T> dataLineToRecordFunction,
+                          final BiConsumer<T, DataLine> recordAndDataLineBiConsumer) {
         IOUtils.canReadFile(inputFile);
         this.mandatoryColumns = Utils.nonNull(mandatoryColumns);
         this.dataLineToRecordFunction = Utils.nonNull(dataLineToRecordFunction);
@@ -72,11 +61,7 @@ public abstract class TSVLocatableCollection<T extends Locatable> {
         try (final TSVReader reader = new TSVReader(inputFile)) {
             TableUtils.checkMandatoryColumns(reader.columns(), mandatoryColumns, UserException.BadInput::new);
             sampleName = reader.readSampleName();
-            final List<T> recordsFromFile = reader.stream().collect(Collectors.toList());
-            records = recordsFromFile.stream().sorted(LEXICOGRAPHICAL_ORDER_COMPARATOR).collect(Collectors.toList());
-            if (!recordsFromFile.equals(records)) {
-                throw new UserException.BadInput(String.format("Records in input file %s were not sorted in lexicographical order.", inputFile));
-            }
+            records = reader.stream().collect(Collectors.toList());
         } catch (final IOException | UncheckedIOException e) {
             throw new UserException.CouldNotReadInputFile(inputFile, e);
         }
@@ -95,20 +80,6 @@ public abstract class TSVLocatableCollection<T extends Locatable> {
      */
     public List<T> getRecords() {
         return Collections.unmodifiableList(records);
-    }
-
-    /**
-     * @return  a new modifiable list of {@link SimpleInterval}s corresponding to the {@link Locatable}s
-     *          for each record contained in the collection
-     */
-    public List<SimpleInterval> getIntervals() {
-        return records.stream()
-                .map(r -> new SimpleInterval(r.getContig(), r.getStart(), r.getEnd()))
-                .collect(Collectors.toList());
-    }
-
-    public OverlapDetector<T> getOverlapDetector() {
-        return OverlapDetector.create(records);
     }
 
     /**
@@ -132,7 +103,7 @@ public abstract class TSVLocatableCollection<T extends Locatable> {
             return false;
         }
 
-        final TSVLocatableCollection<?> that = (TSVLocatableCollection<?>) o;
+        final NamedSampleTSV<?> that = (NamedSampleTSV<?>) o;
 
         return sampleName.equals(that.sampleName) && records.equals(that.records);
     }

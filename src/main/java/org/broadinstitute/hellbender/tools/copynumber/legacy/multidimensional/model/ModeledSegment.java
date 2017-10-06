@@ -4,7 +4,9 @@ import htsjdk.samtools.util.Locatable;
 import org.broadinstitute.hellbender.utils.SimpleInterval;
 import org.broadinstitute.hellbender.utils.Utils;
 import org.broadinstitute.hellbender.utils.mcmc.Decile;
-import org.broadinstitute.hellbender.utils.mcmc.PosteriorSummary;
+import org.broadinstitute.hellbender.utils.mcmc.DecileCollection;
+
+import java.util.List;
 
 public class ModeledSegment implements Locatable {
     private final SimpleInterval interval;
@@ -26,30 +28,6 @@ public class ModeledSegment implements Locatable {
         this.numPointsAlleleFraction = numPointsAlleleFraction;
         this.log2CopyRatioSimplePosteriorSummary = Utils.nonNull(log2CopyRatioSimplePosteriorSummary);
         this.minorAlleleFractionSimplePosteriorSummary = Utils.nonNull(minorAlleleFractionSimplePosteriorSummary);
-    }
-
-    public ModeledSegment(final SimpleInterval interval,
-                          final int numPointsCopyRatio,
-                          final int numPointsAlleleFraction,
-                          final PosteriorSummary log2CopyRatioPosteriorSummary,
-                          final PosteriorSummary minorAlleleFractionPosteriorSummary) {
-        this.interval = Utils.nonNull(interval);
-        Utils.validateArg(numPointsCopyRatio > 0 || numPointsAlleleFraction > 0,
-                "Number of copy-ratio points or number of allele-fraction points must be positive.");
-        Utils.nonNull(log2CopyRatioPosteriorSummary);
-        Utils.nonNull(minorAlleleFractionPosteriorSummary);
-        this.numPointsCopyRatio = numPointsCopyRatio;
-        this.numPointsAlleleFraction = numPointsAlleleFraction;
-        log2CopyRatioSimplePosteriorSummary = new SimplePosteriorSummary(
-                log2CopyRatioPosteriorSummary.getCenter(),
-                log2CopyRatioPosteriorSummary.getDeciles().get(Decile.DECILE_10),
-                log2CopyRatioPosteriorSummary.getDeciles().get(Decile.DECILE_50),
-                log2CopyRatioPosteriorSummary.getDeciles().get(Decile.DECILE_90));
-        minorAlleleFractionSimplePosteriorSummary = new SimplePosteriorSummary(
-                minorAlleleFractionPosteriorSummary.getCenter(),
-                minorAlleleFractionPosteriorSummary.getDeciles().get(Decile.DECILE_10),
-                minorAlleleFractionPosteriorSummary.getDeciles().get(Decile.DECILE_50),
-                minorAlleleFractionPosteriorSummary.getDeciles().get(Decile.DECILE_90));
     }
 
     @Override
@@ -88,23 +66,23 @@ public class ModeledSegment implements Locatable {
     }
 
     public static final class SimplePosteriorSummary {
-        private final double mode;
         private final double decile10;
         private final double decile50;
         private final double decile90;
 
-        public SimplePosteriorSummary(final double mode,
-                                      final double decile10,
+        public SimplePosteriorSummary(final double decile10,
                                       final double decile50,
                                       final double decile90) {
-            this.mode = mode;
             this.decile10 = decile10;
             this.decile50 = decile50;
             this.decile90 = decile90;
         }
 
-        public double getMode() {
-            return mode;
+        public SimplePosteriorSummary(final List<Double> samples) {
+            final DecileCollection deciles = new DecileCollection(samples);
+            this.decile10 = deciles.get(Decile.DECILE_10);
+            this.decile50 = deciles.get(Decile.DECILE_50);
+            this.decile90 = deciles.get(Decile.DECILE_90);
         }
 
         public double getDecile10() {
@@ -122,8 +100,7 @@ public class ModeledSegment implements Locatable {
         @Override
         public String toString() {
             return "SimplePosteriorSummary{" +
-                    "mode=" + mode +
-                    ", decile10=" + decile10 +
+                    "decile10=" + decile10 +
                     ", decile50=" + decile50 +
                     ", decile90=" + decile90 +
                     '}';

@@ -1,6 +1,6 @@
 package org.broadinstitute.hellbender.tools.copynumber.legacy.allelic.segmentation;
 
-import org.broadinstitute.hellbender.tools.copynumber.legacy.formats.TSVLocatableCollection;
+import org.broadinstitute.hellbender.tools.copynumber.legacy.formats.LocatableCollectionTSV;
 import org.broadinstitute.hellbender.utils.SimpleInterval;
 import org.broadinstitute.hellbender.utils.tsv.DataLine;
 import org.broadinstitute.hellbender.utils.tsv.TableColumnCollection;
@@ -15,7 +15,7 @@ import java.util.function.Function;
  *
  * @author Samuel Lee &lt;slee@broadinstitute.org&gt;
  */
-public final class AlleleFractionSegmentCollection extends TSVLocatableCollection<AlleleFractionSegment> {
+public final class AlleleFractionSegmentCollection extends LocatableCollectionTSV<AlleleFractionSegment> {
     enum AlleleFractionSegmentTableColumn {
         CONTIG,
         START,

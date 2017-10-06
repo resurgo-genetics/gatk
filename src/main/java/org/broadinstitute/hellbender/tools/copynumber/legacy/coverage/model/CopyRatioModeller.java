@@ -1,8 +1,13 @@
 package org.broadinstitute.hellbender.tools.copynumber.legacy.coverage.model;
 
-import org.apache.spark.api.java.JavaSparkContext;
+import org.broadinstitute.hellbender.tools.copynumber.legacy.formats.ParameterDecileCollection;
+import org.broadinstitute.hellbender.tools.copynumber.legacy.multidimensional.model.CRAFModeller;
+import org.broadinstitute.hellbender.tools.copynumber.legacy.multidimensional.model.ModeledSegment;
 import org.broadinstitute.hellbender.utils.Utils;
-import org.broadinstitute.hellbender.utils.mcmc.*;
+import org.broadinstitute.hellbender.utils.mcmc.DecileCollection;
+import org.broadinstitute.hellbender.utils.mcmc.GibbsSampler;
+import org.broadinstitute.hellbender.utils.mcmc.ParameterSampler;
+import org.broadinstitute.hellbender.utils.mcmc.ParameterizedModel;
 import org.broadinstitute.hellbender.utils.param.ParamUtils;
 
 import java.util.*;
@@ -20,6 +25,8 @@ import java.util.stream.Collectors;
  * @author Samuel Lee &lt;slee@broadinstitute.org&gt;
  */
 public final class CopyRatioModeller {
+    private static final String DOUBLE_FORMAT = CRAFModeller.DOUBLE_FORMAT;
+
     private static final double EPSILON = 1E-10;
     private static final double LOG2_COPY_RATIO_MIN = -100.;
     private static final double LOG2_COPY_RATIO_MAX = 100.;
@@ -30,6 +37,7 @@ public final class CopyRatioModeller {
     private static final double OUTLIER_PROBABILITY_PRIOR_ALPHA = 5.;
     private static final double OUTLIER_PROBABILITY_PRIOR_BETA = 95.;
 
+    private final String sampleName;
     private final ParameterizedModel<CopyRatioParameter, CopyRatioState, CopyRatioSegmentedData> model;
 
     private final List<Double> varianceSamples = new ArrayList<>();
@@ -43,6 +51,7 @@ public final class CopyRatioModeller {
      */
     public CopyRatioModeller(final CopyRatioSegmentedData data) {
         Utils.nonNull(data);
+        sampleName = data.getSampleName();
 
         //set widths for slice sampling of variance and segment-mean posteriors using empirical variance estimate.
         //variance posterior is inverse chi-squared, segment-mean posteriors are Gaussian; the below expressions
@@ -121,43 +130,33 @@ public final class CopyRatioModeller {
     }
 
     /**
-     * Returns a list of {@link PosteriorSummary} elements summarizing the segment-mean posterior for each segment.
      * Should only be called after {@link #fitMCMC} has been called.
-     * @param ctx                   {@link JavaSparkContext} used for mllib kernel density estimation
      */
-    public List<PosteriorSummary> getSegmentMeansPosteriorSummaries(final double credibleIntervalAlpha,
-                                                                    final JavaSparkContext ctx) {
-        ParamUtils.inRange(credibleIntervalAlpha, 0., 1., "Credible-interval alpha must be in [0, 1].");
-        Utils.nonNull(ctx);
+    public List<ModeledSegment.SimplePosteriorSummary> getSegmentMeansPosteriorSummaries() {
         if (segmentMeansSamples.isEmpty()) {
             throw new IllegalStateException("Attempted to get posterior summaries for segment means before MCMC was performed.");
         }
         final int numSegments = segmentMeansSamples.get(0).size();
-        final List<PosteriorSummary> posteriorSummaries = new ArrayList<>(numSegments);
+        final List<ModeledSegment.SimplePosteriorSummary> posteriorSummaries = new ArrayList<>(numSegments);
         for (int segment = 0; segment < numSegments; segment++) {
             final int j = segment;
             final List<Double> meanSamples =
                     segmentMeansSamples.stream().map(s -> s.get(j)).collect(Collectors.toList());
-            posteriorSummaries.add(PosteriorSummaryUtils.calculateHighestPosteriorDensityAndDecilesSummary(meanSamples, credibleIntervalAlpha, ctx));
+            posteriorSummaries.add(new ModeledSegment.SimplePosteriorSummary(meanSamples));
         }
         return posteriorSummaries;
     }
 
     /**
-     * Returns a Map of {@link PosteriorSummary} elements summarizing the global parameters.
      * Should only be called after {@link #fitMCMC} has been called.
-     * @param ctx                   {@link JavaSparkContext} used for mllib kernel density estimation
      */
-    public Map<CopyRatioParameter, PosteriorSummary> getGlobalParameterPosteriorSummaries(final double credibleIntervalAlpha,
-                                                                                          final JavaSparkContext ctx) {
-        ParamUtils.inRange(credibleIntervalAlpha, 0., 1., "Credible-interval alpha must be in [0, 1].");
-        Utils.nonNull(ctx);
+    public ParameterDecileCollection<CopyRatioParameter> getGlobalParameterDeciles() {
         if (varianceSamples.isEmpty()) {
             throw new IllegalStateException("Attempted to get posterior summaries for global parameters before MCMC was performed.");
         }
-        final Map<CopyRatioParameter, PosteriorSummary> posteriorSummaries = new LinkedHashMap<>();
-        posteriorSummaries.put(CopyRatioParameter.VARIANCE, PosteriorSummaryUtils.calculateHighestPosteriorDensityAndDecilesSummary(varianceSamples, credibleIntervalAlpha, ctx));
-        posteriorSummaries.put(CopyRatioParameter.OUTLIER_PROBABILITY, PosteriorSummaryUtils.calculateHighestPosteriorDensityAndDecilesSummary(outlierProbabilitySamples, credibleIntervalAlpha, ctx));
-        return posteriorSummaries;
+        final Map<CopyRatioParameter, DecileCollection> parameterToDecilesMap = new LinkedHashMap<>();
+        parameterToDecilesMap.put(CopyRatioParameter.VARIANCE, new DecileCollection(varianceSamples));
+        parameterToDecilesMap.put(CopyRatioParameter.OUTLIER_PROBABILITY, new DecileCollection(outlierProbabilitySamples));
+        return new ParameterDecileCollection<>(sampleName, parameterToDecilesMap, CopyRatioParameter.class, DOUBLE_FORMAT);
     }
 }

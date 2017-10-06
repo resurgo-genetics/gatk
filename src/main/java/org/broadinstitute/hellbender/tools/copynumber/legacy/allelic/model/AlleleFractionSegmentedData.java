@@ -3,7 +3,7 @@ package org.broadinstitute.hellbender.tools.copynumber.legacy.allelic.model;
 import htsjdk.samtools.util.OverlapDetector;
 import org.broadinstitute.hellbender.tools.copynumber.allelic.alleliccount.AllelicCount;
 import org.broadinstitute.hellbender.tools.copynumber.allelic.alleliccount.AllelicCountCollection;
-import org.broadinstitute.hellbender.tools.copynumber.legacy.formats.TSVLocatableCollection;
+import org.broadinstitute.hellbender.tools.copynumber.legacy.formats.LocatableCollectionTSV;
 import org.broadinstitute.hellbender.utils.IndexRange;
 import org.broadinstitute.hellbender.utils.SimpleInterval;
 import org.broadinstitute.hellbender.utils.Utils;
@@ -30,7 +30,7 @@ public final class AlleleFractionSegmentedData implements DataCollection {
     public AlleleFractionSegmentedData(final AllelicCountCollection allelicCounts,
                                        final List<SimpleInterval> segments) {
         this.allelicCounts = Utils.nonNull(allelicCounts);
-        this.segments = Utils.nonEmpty(segments).stream().sorted(TSVLocatableCollection.LEXICOGRAPHICAL_ORDER_COMPARATOR).collect(Collectors.toList());
+        this.segments = Utils.nonEmpty(segments).stream().sorted(LocatableCollectionTSV.LEXICOGRAPHICAL_ORDER_COMPARATOR).collect(Collectors.toList());
 
         indexedAllelicCounts = new ArrayList<>(allelicCounts.size());
         indexRangesPerSegment = new ArrayList<>(segments.size());
@@ -40,7 +40,7 @@ public final class AlleleFractionSegmentedData implements DataCollection {
         for (int segmentIndex = 0; segmentIndex < segments.size(); segmentIndex++) {
             final SimpleInterval segment = segments.get(segmentIndex);
             final List<AllelicCount> allelicCountsInSegment = allelicCountOverlapDetector.getOverlaps(segment).stream()
-                    .sorted(TSVLocatableCollection.LEXICOGRAPHICAL_ORDER_COMPARATOR)
+                    .sorted(LocatableCollectionTSV.LEXICOGRAPHICAL_ORDER_COMPARATOR)
                     .collect(Collectors.toList());
             final int segmentStartIndex = startIndex;
             final int si = segmentIndex;
@@ -62,6 +62,10 @@ public final class AlleleFractionSegmentedData implements DataCollection {
 
     int getNumPoints() {
         return allelicCounts.size();
+    }
+
+    String getSampleName() {
+        return allelicCounts.getSampleName();
     }
 
     List<IndexedAllelicCount> getIndexedAllelicCounts() {

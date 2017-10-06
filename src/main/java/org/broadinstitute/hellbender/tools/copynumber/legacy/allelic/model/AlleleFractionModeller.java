@@ -1,9 +1,13 @@
 package org.broadinstitute.hellbender.tools.copynumber.legacy.allelic.model;
 
-import org.apache.spark.api.java.JavaSparkContext;
+import org.broadinstitute.hellbender.tools.copynumber.legacy.formats.ParameterDecileCollection;
+import org.broadinstitute.hellbender.tools.copynumber.legacy.multidimensional.model.CRAFModeller;
+import org.broadinstitute.hellbender.tools.copynumber.legacy.multidimensional.model.ModeledSegment;
 import org.broadinstitute.hellbender.utils.Utils;
-import org.broadinstitute.hellbender.utils.mcmc.*;
-import org.broadinstitute.hellbender.utils.param.ParamUtils;
+import org.broadinstitute.hellbender.utils.mcmc.DecileCollection;
+import org.broadinstitute.hellbender.utils.mcmc.GibbsSampler;
+import org.broadinstitute.hellbender.utils.mcmc.ParameterSampler;
+import org.broadinstitute.hellbender.utils.mcmc.ParameterizedModel;
 
 import java.util.*;
 import java.util.function.Function;
@@ -42,10 +46,13 @@ import java.util.stream.IntStream;
  * @author David Benjamin &lt;davidben@broadinstitute.org&gt;
  */
 public final class AlleleFractionModeller {
+    private static final String DOUBLE_FORMAT = CRAFModeller.DOUBLE_FORMAT;
+
     private static final double MAX_REASONABLE_MEAN_BIAS = AlleleFractionInitializer.MAX_REASONABLE_MEAN_BIAS;
     private static final double MAX_REASONABLE_BIAS_VARIANCE = AlleleFractionInitializer.MAX_REASONABLE_BIAS_VARIANCE;
     private static final double MIN_MINOR_FRACTION_SAMPLING_WIDTH = 1E-3;
 
+    private final String sampleName;
     private final ParameterizedModel<AlleleFractionParameter, AlleleFractionState, AlleleFractionSegmentedData> model;
 
     private final List<Double> meanBiasSamples = new ArrayList<>();
@@ -57,13 +64,14 @@ public final class AlleleFractionModeller {
                                   final AlleleFractionPrior prior) {
         Utils.nonNull(data);
         Utils.nonNull(prior);
-        final AlleleFractionState initialState = new AlleleFractionInitializer(data).getInitializedState();
+        sampleName = data.getSampleName();
 
-        //initialization gets us to the mode of the likelihood;
-        //if we approximate conditionals as normal, we can guess the width from the curvature at the mode and use as the slice-sampling widths
+        //initialization gets us to the mode of the likelihood
+        final AlleleFractionState initialState = new AlleleFractionInitializer(data).getInitializedState();
         final AlleleFractionGlobalParameters initialParameters = initialState.globalParameters();
         final AlleleFractionState.MinorFractions initialMinorFractions = initialState.minorFractions();
 
+        //if we approximate conditionals as normal, we can guess the width from the curvature at the mode and use as the slice-sampling widths
         final double meanBiasSamplingWidths = approximatePosteriorWidthAtMode(meanBias ->
                 AlleleFractionLikelihoods.logLikelihood(initialParameters.copyWithNewMeanBias(meanBias), initialMinorFractions, data), initialParameters.getMeanBias());
         final double biasVarianceSamplingWidths = approximatePosteriorWidthAtMode(biasVariance ->
@@ -143,45 +151,35 @@ public final class AlleleFractionModeller {
     }
 
     /**
-     * Returns a list of {@link PosteriorSummary} elements summarizing the minor-allele-fraction posterior for each segment.
      * Should only be called after {@link #fitMCMC} has been called.
-     * @param ctx                   {@link JavaSparkContext} used for mllib kernel density estimation
      */
-    public List<PosteriorSummary> getMinorAlleleFractionsPosteriorSummaries(final double credibleIntervalAlpha,
-                                                                            final JavaSparkContext ctx) {
-        ParamUtils.inRange(credibleIntervalAlpha, 0., 1., "Credible-interval alpha must be in [0, 1].");
-        Utils.nonNull(ctx);
+    public List<ModeledSegment.SimplePosteriorSummary> getMinorAlleleFractionsPosteriorSummaries() {
         if (minorFractionsSamples.isEmpty()) {
             throw new IllegalStateException("Attempted to get posterior summaries for minor-allele fractions before MCMC was performed.");
         }
         final int numSegments = minorFractionsSamples.get(0).size();
-        final List<PosteriorSummary> posteriorSummaries = new ArrayList<>(numSegments);
+        final List<ModeledSegment.SimplePosteriorSummary> posteriorSummaries = new ArrayList<>(numSegments);
         for (int segment = 0; segment < numSegments; segment++) {
             final int j = segment;
             final List<Double> minorFractionSamples =
                     minorFractionsSamples.stream().map(s -> s.get(j)).collect(Collectors.toList());
-            posteriorSummaries.add(PosteriorSummaryUtils.calculateHighestPosteriorDensityAndDecilesSummary(minorFractionSamples, credibleIntervalAlpha, ctx));
+            posteriorSummaries.add(new ModeledSegment.SimplePosteriorSummary(minorFractionSamples));
         }
         return posteriorSummaries;
     }
 
     /**
-     * Returns a Map of {@link PosteriorSummary} elements summarizing the global parameters.
      * Should only be called after {@link #fitMCMC} has been called.
-     * @param ctx                   {@link JavaSparkContext} used for mllib kernel density estimation
      */
-    public Map<AlleleFractionParameter, PosteriorSummary> getGlobalParameterPosteriorSummaries(final double credibleIntervalAlpha,
-                                                                                               final JavaSparkContext ctx) {
-        ParamUtils.inRange(credibleIntervalAlpha, 0., 1., "Credible-interval alpha must be in [0, 1].");
-        Utils.nonNull(ctx);
+    public ParameterDecileCollection<AlleleFractionParameter> getGlobalParameterDeciles() {
         if (meanBiasSamples.isEmpty()) {
             throw new IllegalStateException("Attempted to get posterior summaries for global parameters before MCMC was performed.");
         }
-        final Map<AlleleFractionParameter, PosteriorSummary> posteriorSummaries = new LinkedHashMap<>();
-        posteriorSummaries.put(AlleleFractionParameter.MEAN_BIAS, PosteriorSummaryUtils.calculateHighestPosteriorDensityAndDecilesSummary(meanBiasSamples, credibleIntervalAlpha, ctx));
-        posteriorSummaries.put(AlleleFractionParameter.BIAS_VARIANCE, PosteriorSummaryUtils.calculateHighestPosteriorDensityAndDecilesSummary(biasVarianceSamples, credibleIntervalAlpha, ctx));
-        posteriorSummaries.put(AlleleFractionParameter.OUTLIER_PROBABILITY, PosteriorSummaryUtils.calculateHighestPosteriorDensityAndDecilesSummary(outlierProbabilitySamples, credibleIntervalAlpha, ctx));
-        return posteriorSummaries;
+        final Map<AlleleFractionParameter, DecileCollection> parameterToDecilesMap = new LinkedHashMap<>();
+        parameterToDecilesMap.put(AlleleFractionParameter.MEAN_BIAS, new DecileCollection(meanBiasSamples));
+        parameterToDecilesMap.put(AlleleFractionParameter.BIAS_VARIANCE, new DecileCollection(biasVarianceSamples));
+        parameterToDecilesMap.put(AlleleFractionParameter.OUTLIER_PROBABILITY, new DecileCollection(outlierProbabilitySamples));
+        return new ParameterDecileCollection<>(sampleName, parameterToDecilesMap, AlleleFractionParameter.class, DOUBLE_FORMAT);
     }
 
     //use width of a probability distribution given the position of its mode (estimated from Gaussian approximation) as step size

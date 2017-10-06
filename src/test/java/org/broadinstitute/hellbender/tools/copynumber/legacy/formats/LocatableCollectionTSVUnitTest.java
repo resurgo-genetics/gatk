@@ -19,16 +19,16 @@ import java.util.function.BiConsumer;
 import java.util.function.Function;
 
 /**
- * Unit tests for {@link TSVLocatableCollection}.
+ * Unit tests for {@link LocatableCollectionTSV}.
  *
  * @author Samuel Lee &lt;slee@broadinstitute.org&gt;
  */
-public final class TSVLocatableCollectionUnitTest extends BaseTest {
+public final class LocatableCollectionTSVUnitTest extends BaseTest {
     private static final String TEST_SUB_DIR = toolsTestDir + "copynumber/legacy/formats";
     private static final File SIMPLE_LOCATABLE_COLLECTION_FILE =
-            new File(TEST_SUB_DIR, "tsv-locatable-collection-simple-locatable-collection.tsv");
+            new File(TEST_SUB_DIR, "locatable-collection-tsv-simple-locatable-collection.tsv");
     private static final File SIMPLE_LOCATABLE_COLLECTION_NON_LEXICOGRAPHICAL_ORDER_FILE =
-            new File(TEST_SUB_DIR, "tsv-locatable-collection-simple-locatable-collection-non-lexicographical-order.tsv");
+            new File(TEST_SUB_DIR, "locatable-collection-tsv-simple-locatable-collection-non-lexicographical-order.tsv");
     private static final String SAMPLE_NAME_EXPECTED = "test";
 
     //simple example of a record class
@@ -86,7 +86,7 @@ public final class TSVLocatableCollectionUnitTest extends BaseTest {
     }
 
     //simple example of a collection class
-    private static final class SimpleLocatableCollection extends TSVLocatableCollection<SimpleLocatable> {
+    private static final class SimpleLocatableCollection extends LocatableCollectionTSV<SimpleLocatable> {
         enum SimpleLocatableTableColumn {
             CONTIG,
             START,

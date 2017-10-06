@@ -1,7 +1,7 @@
 package org.broadinstitute.hellbender.tools.copynumber.legacy.coverage.copyratio;
 
 import htsjdk.samtools.util.OverlapDetector;
-import org.broadinstitute.hellbender.tools.copynumber.legacy.formats.TSVLocatableCollection;
+import org.broadinstitute.hellbender.tools.copynumber.legacy.formats.LocatableCollectionTSV;
 import org.broadinstitute.hellbender.utils.SimpleInterval;
 import org.broadinstitute.hellbender.utils.tsv.DataLine;
 import org.broadinstitute.hellbender.utils.tsv.TableColumnCollection;
@@ -12,7 +12,7 @@ import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-public final class CopyRatioCollection extends TSVLocatableCollection<CopyRatio> {
+public final class CopyRatioCollection extends LocatableCollectionTSV<CopyRatio> {
     enum CopyRatioTableColumn {
         CONTIG,
         START,

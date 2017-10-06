@@ -4,7 +4,7 @@ import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
 import htsjdk.samtools.util.Locatable;
 import org.apache.logging.log4j.Logger;
-import org.broadinstitute.hellbender.tools.copynumber.legacy.formats.TSVLocatableCollection;
+import org.broadinstitute.hellbender.tools.copynumber.legacy.formats.LocatableCollectionTSV;
 import org.broadinstitute.hellbender.utils.SimpleInterval;
 import org.broadinstitute.hellbender.utils.Utils;
 import org.broadinstitute.hellbender.utils.reference.ReferenceUtils;
@@ -50,7 +50,7 @@ final class PlottingUtils {
 
     //validate contig names and lengths
     static <T extends Locatable> void validateContigs(final Map<String, Integer> contigLengthMap,
-                                                      final TSVLocatableCollection<T> tsvLocatableCollection,
+                                                      final LocatableCollectionTSV<T> tsvLocatableCollection,
                                                       final File file,
                                                       final Logger logger) {
         if (tsvLocatableCollection == null) {

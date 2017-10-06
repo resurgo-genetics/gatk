@@ -3,8 +3,11 @@ package org.broadinstitute.hellbender.tools.copynumber.legacy.allelic.model;
 import htsjdk.samtools.util.Log;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.broadinstitute.hellbender.engine.spark.SparkContextFactory;
+import org.broadinstitute.hellbender.tools.copynumber.legacy.formats.ParameterDecileCollection;
+import org.broadinstitute.hellbender.tools.copynumber.legacy.multidimensional.model.ModeledSegment;
 import org.broadinstitute.hellbender.utils.LoggingUtils;
-import org.broadinstitute.hellbender.utils.mcmc.PosteriorSummary;
+import org.broadinstitute.hellbender.utils.mcmc.Decile;
+import org.broadinstitute.hellbender.utils.mcmc.DecileCollection;
 import org.broadinstitute.hellbender.utils.test.BaseTest;
 import org.testng.Assert;
 import org.testng.annotations.Test;
@@ -98,24 +101,22 @@ public final class AlleleFractionModellerUnitTest extends BaseTest {
         Assert.assertEquals(totalSegmentError / numSegments, 0.0, minorFractionTolerance);
 
         //test posterior summaries
-        final Map<AlleleFractionParameter, PosteriorSummary> globalParameterPosteriorSummaries =
-                modeller.getGlobalParameterPosteriorSummaries(CREDIBLE_INTERVAL_ALPHA, ctx);
+        final ParameterDecileCollection<AlleleFractionParameter> globalParameterDeciles = modeller.getGlobalParameterDeciles();
 
-        final PosteriorSummary meanBiasPosteriorSummary = globalParameterPosteriorSummaries.get(AlleleFractionParameter.MEAN_BIAS);
-        final double meanBiasPosteriorCenter = meanBiasPosteriorSummary.getCenter();
+        final DecileCollection meanBiasDeciles = globalParameterDeciles.getDeciles(AlleleFractionParameter.MEAN_BIAS);
+        final double meanBiasPosteriorCenter = meanBiasDeciles.get(Decile.DECILE_50);
         Assert.assertEquals(meanBiasPosteriorCenter, meanBiasExpected, meanBiasTolerance);
 
-        final PosteriorSummary biasVariancePosteriorSummary = globalParameterPosteriorSummaries.get(AlleleFractionParameter.BIAS_VARIANCE);
-        final double biasVariancePosteriorCenter = biasVariancePosteriorSummary.getCenter();
+        final DecileCollection biasVarianceDeciles = globalParameterDeciles.getDeciles(AlleleFractionParameter.BIAS_VARIANCE);
+        final double biasVariancePosteriorCenter = biasVarianceDeciles.get(Decile.DECILE_50);
         Assert.assertEquals(biasVariancePosteriorCenter, biasVarianceExpected, biasVarianceTolerance);
 
-        final PosteriorSummary outlierProbabilityPosteriorSummary = globalParameterPosteriorSummaries.get(AlleleFractionParameter.OUTLIER_PROBABILITY);
-        final double outlierProbabilityPosteriorCenter = outlierProbabilityPosteriorSummary.getCenter();
+        final DecileCollection outlierProbabilityDeciles = globalParameterDeciles.getDeciles(AlleleFractionParameter.OUTLIER_PROBABILITY);
+        final double outlierProbabilityPosteriorCenter = outlierProbabilityDeciles.get(Decile.DECILE_50);
         Assert.assertEquals(outlierProbabilityPosteriorCenter, outlierProbability, outlierProbabilityTolerance);
 
-        final List<PosteriorSummary> minorAlleleFractionPosteriorSummaries =
-                modeller.getMinorAlleleFractionsPosteriorSummaries(CREDIBLE_INTERVAL_ALPHA, ctx);
-        final List<Double> minorFractionsPosteriorCenters = minorAlleleFractionPosteriorSummaries.stream().map(PosteriorSummary::getCenter).collect(Collectors.toList());
+        final List<ModeledSegment.SimplePosteriorSummary> minorAlleleFractionDeciles = modeller.getMinorAlleleFractionsPosteriorSummaries();
+        final List<Double> minorFractionsPosteriorCenters = minorAlleleFractionDeciles.stream().map(ModeledSegment.SimplePosteriorSummary::getDecile50).collect(Collectors.toList());
         double totalPosteriorCentersSegmentError = 0.0;
         for (int segment = 0; segment < numSegments; segment++) {
             totalPosteriorCentersSegmentError += Math.abs(minorFractionsPosteriorCenters.get(segment) - simulatedData.getTrueState().segmentMinorFraction(segment));

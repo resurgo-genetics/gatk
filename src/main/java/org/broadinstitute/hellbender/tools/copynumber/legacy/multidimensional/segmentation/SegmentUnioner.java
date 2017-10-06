@@ -14,7 +14,7 @@ import org.broadinstitute.hellbender.tools.copynumber.legacy.allelic.segmentatio
 import org.broadinstitute.hellbender.tools.copynumber.legacy.coverage.copyratio.CopyRatio;
 import org.broadinstitute.hellbender.tools.copynumber.legacy.coverage.copyratio.CopyRatioCollection;
 import org.broadinstitute.hellbender.tools.copynumber.legacy.coverage.segmentation.CopyRatioSegmentCollection;
-import org.broadinstitute.hellbender.tools.copynumber.legacy.formats.TSVLocatableCollection;
+import org.broadinstitute.hellbender.tools.copynumber.legacy.formats.LocatableCollectionTSV;
 import org.broadinstitute.hellbender.tools.copynumber.utils.segmentation.KernelSegmenter;
 import org.broadinstitute.hellbender.utils.SimpleInterval;
 import org.broadinstitute.hellbender.utils.Utils;
@@ -163,7 +163,7 @@ final class SegmentUnioner {
      */
     private static <FirstTypeSegment extends Locatable, FirstType extends Locatable, SecondType extends Locatable> List<SimpleInterval> mergeSpuriousSegments(
             final List<SimpleInterval> combinedSegments,
-            final TSVLocatableCollection<FirstTypeSegment> originalFirstTypeSegments,
+            final LocatableCollectionTSV<FirstTypeSegment> originalFirstTypeSegments,
             final OverlapDetector<FirstType> firstTypeOverlapDetector,
             final OverlapDetector<SecondType> secondTypeOverlapDetector,
             final BiFunction<FirstType, FirstType, Double> kernelForFirstTypeSegmentation) {
@@ -217,7 +217,7 @@ final class SegmentUnioner {
                 //get points of the first type from current and adjacent segments
                 final List<FirstType> firstTypePoints = Stream.of(previousSegment, segment, nextSegment)
                         .flatMap(s -> firstTypeOverlapDetector.getOverlaps(s).stream())
-                        .sorted(TSVLocatableCollection.LEXICOGRAPHICAL_ORDER_COMPARATOR)
+                        .sorted(LocatableCollectionTSV.LEXICOGRAPHICAL_ORDER_COMPARATOR)
                         .collect(Collectors.toList());
 
                 //create kernel segmenter for points of first type contained in all three segments (left + middle + right)

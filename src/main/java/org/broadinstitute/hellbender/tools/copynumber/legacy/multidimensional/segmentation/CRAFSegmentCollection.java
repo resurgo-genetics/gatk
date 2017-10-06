@@ -6,7 +6,7 @@ import org.broadinstitute.hellbender.tools.copynumber.allelic.alleliccount.Allel
 import org.broadinstitute.hellbender.tools.copynumber.legacy.allelic.segmentation.AlleleFractionSegmentCollection;
 import org.broadinstitute.hellbender.tools.copynumber.legacy.coverage.copyratio.CopyRatioCollection;
 import org.broadinstitute.hellbender.tools.copynumber.legacy.coverage.segmentation.CopyRatioSegmentCollection;
-import org.broadinstitute.hellbender.tools.copynumber.legacy.formats.TSVLocatableCollection;
+import org.broadinstitute.hellbender.tools.copynumber.legacy.formats.LocatableCollectionTSV;
 import org.broadinstitute.hellbender.utils.SimpleInterval;
 import org.broadinstitute.hellbender.utils.Utils;
 import org.broadinstitute.hellbender.utils.tsv.DataLine;
@@ -22,7 +22,7 @@ import java.util.stream.Stream;
 /**
  * @author Samuel Lee &lt;slee@broadinstitute.org&gt;
  */
-public final class CRAFSegmentCollection extends TSVLocatableCollection<CRAFSegment> {
+public final class CRAFSegmentCollection extends LocatableCollectionTSV<CRAFSegment> {
     private static final Logger logger = LogManager.getLogger(CRAFSegmentCollection.class);
 
     enum CRAFSegmentTableColumn {

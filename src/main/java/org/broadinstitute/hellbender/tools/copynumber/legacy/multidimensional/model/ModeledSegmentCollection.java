@@ -1,6 +1,6 @@
 package org.broadinstitute.hellbender.tools.copynumber.legacy.multidimensional.model;
 
-import org.broadinstitute.hellbender.tools.copynumber.legacy.formats.TSVLocatableCollection;
+import org.broadinstitute.hellbender.tools.copynumber.legacy.formats.LocatableCollectionTSV;
 import org.broadinstitute.hellbender.utils.SimpleInterval;
 import org.broadinstitute.hellbender.utils.tsv.DataLine;
 import org.broadinstitute.hellbender.utils.tsv.TableColumnCollection;
@@ -13,8 +13,8 @@ import java.util.function.Function;
 /**
  * @author Samuel Lee &lt;slee@broadinstitute.org&gt;
  */
-public final class ModeledSegmentCollection extends TSVLocatableCollection<ModeledSegment> {
-    private static final String DOUBLE_FORMAT = "%6.6f";
+public final class ModeledSegmentCollection extends LocatableCollectionTSV<ModeledSegment> {
+    private static final String DOUBLE_FORMAT = CRAFModeller.DOUBLE_FORMAT;
 
     enum ModeledSegmentTableColumn {
         CONTIG, 
@@ -22,11 +22,9 @@ public final class ModeledSegmentCollection extends TSVLocatableCollection<Model
         END,
         NUM_POINTS_COPY_RATIO,
         NUM_POINTS_ALLELE_FRACTION,
-        LOG2_COPY_RATIO_POSTERIOR_MODE,
         LOG2_COPY_RATIO_POSTERIOR_10,
         LOG2_COPY_RATIO_POSTERIOR_50,
         LOG2_COPY_RATIO_POSTERIOR_90,
-        MINOR_ALLELE_FRACTION_POSTERIOR_MODE,
         MINOR_ALLELE_FRACTION_POSTERIOR_10,
         MINOR_ALLELE_FRACTION_POSTERIOR_50,
         MINOR_ALLELE_FRACTION_POSTERIOR_90;
@@ -40,18 +38,16 @@ public final class ModeledSegmentCollection extends TSVLocatableCollection<Model
         final int end = dataLine.getInt(ModeledSegmentTableColumn.END);
         final int numPointsCopyRatio = dataLine.getInt(ModeledSegmentTableColumn.NUM_POINTS_COPY_RATIO);
         final int numPointsAlleleFraction = dataLine.getInt(ModeledSegmentTableColumn.NUM_POINTS_ALLELE_FRACTION);
-        final double log2CopyRatioPosteriorMode = dataLine.getDouble(ModeledSegmentTableColumn.LOG2_COPY_RATIO_POSTERIOR_MODE);
         final double log2CopyRatioPosterior10 = dataLine.getDouble(ModeledSegmentTableColumn.LOG2_COPY_RATIO_POSTERIOR_10);
         final double log2CopyRatioPosterior50 = dataLine.getDouble(ModeledSegmentTableColumn.LOG2_COPY_RATIO_POSTERIOR_50);
         final double log2CopyRatioPosterior90 = dataLine.getDouble(ModeledSegmentTableColumn.LOG2_COPY_RATIO_POSTERIOR_90);
-        final double minorAlleleFractionPosteriorMode = dataLine.getDouble(ModeledSegmentTableColumn.MINOR_ALLELE_FRACTION_POSTERIOR_MODE);
         final double minorAlleleFractionPosterior10 = dataLine.getDouble(ModeledSegmentTableColumn.MINOR_ALLELE_FRACTION_POSTERIOR_10);
         final double minorAlleleFractionPosterior50 = dataLine.getDouble(ModeledSegmentTableColumn.MINOR_ALLELE_FRACTION_POSTERIOR_50);
         final double minorAlleleFractionPosterior90 = dataLine.getDouble(ModeledSegmentTableColumn.MINOR_ALLELE_FRACTION_POSTERIOR_90);
         final SimpleInterval interval = new SimpleInterval(contig, start, end);
         return new ModeledSegment(interval, numPointsCopyRatio, numPointsAlleleFraction, 
-                new ModeledSegment.SimplePosteriorSummary(log2CopyRatioPosteriorMode, log2CopyRatioPosterior10, log2CopyRatioPosterior50, log2CopyRatioPosterior90),
-                new ModeledSegment.SimplePosteriorSummary(minorAlleleFractionPosteriorMode, minorAlleleFractionPosterior10, minorAlleleFractionPosterior50, minorAlleleFractionPosterior90));
+                new ModeledSegment.SimplePosteriorSummary(log2CopyRatioPosterior10, log2CopyRatioPosterior50, log2CopyRatioPosterior90),
+                new ModeledSegment.SimplePosteriorSummary(minorAlleleFractionPosterior10, minorAlleleFractionPosterior50, minorAlleleFractionPosterior90));
     };
 
     private static final BiConsumer<ModeledSegment, DataLine> MODELED_SEGMENT_RECORD_AND_DATA_LINE_BI_CONSUMER = (modeledSegment, dataLine) ->
@@ -60,11 +56,9 @@ public final class ModeledSegmentCollection extends TSVLocatableCollection<Model
                     .append(modeledSegment.getEnd())
                     .append(modeledSegment.getNumPointsCopyRatio())
                     .append(modeledSegment.getNumPointsAlleleFraction())
-                    .append(String.format(DOUBLE_FORMAT, modeledSegment.getLog2CopyRatioSimplePosteriorSummary().getMode()))
                     .append(String.format(DOUBLE_FORMAT, modeledSegment.getLog2CopyRatioSimplePosteriorSummary().getDecile10()))
                     .append(String.format(DOUBLE_FORMAT, modeledSegment.getLog2CopyRatioSimplePosteriorSummary().getDecile50()))
                     .append(String.format(DOUBLE_FORMAT, modeledSegment.getLog2CopyRatioSimplePosteriorSummary().getDecile90()))
-                    .append(String.format(DOUBLE_FORMAT, modeledSegment.getMinorAlleleFractionSimplePosteriorSummary().getMode()))
                     .append(String.format(DOUBLE_FORMAT, modeledSegment.getMinorAlleleFractionSimplePosteriorSummary().getDecile10()))
                     .append(String.format(DOUBLE_FORMAT, modeledSegment.getMinorAlleleFractionSimplePosteriorSummary().getDecile50()))
                     .append(String.format(DOUBLE_FORMAT, modeledSegment.getMinorAlleleFractionSimplePosteriorSummary().getDecile90()));

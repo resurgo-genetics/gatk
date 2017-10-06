@@ -1,6 +1,6 @@
 package org.broadinstitute.hellbender.tools.copynumber.allelic.alleliccount;
 
-import org.broadinstitute.hellbender.tools.copynumber.legacy.formats.TSVLocatableCollection;
+import org.broadinstitute.hellbender.tools.copynumber.legacy.formats.LocatableCollectionTSV;
 import org.broadinstitute.hellbender.utils.Nucleotide;
 import org.broadinstitute.hellbender.utils.SimpleInterval;
 import org.broadinstitute.hellbender.utils.tsv.DataLine;
@@ -18,7 +18,7 @@ import java.util.function.Function;
  * @author Samuel Lee &lt;slee@broadinstitute.org&gt;
  * @author Mehrtash Babadi &lt;mehrtash@broadinstitute.org&gt;
  */
-public final class AllelicCountCollection extends TSVLocatableCollection<AllelicCount>  {
+public final class AllelicCountCollection extends LocatableCollectionTSV<AllelicCount> {
     enum AllelicCountTableColumn {
         CONTIG,
         POSITION,

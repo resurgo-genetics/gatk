@@ -3,14 +3,13 @@ package org.broadinstitute.hellbender.tools.copynumber.legacy;
 import com.google.common.collect.ImmutableSet;
 import org.apache.commons.math3.stat.inference.AlternativeHypothesis;
 import org.apache.commons.math3.stat.inference.BinomialTest;
-import org.apache.spark.api.java.JavaSparkContext;
 import org.broadinstitute.barclay.argparser.Argument;
 import org.broadinstitute.barclay.argparser.BetaFeature;
 import org.broadinstitute.barclay.argparser.CommandLineProgramProperties;
 import org.broadinstitute.barclay.help.DocumentedFeature;
+import org.broadinstitute.hellbender.cmdline.CommandLineProgram;
 import org.broadinstitute.hellbender.cmdline.StandardArgumentDefinitions;
 import org.broadinstitute.hellbender.cmdline.programgroups.CopyNumberProgramGroup;
-import org.broadinstitute.hellbender.engine.spark.SparkCommandLineProgram;
 import org.broadinstitute.hellbender.tools.copynumber.allelic.alleliccount.AllelicCountCollection;
 import org.broadinstitute.hellbender.tools.copynumber.legacy.allelic.model.AlleleFractionPrior;
 import org.broadinstitute.hellbender.tools.copynumber.legacy.allelic.segmentation.AlleleFractionKernelSegmenter;
@@ -19,7 +18,7 @@ import org.broadinstitute.hellbender.tools.copynumber.legacy.coverage.copyratio.
 import org.broadinstitute.hellbender.tools.copynumber.legacy.coverage.segmentation.CopyRatioKernelSegmenter;
 import org.broadinstitute.hellbender.tools.copynumber.legacy.coverage.segmentation.CopyRatioSegmentCollection;
 import org.broadinstitute.hellbender.tools.copynumber.legacy.formats.CopyNumberStandardArgument;
-import org.broadinstitute.hellbender.tools.copynumber.legacy.formats.TSVLocatableCollection;
+import org.broadinstitute.hellbender.tools.copynumber.legacy.formats.LocatableCollectionTSV;
 import org.broadinstitute.hellbender.tools.copynumber.legacy.multidimensional.model.CRAFModeller;
 import org.broadinstitute.hellbender.tools.copynumber.legacy.multidimensional.model.ModeledSegmentCollection;
 import org.broadinstitute.hellbender.tools.copynumber.legacy.multidimensional.segmentation.CRAFSegmentCollection;
@@ -43,7 +42,7 @@ import java.util.stream.Collectors;
 )
 @DocumentedFeature
 @BetaFeature
-public final class ModelSegments extends SparkCommandLineProgram {
+public final class ModelSegments extends CommandLineProgram {
     private static final long serialVersionUID = 1L;
 
     //filename tags for output
@@ -344,12 +343,8 @@ public final class ModelSegments extends SparkCommandLineProgram {
     private AlleleFractionSegmentCollection alleleFractionSegments = null;
 
     @Override
-    public void runPipeline(final JavaSparkContext ctx) {
+    protected Object doWork() {
         validateArguments();
-
-        final String originalLogLevel =
-                (ctx.getLocalProperty("logLevel") != null) ? ctx.getLocalProperty("logLevel") : "INFO";
-        ctx.setLogLevel("WARN");
 
         if (inputDenoisedCopyRatiosFile != null) {
             readDenoisedCopyRatios();
@@ -382,7 +377,7 @@ public final class ModelSegments extends SparkCommandLineProgram {
         final CRAFModeller modeller = new CRAFModeller(
                 crafSegments, denoisedCopyRatios, hetAllelicCounts, alleleFractionPrior,
                 numSamplesCopyRatio, numBurnInCopyRatio,
-                numSamplesAlleleFraction, numBurnInAlleleFraction, ctx);
+                numSamplesAlleleFraction, numBurnInAlleleFraction);
 
         //write initial segments and parameters to file
         writeModeledSegmentsAndParameterFiles(modeller, BEGIN_FIT_FILE_TAG);
@@ -395,8 +390,9 @@ public final class ModelSegments extends SparkCommandLineProgram {
         //write final segments and parameters to file
         writeModeledSegmentsAndParameterFiles(modeller, FINAL_FIT_FILE_TAG);
 
-        ctx.setLogLevel(originalLogLevel);
         logger.info("SUCCESS: ModelSegments run complete.");
+
+        return "SUCCESS";
     }
 
     private void validateArguments() {
@@ -472,7 +468,7 @@ public final class ModelSegments extends SparkCommandLineProgram {
         modeller.writeModelParameterFiles(copyRatioParameterFile, alleleFractionParameterFile);
     }
 
-    private void writeSegments(final TSVLocatableCollection<?> segments,
+    private void writeSegments(final LocatableCollectionTSV<?> segments,
                                final String fileSuffix) {
         final File segmentsFile = new File(outputDir, outputPrefix + fileSuffix);
         segments.write(segmentsFile);

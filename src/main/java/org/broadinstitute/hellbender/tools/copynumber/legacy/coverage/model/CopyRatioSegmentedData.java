@@ -6,7 +6,7 @@ import org.apache.commons.math3.stat.descriptive.moment.Mean;
 import org.apache.commons.math3.stat.descriptive.moment.Variance;
 import org.broadinstitute.hellbender.tools.copynumber.legacy.coverage.copyratio.CopyRatio;
 import org.broadinstitute.hellbender.tools.copynumber.legacy.coverage.copyratio.CopyRatioCollection;
-import org.broadinstitute.hellbender.tools.copynumber.legacy.formats.TSVLocatableCollection;
+import org.broadinstitute.hellbender.tools.copynumber.legacy.formats.LocatableCollectionTSV;
 import org.broadinstitute.hellbender.utils.IndexRange;
 import org.broadinstitute.hellbender.utils.SimpleInterval;
 import org.broadinstitute.hellbender.utils.Utils;
@@ -35,7 +35,7 @@ public final class CopyRatioSegmentedData implements DataCollection {
     public CopyRatioSegmentedData(final CopyRatioCollection copyRatios,
                                   final List<SimpleInterval> segments) {
         this.copyRatios = Utils.nonNull(copyRatios);
-        this.segments = Utils.nonEmpty(segments).stream().sorted(TSVLocatableCollection.LEXICOGRAPHICAL_ORDER_COMPARATOR).collect(Collectors.toList());
+        this.segments = Utils.nonEmpty(segments).stream().sorted(LocatableCollectionTSV.LEXICOGRAPHICAL_ORDER_COMPARATOR).collect(Collectors.toList());
 
         final List<Double> log2CopyRatioValues = copyRatios.getLog2CopyRatioValues();
         minLog2CopyRatioValue = log2CopyRatioValues.stream().min(Double::compareTo).orElse(Double.NaN);
@@ -51,7 +51,7 @@ public final class CopyRatioSegmentedData implements DataCollection {
         for (int segmentIndex = 0; segmentIndex < segments.size(); segmentIndex++) {
             final SimpleInterval segment = segments.get(segmentIndex);
             final List<CopyRatio> copyRatiosInSegment = copyRatioMidpointOverlapDetector.getOverlaps(segment).stream()
-                    .sorted(TSVLocatableCollection.LEXICOGRAPHICAL_ORDER_COMPARATOR)
+                    .sorted(LocatableCollectionTSV.LEXICOGRAPHICAL_ORDER_COMPARATOR)
                     .collect(Collectors.toList());
             final int segmentStartIndex = index;
             final int si = segmentIndex;
@@ -73,6 +73,10 @@ public final class CopyRatioSegmentedData implements DataCollection {
 
     int getNumPoints() {
         return copyRatios.size();
+    }
+
+    String getSampleName() {
+        return copyRatios.getSampleName();
     }
 
     double getMinLog2CopyRatioValue() {

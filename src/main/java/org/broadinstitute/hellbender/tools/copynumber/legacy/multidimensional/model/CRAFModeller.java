@@ -3,8 +3,6 @@ package org.broadinstitute.hellbender.tools.copynumber.legacy.multidimensional.m
 import htsjdk.samtools.util.OverlapDetector;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.apache.spark.api.java.JavaSparkContext;
-import org.broadinstitute.hellbender.exceptions.UserException;
 import org.broadinstitute.hellbender.tools.copynumber.allelic.alleliccount.AllelicCount;
 import org.broadinstitute.hellbender.tools.copynumber.allelic.alleliccount.AllelicCountCollection;
 import org.broadinstitute.hellbender.tools.copynumber.legacy.allelic.model.AlleleFractionModeller;
@@ -17,16 +15,11 @@ import org.broadinstitute.hellbender.tools.copynumber.legacy.coverage.model.Copy
 import org.broadinstitute.hellbender.tools.copynumber.legacy.multidimensional.segmentation.CRAFSegmentCollection;
 import org.broadinstitute.hellbender.utils.SimpleInterval;
 import org.broadinstitute.hellbender.utils.Utils;
-import org.broadinstitute.hellbender.utils.mcmc.ParameterEnum;
-import org.broadinstitute.hellbender.utils.mcmc.ParameterWriter;
-import org.broadinstitute.hellbender.utils.mcmc.PosteriorSummary;
 import org.broadinstitute.hellbender.utils.param.ParamUtils;
 
 import java.io.File;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -38,10 +31,7 @@ import java.util.stream.Stream;
 public final class CRAFModeller {
     private static final Logger logger = LogManager.getLogger(CRAFModeller.class);
 
-    private static final String DOUBLE_FORMAT = "%6.6f";
-
-    //use 95% HPD interval to construct {@link PosteriorSummary} for segment means and minor allele fractions
-    private static final double CREDIBLE_INTERVAL_ALPHA = 0.05;
+    public static final String DOUBLE_FORMAT = "%6.6f";
 
     private final String sampleName;
     private final CopyRatioCollection denoisedCopyRatios;
@@ -56,20 +46,18 @@ public final class CRAFModeller {
     private List<SimpleInterval> currentSegments;
     private final List<ModeledSegment> modeledSegments = new ArrayList<>();
 
-    //similar-segment merging may leave model in a state where it is not completely fit (i.e., posterior modes will be improperly specified)
+    //similar-segment merging may leave model in a state where it is not properly fit (deciles may be estimated naively)
     private boolean isModelFit;
 
     private final int numSamplesCopyRatio;
     private final int numBurnInCopyRatio;
     private final int numSamplesAlleleFraction;
     private final int numBurnInAlleleFraction;
-    private final JavaSparkContext ctx;
 
     /**
      * Constructs a copy-ratio and allele-fraction modeller, specifying number of total samples
      * and number of burn-in samples for Markov-Chain Monte Carlo model fitting.
      * An initial model fit is performed.
-     * @param ctx   JavaSparkContext, used for kernel density estimation in {@link PosteriorSummary}
      */
     public CRAFModeller(final CRAFSegmentCollection crafSegments,
                         final CopyRatioCollection denoisedCopyRatios,
@@ -78,8 +66,7 @@ public final class CRAFModeller {
                         final int numSamplesCopyRatio,
                         final int numBurnInCopyRatio,
                         final int numSamplesAlleleFraction,
-                        final int numBurnInAlleleFraction,
-                        final JavaSparkContext ctx) {
+                        final int numBurnInAlleleFraction) {
         Utils.validateArg(Stream.of(
                 Utils.nonNull(crafSegments).getSampleName(),
                 Utils.nonNull(denoisedCopyRatios).getSampleName(),
@@ -97,7 +84,6 @@ public final class CRAFModeller {
         this.numBurnInCopyRatio = numBurnInCopyRatio;
         this.numSamplesAlleleFraction = numSamplesAlleleFraction;
         this.numBurnInAlleleFraction = numBurnInAlleleFraction;
-        this.ctx = ctx;
         logger.info("Fitting initial model...");
         fitModel();
     }
@@ -125,16 +111,16 @@ public final class CRAFModeller {
 
         //update list of ModeledSegment with new PosteriorSummaries
         modeledSegments.clear();
-        final List<PosteriorSummary> segmentMeansPosteriorSummaries =
-                copyRatioModeller.getSegmentMeansPosteriorSummaries(CREDIBLE_INTERVAL_ALPHA, ctx);
-        final List<PosteriorSummary> minorAlleleFractionsPosteriorSummaries =
-                alleleFractionModeller.getMinorAlleleFractionsPosteriorSummaries(CREDIBLE_INTERVAL_ALPHA, ctx);
+        final List<ModeledSegment.SimplePosteriorSummary> segmentMeansPosteriorSummaries =
+                copyRatioModeller.getSegmentMeansPosteriorSummaries();
+        final List<ModeledSegment.SimplePosteriorSummary> minorAlleleFractionsPosteriorSummaries =
+                alleleFractionModeller.getMinorAlleleFractionsPosteriorSummaries();
         for (int segmentIndex = 0; segmentIndex < currentSegments.size(); segmentIndex++) {
             final SimpleInterval segment = currentSegments.get(segmentIndex);
             final int numPointsCopyRatio = copyRatioMidpointOverlapDetector.getOverlaps(segment).size();
             final int numPointsAlleleFraction = allelicCountOverlapDetector.getOverlaps(segment).size();
-            final PosteriorSummary segmentMeansPosteriorSummary = segmentMeansPosteriorSummaries.get(segmentIndex);
-            final PosteriorSummary minorAlleleFractionPosteriorSummary = minorAlleleFractionsPosteriorSummaries.get(segmentIndex);
+            final ModeledSegment.SimplePosteriorSummary segmentMeansPosteriorSummary = segmentMeansPosteriorSummaries.get(segmentIndex);
+            final ModeledSegment.SimplePosteriorSummary minorAlleleFractionPosteriorSummary = minorAlleleFractionsPosteriorSummaries.get(segmentIndex);
             modeledSegments.add(new ModeledSegment(
                     segment, numPointsCopyRatio, numPointsAlleleFraction, segmentMeansPosteriorSummary, minorAlleleFractionPosteriorSummary));
         }
@@ -210,24 +196,15 @@ public final class CRAFModeller {
         Utils.nonNull(alleleFractionParameterFile);
         ensureModelIsFit();
         logger.info("Writing posterior summaries for copy-ratio global parameters to " + copyRatioParameterFile);
-        writeModelParameterFile(copyRatioModeller.getGlobalParameterPosteriorSummaries(CREDIBLE_INTERVAL_ALPHA, ctx), copyRatioParameterFile);
+        copyRatioModeller.getGlobalParameterDeciles().write(copyRatioParameterFile);
         logger.info("Writing posterior summaries for allele-fraction global parameters to " + alleleFractionParameterFile);
-        writeModelParameterFile(alleleFractionModeller.getGlobalParameterPosteriorSummaries(CREDIBLE_INTERVAL_ALPHA, ctx), alleleFractionParameterFile);
+        alleleFractionModeller.getGlobalParameterDeciles().write(alleleFractionParameterFile);
     }
 
     private void ensureModelIsFit() {
         if (!isModelFit) {
             logger.warn("Attempted to write ACNV results to file when model was not completely fit. Performing model fit now.");
             fitModel();
-        }
-    }
-
-    private <T extends Enum<T> & ParameterEnum> void writeModelParameterFile(final Map<T, PosteriorSummary> parameterPosteriorSummaries,
-                                                                             final File outFile) {
-        try (final ParameterWriter<T> writer = new ParameterWriter<>(outFile, DOUBLE_FORMAT)) {
-            writer.writeAllRecords(parameterPosteriorSummaries.entrySet());
-        } catch (final IOException e) {
-            throw new UserException.CouldNotCreateOutputFile(outFile, e);
         }
     }
 
@@ -305,8 +282,7 @@ public final class CRAFModeller {
                     (summary1.getDecile50() / Math.pow(standardDeviation1, 2.) + summary2.getDecile50() / Math.pow(standardDeviation2, 2.))
                             * variance;
             final double standardDeviation = Math.sqrt(variance);
-            //we simply use the naive mean as the mode
-            return new ModeledSegment.SimplePosteriorSummary(mean, mean, mean - standardDeviation, mean + standardDeviation);
+            return new ModeledSegment.SimplePosteriorSummary(mean, mean - standardDeviation, mean + standardDeviation);
         }
 
         private static ModeledSegment merge(final ModeledSegment segment1,
