@@ -11,7 +11,7 @@ import java.util.function.BiConsumer;
 import java.util.function.Function;
 
 /**
- * Represents a legacy allele-fraction segmentation.
+ * Represents an allele-fraction segmentation.
  *
  * @author Samuel Lee &lt;slee@broadinstitute.org&gt;
  */

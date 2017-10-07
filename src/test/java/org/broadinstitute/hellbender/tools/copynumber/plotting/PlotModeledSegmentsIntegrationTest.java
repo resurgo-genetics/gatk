@@ -13,7 +13,7 @@ import java.io.File;
  * @author Samuel Lee &lt;slee@broadinstitute.org&gt;
  */
 public final class PlotModeledSegmentsIntegrationTest extends CommandLineProgramTest {
-    private static final String TEST_SUB_DIR = toolsTestDir + "copynumber/legacy/plotting/";
+    private static final String TEST_SUB_DIR = toolsTestDir + "copynumber/plotting/";
 
     //test files
     private static final File DENOISED_COPY_RATIOS_FILE = new File(TEST_SUB_DIR, "plotting-copy-ratios.tsv");
@@ -278,7 +278,7 @@ public final class PlotModeledSegmentsIntegrationTest extends CommandLineProgram
     }
 
     //checks that output files with reasonable file sizes are generated, but correctness of output is not checked
-    @Test
+    @Test(enabled = false)
     public void testPlottingChr20Chr21() {
         final String[] arguments = {
                 "-" + CopyNumberStandardArgument.DENOISED_COPY_RATIOS_FILE_SHORT_NAME, "/home/slee/working/gatk/TCGA-05-4389-01A-01D-1931-08-chr20-chr21.denoisedCR.tsv",
@@ -292,7 +292,7 @@ public final class PlotModeledSegmentsIntegrationTest extends CommandLineProgram
     }
 
     //checks that output files with reasonable file sizes are generated, but correctness of output is not checked
-    @Test
+    @Test(enabled = false)
     public void testPlottingChr20Chr21Normal() {
         final String[] arguments = {
                 "-" + CopyNumberStandardArgument.DENOISED_COPY_RATIOS_FILE_SHORT_NAME, "/home/slee/working/gatk/TCGA-05-4389-10A-01D-1931-08-chr20-chr21.denoisedCR.tsv",
@@ -306,7 +306,7 @@ public final class PlotModeledSegmentsIntegrationTest extends CommandLineProgram
     }
 
     //checks that output files with reasonable file sizes are generated, but correctness of output is not checked
-    @Test
+    @Test(enabled = false)
     public void testPlottingWGS() {
         final String[] arguments = {
                 "-" + CopyNumberStandardArgument.DENOISED_COPY_RATIOS_FILE_SHORT_NAME, "/home/slee/working/gatk/TCGA-05-4389-01A-01D-1931-08.denoisedCR.tsv",
@@ -320,7 +320,7 @@ public final class PlotModeledSegmentsIntegrationTest extends CommandLineProgram
     }
 
     //checks that output files with reasonable file sizes are generated, but correctness of output is not checked
-    @Test
+    @Test(enabled = false)
     public void testPlottingWGSNormal() {
         final String[] arguments = {
                 "-" + CopyNumberStandardArgument.DENOISED_COPY_RATIOS_FILE_SHORT_NAME, "/home/slee/working/gatk/TCGA-05-4389-10A-01D-1931-08.denoisedCR.tsv",
@@ -334,7 +334,7 @@ public final class PlotModeledSegmentsIntegrationTest extends CommandLineProgram
     }
 
     //checks that output files with reasonable file sizes are generated, but correctness of output is not checked
-    @Test
+    @Test(enabled = false)
     public void testPlottingWESHCC() {
         final String[] arguments = {
                 "-" + CopyNumberStandardArgument.DENOISED_COPY_RATIOS_FILE_SHORT_NAME, "/home/slee/working/gatk/hcc1143_T_clean.denoisedCR.tsv",

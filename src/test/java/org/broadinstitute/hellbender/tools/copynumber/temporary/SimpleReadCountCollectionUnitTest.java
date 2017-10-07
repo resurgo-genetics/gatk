@@ -4,8 +4,8 @@ import org.apache.commons.math3.linear.Array2DRowRealMatrix;
 import org.apache.commons.math3.linear.RealMatrix;
 import org.broadinstitute.hellbender.utils.SimpleInterval;
 import org.broadinstitute.hellbender.utils.test.BaseTest;
-import org.junit.Test;
 import org.testng.Assert;
+import org.testng.annotations.Test;
 
 import java.io.File;
 import java.util.Arrays;
@@ -50,7 +50,7 @@ public final class SimpleReadCountCollectionUnitTest extends BaseTest {
         Assert.assertEquals(readCounts, READ_COUNTS_EXPECTED);
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test(expectedExceptions = IllegalArgumentException.class)
     public void testReadDoubleCounts() {
         SimpleReadCountCollection.read(DOUBLE_COUNTS_FILE);
     }

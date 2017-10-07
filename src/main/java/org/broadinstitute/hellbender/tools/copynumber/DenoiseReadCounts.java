@@ -173,7 +173,7 @@ public final class DenoiseReadCounts extends CommandLineProgram {
         }
     }
 
-    //TODO move GC-bias correction classes into legacy package, clean up use of TargetCollection, and move this method into appropriate class
+    //TODO move GC-bias correction classes into copynumber package, clean up use of TargetCollection, and move this method into appropriate class
     //code is duplicated in CreateReadCountPanelOfNormals for now
     private static double[] validateIntervalGCContent(final Logger logger,
                                                       final List<SimpleInterval> intervals,

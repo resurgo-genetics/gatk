@@ -25,7 +25,7 @@ import java.util.function.Function;
  * @author Samuel Lee &lt;slee@broadinstitute.org&gt;
  */
 public final class LocatableCollectionUnitTest extends BaseTest {
-    private static final String TEST_SUB_DIR = toolsTestDir + "copynumber/legacy/formats";
+    private static final String TEST_SUB_DIR = toolsTestDir + "copynumber/formats";
     private static final File SIMPLE_LOCATABLE_COLLECTION_FILE =
             new File(TEST_SUB_DIR, "locatable-collection-tsv-simple-locatable-collection.tsv");
     private static final File SIMPLE_LOCATABLE_COLLECTION_NON_LEXICOGRAPHICAL_ORDER_FILE =

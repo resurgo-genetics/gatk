@@ -13,7 +13,7 @@ import java.io.File;
  * Integration test for {@link CallCopyRatioSegments}.
  */
 public final class CallCopyRatioSegmentsIntegrationTest extends CommandLineProgramTest {
-    private static final File TEST_DIR = new File(toolsTestDir, "copynumber/legacy/coverage/caller");
+    private static final File TEST_DIR = new File(toolsTestDir, "copynumber/coverage/caller");
     private static final File TEST_DENOISED_COPY_RATIOS = new File(TEST_DIR, "call-copy-ratio-segments-denoised-copy-ratios.tsv");
     private static final File TEST_SEGMENTS = new File(TEST_DIR, "call-copy-ratio-segments-segments.seg");
 

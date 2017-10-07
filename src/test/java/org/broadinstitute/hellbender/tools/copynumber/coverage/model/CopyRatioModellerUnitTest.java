@@ -15,7 +15,7 @@ import org.broadinstitute.hellbender.utils.test.BaseTest;
  * @author Samuel Lee &lt;slee@broadinstitute.org&gt;
  */
 public final class CopyRatioModellerUnitTest extends BaseTest {
-//    private static final File TEST_SUB_DIR = new File(toolsTestDir, "copynumber/legacy/coverage/model");
+//    private static final File TEST_SUB_DIR = new File(toolsTestDir, "copynumber/coverage/model");
 //
 //    private static final File COPY_RATIOS_FILE = new File(TEST_SUB_DIR, "copy-ratio-modeller-copy-ratios.tsv");
 //    private static final File COPY_RATIO_SEGMENTS_TRUTH_FILE = new File(TEST_SUB_DIR, "copy-ratio-modeller-copy-ratio-segments-truth.seg");
