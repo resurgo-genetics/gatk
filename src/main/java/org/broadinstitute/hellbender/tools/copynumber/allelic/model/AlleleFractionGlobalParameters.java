@@ -9,7 +9,7 @@ import org.broadinstitute.hellbender.tools.copynumber.multidimensional.model.CRA
  * @author David Benjamin &lt;davidben@broadinstitute.org&gt;
  */
 final class AlleleFractionGlobalParameters {
-    private static final String DOUBLE_FORMAT = CRAFModeller.DOUBLE_FORMAT;
+    static final String DOUBLE_FORMAT = CRAFModeller.DOUBLE_FORMAT;
 
     private final double meanBias;
     private final double biasVariance;

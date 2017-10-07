@@ -57,6 +57,8 @@ final class SegmentUnioner {
         unionedSegments = constructUnionedSegments(
                 copyRatioSegments, denoisedCopyRatios, copyRatioMidpointOverlapDetector,
                 alleleFractionSegments, allelicCountOverlapDetector);
+        logger.info(unionedSegments.stream().map(copyRatioMidpointOverlapDetector::getOverlaps).mapToDouble(Set::size).sum());
+        logger.info(unionedSegments.stream().map(allelicCountOverlapDetector::getOverlaps).mapToDouble(Set::size).sum());
     }
 
     List<CRAFSegment> constructUnionedCRAFSegments() {
@@ -88,22 +90,29 @@ final class SegmentUnioner {
         final SortedMap<String, List<Breakpoint>> breakpointsByContig = collectBreakpointsByContig(copyRatioSegments, alleleFractionSegments);
         final List<SimpleInterval> untrimmedSegments = constructUntrimmedSegments(copyRatioMidpointOverlapDetector, allelicCountOverlapDetector, breakpointsByContig);
         logger.info(String.format("%d untrimmed segments created...", untrimmedSegments.size()));
+        logger.info(untrimmedSegments.stream().map(copyRatioMidpointOverlapDetector::getOverlaps).mapToDouble(Set::size).sum());
+        logger.info(untrimmedSegments.stream().map(allelicCountOverlapDetector::getOverlaps).mapToDouble(Set::size).sum());
 
         //merge spurious segments containing only copy-ratio intervals that were created by allele-fraction breakpoints
         logger.info("Merging spurious copy-ratio segments using default linear kernel...");
         final List<SimpleInterval> spuriousCopyRatioMergedSegments = mergeSpuriousSegments(
                 untrimmedSegments, copyRatioSegments, copyRatioMidpointOverlapDetector, allelicCountOverlapDetector, COPY_RATIO_KERNEL);
         logger.info(String.format("%d segments remain after merging spurious copy-ratio segments...", spuriousCopyRatioMergedSegments.size()));
+        logger.info(spuriousCopyRatioMergedSegments.stream().map(copyRatioMidpointOverlapDetector::getOverlaps).mapToDouble(Set::size).sum());
+        logger.info(spuriousCopyRatioMergedSegments.stream().map(allelicCountOverlapDetector::getOverlaps).mapToDouble(Set::size).sum());
 
         //merge spurious segments containing only allelic-count sites that were created by copy-ratio breakpoints
         logger.info(String.format("Merging spurious allele-fraction segments using default Gaussian kernel (variance = %4.2f)...", ALLELE_FRACTION_KERNEL_VARIANCE));
         final List<SimpleInterval> spuriousAlleleFractionMergedSegments = mergeSpuriousSegments(
                 spuriousCopyRatioMergedSegments, alleleFractionSegments, allelicCountOverlapDetector, copyRatioMidpointOverlapDetector, ALLELE_FRACTION_KERNEL);
         logger.info(String.format("%d segments remain after merging spurious allele-fraction segments...", spuriousAlleleFractionMergedSegments.size()));
+        logger.info(spuriousAlleleFractionMergedSegments.stream().map(copyRatioMidpointOverlapDetector::getOverlaps).mapToDouble(Set::size).sum());
+        logger.info(spuriousAlleleFractionMergedSegments.stream().map(allelicCountOverlapDetector::getOverlaps).mapToDouble(Set::size).sum());
 
         logger.info("Trimming combined segments...");
         //for trimming segments in the final step, we need an overlap detector built from the full copy-ratio intervals
         final OverlapDetector<CopyRatio> copyRatioOverlapDetector = denoisedCopyRatios.getOverlapDetector();
+        System.out.println(denoisedCopyRatios.getIntervals().stream().map(c -> allelicCountOverlapDetector.getOverlaps(c).size()).filter(s -> s > 0).collect(Collectors.toList()));
         return spuriousAlleleFractionMergedSegments.stream()
                 .map(s -> trimSegments(s, copyRatioOverlapDetector, allelicCountOverlapDetector))
                 .filter(Objects::nonNull)
@@ -117,10 +126,10 @@ final class SegmentUnioner {
                                                                                   final AlleleFractionSegmentCollection alleleFractionSegments) {
         return ListUtils.union(copyRatioSegments.getIntervals(), alleleFractionSegments.getIntervals()).stream()
                 .map(s -> Arrays.asList(
-                        new Breakpoint(BreakpointType.START, s.getContig(), s.getStart()),
-                        new Breakpoint(BreakpointType.END, s.getContig(), s.getEnd())))
+                        new Breakpoint(s.getContig(), s.getStart(), BreakpointType.START),
+                        new Breakpoint(s.getContig(), s.getEnd(), BreakpointType.END)))
                 .flatMap(Collection::stream)
-                .sorted()
+                .sorted((b1, b2) -> LocatableCollection.LEXICOGRAPHICAL_ORDER_COMPARATOR.compare(b1.interval, b2.interval))
                 .collect(Collectors.groupingBy(Breakpoint::getContig, TreeMap::new, Collectors.toList()));
     }
 
@@ -139,9 +148,17 @@ final class SegmentUnioner {
             int start = breakpoints.get(0).getSite();
             for (int i = 1; i < breakpoints.size(); i++) {
                 final Breakpoint breakpoint = breakpoints.get(i);
-                //adjust segment boundaries according to breakpoint type; this prevents, e.g., allelic-count sites
-                //that originally started allele-fraction segments from being stranded
-                final int end = breakpoint.getSite() - (breakpoint.type == BreakpointType.START ? 1 : 0);
+
+                //adjust segment boundaries if next breakpoint is at the same location
+                // or according to breakpoint type (this prevents, e.g., allelic-count sites
+                //that originally started allele-fraction segments from being stranded)
+                final boolean isNextBreakpointSameLocation = i < breakpoints.size() - 1 &&
+                        breakpoints.get(i + 1).getSite() == breakpoint.getSite();
+                final int adjustment =
+                        breakpoint.type == BreakpointType.START ||
+                                (breakpoint.type == BreakpointType.END && isNextBreakpointSameLocation)
+                                ? 1 : 0;
+                final int end = breakpoint.getSite() - adjustment;
 
                 if (end < start) {  //this could happen if there are adjacent breakpoints
                     continue;
@@ -282,7 +299,7 @@ final class SegmentUnioner {
         int end = segment.getEnd();
 
         if (numCopyRatiosOverlappingSegment == 0 && numAllelicCountsInSegment > 0) {
-            //if there are no targets overlapping interval, use SNPs to determine trimmed interval
+            //if there are no copy-ratio intervals overlapping segment, use allelic counts to determine trimmed segment
             start = allelicCountsInSegment.stream().mapToInt(AllelicCount::getStart).min().getAsInt();
             end = allelicCountsInSegment.stream().mapToInt(AllelicCount::getEnd).max().getAsInt();
         } else if (numCopyRatiosOverlappingSegment > 0) {
@@ -315,19 +332,27 @@ final class SegmentUnioner {
         START, END
     }
 
-    private static final class Breakpoint extends Interval {
-        final BreakpointType type;
+    private static final class Breakpoint {
+        private final SimpleInterval interval;
+        private final BreakpointType type;
 
-        Breakpoint(final BreakpointType type, final String contig, final int site) {
-            super(contig, site, site);
+        Breakpoint(final String contig,
+                   final int site,
+                   final BreakpointType type) {
+            interval = new SimpleInterval(contig, site, site);
             this.type = type;
         }
-        public BreakpointType getType() {
+
+        BreakpointType getType() {
             return type;
         }
 
-        public int getSite() {
-            return getStart();
+        String getContig() {
+            return interval.getContig();
+        }
+
+        int getSite() {
+            return interval.getStart();
         }
     }
 }

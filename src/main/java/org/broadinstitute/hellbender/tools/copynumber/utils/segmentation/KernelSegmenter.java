@@ -227,7 +227,7 @@ public final class KernelSegmenter<DATA> {
         final SingularValueDecomposition svd = new SingularValueDecomposition(subKernelMatrix);
 
         //calculate reduced observation matrix
-        logger.info(String.format("Calculating reduced observation matrix (%d x %d)...", data.size(), numSubsample));
+        logger.debug(String.format("Calculating reduced observation matrix (%d x %d)...", data.size(), numSubsample));
         final double[] invSqrtSingularValues = Arrays.stream(svd.getSingularValues()).map(Math::sqrt).map(x -> 1. / (x + EPSILON)).toArray();
         final RealMatrix subKernelUMatrix = new Array2DRowRealMatrix(numSubsample, numSubsample);
         subKernelUMatrix.walkInOptimizedOrder(new DefaultRealMatrixChangingVisitor() {
@@ -368,7 +368,7 @@ public final class KernelSegmenter<DATA> {
                 .collect(Collectors.toList());
         final int numChangepointsOptimal = totalSegmentationCostsPlusPenalties.indexOf(Collections.min(totalSegmentationCostsPlusPenalties));
 
-        logger.info(String.format("Found %d changepoints after applying the changepoint penalty.", numChangepointsOptimal));
+        logger.debug(String.format("Found %d changepoints after applying the changepoint penalty.", numChangepointsOptimal));
         return changepoints.subList(0, numChangepointsOptimal);
     }
 

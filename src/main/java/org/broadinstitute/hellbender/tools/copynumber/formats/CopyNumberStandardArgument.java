@@ -19,6 +19,9 @@ public final class CopyNumberStandardArgument {
     public static final String ALLELIC_COUNTS_FILE_LONG_NAME = "allelicCounts";
     public static final String ALLELIC_COUNTS_FILE_SHORT_NAME = "AC";
 
+    public static final String NORMAL_ALLELIC_COUNTS_FILE_LONG_NAME = "normalAllelicCounts";
+    public static final String NORMAL_ALLELIC_COUNTS_FILE_SHORT_NAME = "normalAC";
+
     public static final String SEGMENTS_FILE_LONG_NAME = "segments";
     public static final String SEGMENTS_FILE_SHORT_NAME = "S";
 

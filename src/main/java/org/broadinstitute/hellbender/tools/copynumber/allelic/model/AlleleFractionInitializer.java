@@ -39,8 +39,8 @@ public final class AlleleFractionInitializer {
 
     private static final double INITIAL_OUTLIER_PROBABILITY = 0.01;
     private static final double INITIAL_MEAN_BIAS = 1.0;
-    private static final double INITIAL_BIAS_VARIANCE = 0.1;    //this is an overestimate, but starting small makes it slow for
-                                                                //mean bias to escape a bad initial guess
+    private static final double INITIAL_BIAS_VARIANCE = 0.05;    //this is an overestimate, but starting small makes it slow for
+                                                                 //mean bias to escape a bad initial guess
     private static final AlleleFractionGlobalParameters INITIAL_GLOBAL_PARAMETERS =
         new AlleleFractionGlobalParameters(INITIAL_MEAN_BIAS, INITIAL_BIAS_VARIANCE, INITIAL_OUTLIER_PROBABILITY);
 
@@ -51,6 +51,7 @@ public final class AlleleFractionInitializer {
     static final double MAX_REASONABLE_OUTLIER_PROBABILITY = 0.1;
     static final double MAX_REASONABLE_MEAN_BIAS = 5.0;
     static final double MAX_REASONABLE_BIAS_VARIANCE = 1.0;
+    private static final double EPSILON_FOR_NEAR_MAX_WARNING = 1E-3;
 
     //the minor-allele fraction of a segment must be less than one half by definition
     private static final double MAX_MINOR_ALLELE_FRACTION = 0.5;
@@ -83,6 +84,22 @@ public final class AlleleFractionInitializer {
             iteration++;
         } while (iteration < MAX_ITERATIONS &&
                 nextIterationLogLikelihood - previousIterationLogLikelihood > LOG_LIKELIHOOD_CONVERGENCE_THRESHOLD);
+        warnIfNearMax(AlleleFractionParameter.MEAN_BIAS.name, globalParameters.getMeanBias(), MAX_REASONABLE_MEAN_BIAS, EPSILON_FOR_NEAR_MAX_WARNING);
+        warnIfNearMax(AlleleFractionParameter.BIAS_VARIANCE.name, globalParameters.getBiasVariance(), MAX_REASONABLE_BIAS_VARIANCE, EPSILON_FOR_NEAR_MAX_WARNING);
+        warnIfNearMax(AlleleFractionParameter.OUTLIER_PROBABILITY.name, globalParameters.getOutlierProbability(), MAX_REASONABLE_OUTLIER_PROBABILITY, EPSILON_FOR_NEAR_MAX_WARNING);
+    }
+
+    private static void warnIfNearMax(final String parameterName,
+                                      final double value,
+                                      final double maxValue,
+                                      final double epsilon) {
+        if (maxValue - value < epsilon) {
+            logger.warn(String.format("The maximum-likelihood estimate for the global parameter %s (%s) was near its boundary (%s), " +
+                            "the model is likely not a good fit to the data!",
+                    parameterName,
+                    String.format(AlleleFractionGlobalParameters.DOUBLE_FORMAT, value),
+                    String.format(AlleleFractionGlobalParameters.DOUBLE_FORMAT, maxValue)));
+        }
     }
 
     AlleleFractionState getInitializedState() {

@@ -1,6 +1,7 @@
 package org.broadinstitute.hellbender.tools.copynumber;
 
 import com.google.common.collect.ImmutableSet;
+import htsjdk.samtools.util.OverlapDetector;
 import org.apache.commons.math3.stat.inference.AlternativeHypothesis;
 import org.apache.commons.math3.stat.inference.BinomialTest;
 import org.broadinstitute.barclay.argparser.Argument;
@@ -10,10 +11,13 @@ import org.broadinstitute.barclay.help.DocumentedFeature;
 import org.broadinstitute.hellbender.cmdline.CommandLineProgram;
 import org.broadinstitute.hellbender.cmdline.StandardArgumentDefinitions;
 import org.broadinstitute.hellbender.cmdline.programgroups.CopyNumberProgramGroup;
+import org.broadinstitute.hellbender.exceptions.UserException;
+import org.broadinstitute.hellbender.tools.copynumber.allelic.alleliccount.AllelicCount;
 import org.broadinstitute.hellbender.tools.copynumber.allelic.alleliccount.AllelicCountCollection;
 import org.broadinstitute.hellbender.tools.copynumber.allelic.model.AlleleFractionPrior;
 import org.broadinstitute.hellbender.tools.copynumber.allelic.segmentation.AlleleFractionKernelSegmenter;
 import org.broadinstitute.hellbender.tools.copynumber.allelic.segmentation.AlleleFractionSegmentCollection;
+import org.broadinstitute.hellbender.tools.copynumber.coverage.copyratio.CopyRatio;
 import org.broadinstitute.hellbender.tools.copynumber.coverage.copyratio.CopyRatioCollection;
 import org.broadinstitute.hellbender.tools.copynumber.coverage.segmentation.CopyRatioKernelSegmenter;
 import org.broadinstitute.hellbender.tools.copynumber.coverage.segmentation.CopyRatioSegmentCollection;
@@ -21,15 +25,15 @@ import org.broadinstitute.hellbender.tools.copynumber.formats.CopyNumberStandard
 import org.broadinstitute.hellbender.tools.copynumber.formats.collections.LocatableCollection;
 import org.broadinstitute.hellbender.tools.copynumber.multidimensional.model.CRAFModeller;
 import org.broadinstitute.hellbender.tools.copynumber.multidimensional.model.ModeledSegmentCollection;
+import org.broadinstitute.hellbender.tools.copynumber.multidimensional.segmentation.CRAFSegment;
 import org.broadinstitute.hellbender.tools.copynumber.multidimensional.segmentation.CRAFSegmentCollection;
+import org.broadinstitute.hellbender.tools.copynumber.multidimensional.segmentation.MultidimensionalKernelSegmenter;
+import org.broadinstitute.hellbender.utils.SimpleInterval;
 import org.broadinstitute.hellbender.utils.Utils;
 import org.broadinstitute.hellbender.utils.io.IOUtils;
 
 import java.io.File;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
 import java.util.stream.Collectors;
 
 /**
@@ -43,8 +47,6 @@ import java.util.stream.Collectors;
 @DocumentedFeature
 @BetaFeature
 public final class ModelSegments extends CommandLineProgram {
-    private static final long serialVersionUID = 1L;
-
     private static final double EPSILON = 1E-10;
 
     //filename tags for output
@@ -88,9 +90,6 @@ public final class ModelSegments extends CommandLineProgram {
     public static final String NUM_CHANGEPOINTS_PENALTY_FACTOR_ALLELE_FRACTION_LONG_NAME = "numChangepointsPenaltyFactorAlleleFraction";
     public static final String NUM_CHANGEPOINTS_PENALTY_FACTOR_ALLELE_FRACTION_SHORT_NAME = "numChangeptsPenAF";
 
-    public static final String NUM_COPY_RATIO_INTERVALS_SMALL_SEGMENT_THRESHOLD_LONG_NAME = "numCopyRatioIntervalsSmallSegmentThreshold";
-    public static final String NUM_COPY_RATIO_INTERVALS_SMALL_SEGMENT_THRESHOLD_SHORT_NAME = "numCRSmallSegTh";
-
     public static final String MINOR_ALLELE_FRACTION_PRIOR_ALPHA_LONG_NAME = "minorAlleleFractionPriorAlpha";
     public static final String MINOR_ALLELE_FRACTION_PRIOR_ALPHA_SHORT_NAME = "alphaAF";
 
@@ -133,6 +132,14 @@ public final class ModelSegments extends CommandLineProgram {
             optional = true
     )
     private File inputAllelicCountsFile = null;
+
+    @Argument(
+            doc = "Input file containing allelic counts for a matched normal (output of CollectAllelicCounts).",
+            fullName = CopyNumberStandardArgument.NORMAL_ALLELIC_COUNTS_FILE_LONG_NAME,
+            shortName = CopyNumberStandardArgument.NORMAL_ALLELIC_COUNTS_FILE_SHORT_NAME,
+            optional = true
+    )
+    private File inputNormalAllelicCountsFile = null;
 
     @Argument(
             doc = "Prefix for output files.",
@@ -339,39 +346,39 @@ public final class ModelSegments extends CommandLineProgram {
 
     //initialize data/segment variables, some of which may be optional
     private CopyRatioCollection denoisedCopyRatios = null;
-    private CopyRatioSegmentCollection copyRatioSegments = null;
     private AllelicCountCollection hetAllelicCounts = null;
-    private AlleleFractionSegmentCollection alleleFractionSegments = null;
 
     @Override
     protected Object doWork() {
         validateArguments();
 
+        //perform one-dimensional or multidimensional segmentation as appropriate and write the combined segments to file
+        final CRAFSegmentCollection crafSegments;
         if (inputDenoisedCopyRatiosFile != null) {
             readDenoisedCopyRatios();
-            performCopyRatioSegmentation();
-            writeSegments(copyRatioSegments, COPY_RATIO_SEGMENTS_FILE_SUFFIX);
-        }
-        
-        if (inputAllelicCountsFile != null) {
+            final CopyRatioSegmentCollection copyRatioSegments = performCopyRatioSegmentation();
+            crafSegments = new CRAFSegmentCollection(
+                    copyRatioSegments.getSampleName(),
+                    copyRatioSegments.getRecords().stream()
+                            .map(s -> new CRAFSegment(s.getInterval(), s.getNumPoints(), 0, s.getMeanLog2CopyRatio()))
+                            .collect(Collectors.toList()));
+            hetAllelicCounts = new AllelicCountCollection(denoisedCopyRatios.getSampleName(), Collections.emptyList()); //create an empty collection with the appropriate name
+        } else if (inputAllelicCountsFile != null) {
             readAndFilterAllelicCounts();
-            performAlleleFractionSegmentation();
-            writeSegments(alleleFractionSegments, ALLELE_FRACTION_SEGMENTS_FILE_SUFFIX);
+            final AlleleFractionSegmentCollection alleleFractionSegments = performAlleleFractionSegmentation();
+            crafSegments = new CRAFSegmentCollection(
+                    alleleFractionSegments.getSampleName(),
+                    alleleFractionSegments.getRecords().stream()
+                            .map(s -> new CRAFSegment(s.getInterval(), 0, s.getNumPoints(), Double.NaN))
+                            .collect(Collectors.toList()));
+            denoisedCopyRatios = new CopyRatioCollection(hetAllelicCounts.getSampleName(), Collections.emptyList());     //create an empty collection with the appropriate name
+        } else {
+            crafSegments = new MultidimensionalKernelSegmenter(denoisedCopyRatios, hetAllelicCounts)
+                    .findSegmentation(maxNumSegmentsPerChromosome,
+                            kernelVarianceCopyRatio, kernelVarianceAlleleFraction, 0.1, kernelApproximationDimension,
+                            ImmutableSet.copyOf(windowSizes).asList(),
+                            1., 1.);
         }
-
-        //if one of the data sources is unavailable, create a corresponding empty collection using the sample name from the available source
-        if (denoisedCopyRatios == null) {
-            denoisedCopyRatios = new CopyRatioCollection(hetAllelicCounts.getSampleName(), Collections.emptyList());
-            copyRatioSegments = new CopyRatioSegmentCollection(hetAllelicCounts.getSampleName(), Collections.emptyList());
-        }
-        if (hetAllelicCounts == null) {
-            hetAllelicCounts = new AllelicCountCollection(denoisedCopyRatios.getSampleName(), Collections.emptyList());
-            alleleFractionSegments = new AlleleFractionSegmentCollection(denoisedCopyRatios.getSampleName(), Collections.emptyList());
-        }
-
-        //union segments (combine copy-ratio and allele-fraction breakpoints, if available)
-        final CRAFSegmentCollection crafSegments = CRAFSegmentCollection.unionSegments(
-                copyRatioSegments, denoisedCopyRatios, alleleFractionSegments, hetAllelicCounts);
         writeSegments(crafSegments, CRAF_SEGMENTS_FILE_SUFFIX);
 
         logger.info("Modeling available denoised copy ratios and heterozygous allelic counts...");
@@ -402,11 +409,16 @@ public final class ModelSegments extends CommandLineProgram {
         Utils.nonNull(outputPrefix);
         Utils.validateArg(!(inputDenoisedCopyRatiosFile == null && inputAllelicCountsFile == null),
                 "Must provide at least a denoised copy-ratio profile file or an allelic-counts file.");
+        Utils.validateArg(!(inputAllelicCountsFile == null && inputNormalAllelicCountsFile != null),
+                "Must provide an allelic-counts file for the case sample to run in matched-normal mode.");
         if (inputDenoisedCopyRatiosFile != null) {
             IOUtils.canReadFile(inputDenoisedCopyRatiosFile);
         }
         if (inputAllelicCountsFile != null) {
             IOUtils.canReadFile(inputAllelicCountsFile);
+        }
+        if (inputNormalAllelicCountsFile != null) {
+            IOUtils.canReadFile(inputNormalAllelicCountsFile);
         }
     }
 
@@ -415,48 +427,117 @@ public final class ModelSegments extends CommandLineProgram {
         denoisedCopyRatios = new CopyRatioCollection(inputDenoisedCopyRatiosFile);
     }
 
-    private void performCopyRatioSegmentation() {
+    private CopyRatioSegmentCollection performCopyRatioSegmentation() {
         logger.info("Starting segmentation of denoised copy ratios...");
         final int maxNumChangepointsPerChromosome = maxNumSegmentsPerChromosome - 1;
-        copyRatioSegments = new CopyRatioKernelSegmenter(denoisedCopyRatios)
+        return new CopyRatioKernelSegmenter(denoisedCopyRatios)
                 .findSegmentation(maxNumChangepointsPerChromosome, kernelVarianceCopyRatio, kernelApproximationDimension,
                         ImmutableSet.copyOf(windowSizes).asList(),
                         numChangepointsPenaltyFactorCopyRatio, numChangepointsPenaltyFactorCopyRatio);
     }
 
     private void readAndFilterAllelicCounts() {
+        //read in case sample
         logger.info(String.format("Reading allelic-counts file (%s)...", inputAllelicCountsFile));
         final AllelicCountCollection unfilteredAllelicCounts = new AllelicCountCollection(inputAllelicCountsFile);
+        final String sampleName = unfilteredAllelicCounts.getSampleName();
+
+        //filter on total count in case sample
         logger.info(String.format("Filtering allelic counts with total count less than %d...", minTotalAlleleCount));
-        final AllelicCountCollection filteredAllelicCounts = new AllelicCountCollection(
-                unfilteredAllelicCounts.getSampleName(),
+        AllelicCountCollection filteredAllelicCounts = new AllelicCountCollection(
+                sampleName,
                 unfilteredAllelicCounts.getRecords().stream()
                         .filter(ac -> ac.getTotalReadCount() >= minTotalAlleleCount)
                         .collect(Collectors.toList()));
         logger.info(String.format("Retained %d / %d sites after filtering on total count...",
                 filteredAllelicCounts.getRecords().size(), unfilteredAllelicCounts.getRecords().size()));
 
-        logger.info("Performing binomial testing and filtering homozygous allelic counts...");
-        hetAllelicCounts = new AllelicCountCollection(
-                unfilteredAllelicCounts.getSampleName(),
-                filteredAllelicCounts.getRecords().stream()
-                        .filter(ac -> new BinomialTest().binomialTest(
-                                ac.getTotalReadCount(),
-                                Math.min(ac.getAltReadCount(), ac.getRefReadCount()),
-                                genotypingBaseErrorRate,
-                                AlternativeHypothesis.TWO_SIDED) <= genotypingPValueThreshold + EPSILON)
-                        .collect(Collectors.toList()));
-        final File hetAllelicCountsFile = new File(outputDir, outputPrefix + HET_ALLELIC_COUNTS_FILE_SUFFIX);
-        hetAllelicCounts.write(hetAllelicCountsFile);
-        logger.info(String.format("Retained %d / %d sites after testing for heterozygosity...",
-                hetAllelicCounts.getRecords().size(), unfilteredAllelicCounts.getRecords().size()));
-        logger.info(String.format("Heterozygous allelic counts written to %s.", hetAllelicCountsFile));
+        //filter on overlap with copy-ratio intervals, if available
+        if (denoisedCopyRatios != null) {
+            logger.info("Filtering allelic-count sites not overlapping with copy-ratio intervals...");
+            final OverlapDetector<CopyRatio> copyRatioOverlapDetector = denoisedCopyRatios.getOverlapDetector();
+            filteredAllelicCounts = new AllelicCountCollection(
+                    sampleName,
+                    filteredAllelicCounts.getRecords().stream()
+                            .filter(copyRatioOverlapDetector::overlapsAny)
+                            .collect(Collectors.toList()));
+            logger.info(String.format("Retained %d / %d sites after filtering on overlap with copy-ratio intervals...",
+                    filteredAllelicCounts.getRecords().size(), unfilteredAllelicCounts.getRecords().size()));
+        }
+
+        if (inputNormalAllelicCountsFile == null) {
+            //filter on homozygosity in case sample
+            logger.info("No matched normal was provided, not running in matched-normal mode...");
+            logger.info("Performing binomial testing and filtering homozygous allelic counts...");
+            hetAllelicCounts = new AllelicCountCollection(
+                    unfilteredAllelicCounts.getSampleName(),
+                    filteredAllelicCounts.getRecords().stream()
+                            .filter(ac -> new BinomialTest().binomialTest(
+                                    ac.getTotalReadCount(),
+                                    Math.min(ac.getAltReadCount(), ac.getRefReadCount()),
+                                    genotypingBaseErrorRate,
+                                    AlternativeHypothesis.TWO_SIDED) < genotypingPValueThreshold + EPSILON)
+                            .collect(Collectors.toList()));
+            final File hetAllelicCountsFile = new File(outputDir, outputPrefix + HET_ALLELIC_COUNTS_FILE_SUFFIX);
+            hetAllelicCounts.write(hetAllelicCountsFile);
+            logger.info(String.format("Retained %d / %d sites after testing for heterozygosity...",
+                    hetAllelicCounts.getRecords().size(), unfilteredAllelicCounts.getRecords().size()));
+            logger.info(String.format("Heterozygous allelic counts written to %s.", hetAllelicCountsFile));
+        } else {
+            //read in matched normal
+            logger.info("Matched normal was provided, running in matched-normal mode...");
+            logger.info("Performing binomial testing and filtering homozygous allelic counts in matched normal...");
+            final AllelicCountCollection unfilteredNormalAllelicCounts = new AllelicCountCollection(inputNormalAllelicCountsFile);
+            if (!unfilteredNormalAllelicCounts.getIntervals().equals(unfilteredAllelicCounts.getIntervals())) {
+                throw new UserException.BadInput("Allelic-count sites in case sample and matched normal do not match. " +
+                        "Run CollectAllelicCounts using the same interval list of sites for both samples.");
+            }
+            final String normalSampleName = unfilteredNormalAllelicCounts.getSampleName();
+
+            //filter on total count in matched normal
+            logger.info(String.format("Filtering allelic counts in matched normal with total count less than %d...", minTotalAlleleCount));
+            final AllelicCountCollection filteredNormalAllelicCounts = new AllelicCountCollection(
+                    normalSampleName,
+                    unfilteredNormalAllelicCounts.getRecords().stream()
+                            .filter(ac -> ac.getTotalReadCount() >= minTotalAlleleCount)
+                            .collect(Collectors.toList()));
+            logger.info(String.format("Retained %d / %d sites in matched normal after filtering on total count...",
+                    filteredNormalAllelicCounts.getRecords().size(), unfilteredNormalAllelicCounts.getRecords().size()));
+
+            //filter on homozygosity in matched normal
+            final AllelicCountCollection hetNormalAllelicCounts = new AllelicCountCollection(
+                    normalSampleName,
+                    filteredNormalAllelicCounts.getRecords().stream()
+                            .filter(ac -> new BinomialTest().binomialTest(
+                                    ac.getTotalReadCount(),
+                                    Math.min(ac.getAltReadCount(), ac.getRefReadCount()),
+                                    genotypingBaseErrorRate,
+                                    AlternativeHypothesis.TWO_SIDED) < genotypingPValueThreshold + EPSILON)
+                            .collect(Collectors.toList()));
+            final File hetNormalAllelicCountsFile = new File(outputDir, outputPrefix + "." + normalSampleName + HET_ALLELIC_COUNTS_FILE_SUFFIX);
+            hetNormalAllelicCounts.write(hetNormalAllelicCountsFile);
+            logger.info(String.format("Retained %d / %d sites in matched normal after testing for heterozygosity...",
+                    hetNormalAllelicCounts.getRecords().size(), unfilteredNormalAllelicCounts.getRecords().size()));
+            logger.info(String.format("Heterozygous allelic counts for matched normal written to %s.", hetNormalAllelicCountsFile));
+
+            //retrieve sites in case sample
+            logger.info("Retrieving allelic counts at these sites in case sample...");
+            final Set<SimpleInterval> hetNormalAllelicCountSites = new HashSet<>(hetNormalAllelicCounts.getIntervals());
+            hetAllelicCounts = new AllelicCountCollection(
+                    sampleName,
+                    filteredAllelicCounts.getRecords().stream()
+                            .filter(ac -> hetNormalAllelicCountSites.contains(ac.getInterval()))
+                            .collect(Collectors.toList()));
+            final File hetAllelicCountsFile = new File(outputDir, outputPrefix + HET_ALLELIC_COUNTS_FILE_SUFFIX);
+            hetAllelicCounts.write(hetAllelicCountsFile);
+            logger.info(String.format("Allelic counts for case sample at heterozygous sites in matched normal written to %s.", hetAllelicCountsFile));
+        }
     }
 
-    private void performAlleleFractionSegmentation() {
+    private AlleleFractionSegmentCollection performAlleleFractionSegmentation() {
         logger.info("Starting segmentation of heterozygous allelic counts...");
         final int maxNumChangepointsPerChromosome = maxNumSegmentsPerChromosome - 1;
-        alleleFractionSegments = new AlleleFractionKernelSegmenter(hetAllelicCounts)
+        return new AlleleFractionKernelSegmenter(hetAllelicCounts)
                 .findSegmentation(maxNumChangepointsPerChromosome, kernelVarianceAlleleFraction, kernelApproximationDimension,
                         ImmutableSet.copyOf(windowSizes).asList(),
                         numChangepointsPenaltyFactorAlleleFraction, numChangepointsPenaltyFactorAlleleFraction);
