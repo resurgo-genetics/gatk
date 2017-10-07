@@ -300,7 +300,7 @@ task ModelSegments {
 
     output {
         File het_allelic_counts = "${output_dir_}/${entity_id}.hets.tsv"
-        File? normal_het_allelic_counts = "${output_dir_}/${entity_id}.hets.normal.tsv"    #tumor is run in matched-normal mode, so a hets file is also produced for the matched normal
+        File? normal_het_allelic_counts = if defined(normal_allelic_counts) then "${output_dir_}/${entity_id}.hets.normal.tsv" else ""   #tumor is run in matched-normal mode, so a hets file is also produced for the matched normal
         File combined_segments = "${output_dir_}/${entity_id}.craf.seg"
         File modeled_segments_begin = "${output_dir_}/${entity_id}.modelBegin.seg"
         File copy_ratio_parameters_begin = "${output_dir_}/${entity_id}.modelBegin.cr.param"

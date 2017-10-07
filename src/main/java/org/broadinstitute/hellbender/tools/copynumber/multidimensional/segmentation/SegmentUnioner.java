@@ -112,7 +112,6 @@ final class SegmentUnioner {
         logger.info("Trimming combined segments...");
         //for trimming segments in the final step, we need an overlap detector built from the full copy-ratio intervals
         final OverlapDetector<CopyRatio> copyRatioOverlapDetector = denoisedCopyRatios.getOverlapDetector();
-        System.out.println(denoisedCopyRatios.getIntervals().stream().map(c -> allelicCountOverlapDetector.getOverlaps(c).size()).filter(s -> s > 0).collect(Collectors.toList()));
         return spuriousAlleleFractionMergedSegments.stream()
                 .map(s -> trimSegments(s, copyRatioOverlapDetector, allelicCountOverlapDetector))
                 .filter(Objects::nonNull)

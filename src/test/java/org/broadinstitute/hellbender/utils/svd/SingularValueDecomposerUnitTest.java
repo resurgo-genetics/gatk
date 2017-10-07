@@ -82,27 +82,5 @@ public final class SingularValueDecomposerUnitTest extends BaseTest {
         Assert.assertEquals(m.multiply(p).transpose(), m.multiply(p));
         Assert.assertEquals(p.multiply(m).transpose(), p.multiply(m));
     }
-
-    @Test
-    public void test() {
-        final JavaSparkContext ctx = SparkContextFactory.getTestSparkContext();
-        final RandomGenerator rng = RandomGeneratorFactory.createRandomGenerator(new Random(42));
-        final int M = 100000;
-        final int N = 200;
-        final int numSlices = 50;
-        final double[][] data = new double[M][N];
-        System.out.println("Generating data.");
-        for (int i = 0; i < M; i++) {
-            for (int j = 0; j < N; j++) {
-                data[i][j] = rng.nextGaussian();
-            }
-        }
-        System.out.println("Data generated.");
-        final RealMatrix mat = MatrixUtils.createRealMatrix(data);
-        System.out.println("RealMatrix created.");
-        System.out.println("Computing SVD.");
-        SVDFactory.createSVD(mat);
-        System.out.println("Done.");
-    }
 }
 
