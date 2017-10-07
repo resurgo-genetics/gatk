@@ -2,7 +2,7 @@
 
 ### Which WDL should you use?
 - Building a panel of normals (PoN): ``cnv_somatic_panel_workflow.wdl``
-- Running a single case sample: ``cnv_somatic_bam_workflow.wdl``
+- Running a matched pair: ``cnv_somatic_pair_workflow.wdl``
 
 #### Setting up parameter json file for a run
 
@@ -34,18 +34,20 @@ Further explanation of other task-level parameters may be found by invoking the 
 
 #### Explanation of fields in the somatic case workflow
 
-The reference used must be the same between PoN and case samples.
+The reference (and targets, if specified) used must be the same between PoN and case samples.
 
-- ``CNVSomaticBAMWorkflow.targets`` -- (optional) Target file (NOT in bed format) that was used to describe the baits in capture (exome) samples.  Please run ``ConvertBedToTargetFile`` to convert a BED file to a target file.  If provided, then WES workflow will be run; otherwise, WGS workflow will be run.
-- ``CNVSomaticBAMWorkflow.common_sites`` -- Picard or GATK-style interval list of common sites to use for collecting allelic counts.
-- ``CNVSomaticBAMWorkflow.read_count_pon`` -- Path to read-count PoN created by the panel workflow. 
-- ``CNVSomaticBAMWorkflow.bam`` -- File path or storage location (depending on backend) of the BAM index.
-- ``CNVSomaticBAMWorkflow.bam_idx`` -- File path or storage location (depending on backend) of the BAM file index.
-- ``CNVSomaticBAMWorkflow.ref_fasta`` -- Path to reference fasta file.
-- ``CNVSomaticBAMWorkflow.ref_fasta_fai`` -- Path to reference fasta fai file.
-- ``CNVSomaticBAMWorkflow.ref_fasta_dict`` -- Path to reference dict file.
-- ``CNVSomaticBAMWorkflow.gatk_jar`` -- Absolute path to gatk.jar.
-- ``CNVSomaticBAMWorkflow.gatk_docker`` -- GATK Docker image (e.g., "broadinstitute/gatk:x.beta.x").
+- ``CNVSomaticPairWorkflow.targets`` -- (optional) Target file (NOT in bed format) that was used to describe the baits in capture (exome) samples.  Please run ``ConvertBedToTargetFile`` to convert a BED file to a target file.  If provided, then WES workflow will be run; otherwise, WGS workflow will be run.
+- ``CNVSomaticPairWorkflow.common_sites`` -- Picard or GATK-style interval list of common sites to use for collecting allelic counts.
+- ``CNVSomaticPairWorkflow.read_count_pon`` -- Path to read-count PoN created by the panel workflow. 
+- ``CNVSomaticPairWorkflow.tumor_bam`` -- File path or storage location (depending on backend) of the tumor BAM file.
+- ``CNVSomaticPairWorkflow.tumor_bam_idx`` -- File path or storage location (depending on backend) of the tumor BAM file index.
+- ``CNVSomaticPairWorkflow.normal_bam`` -- File path or storage location (depending on backend) of the normal BAM file.
+- ``CNVSomaticPairWorkflow.normal_bam_idx`` -- File path or storage location (depending on backend) of the normal BAM file index.
+- ``CNVSomaticPairWorkflow.ref_fasta`` -- Path to reference fasta file.
+- ``CNVSomaticPairWorkflow.ref_fasta_fai`` -- Path to reference fasta fai file.
+- ``CNVSomaticPairWorkflow.ref_fasta_dict`` -- Path to reference dict file.
+- ``CNVSomaticPairWorkflow.gatk_jar`` -- Absolute path to gatk.jar.
+- ``CNVSomaticPairWorkflow.gatk_docker`` -- GATK Docker image (e.g., "broadinstitute/gatk:x.beta.x").
 
 In additional, there are several task-level parameters that may be set by advanced users as above.
 

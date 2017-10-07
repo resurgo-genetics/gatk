@@ -12,7 +12,6 @@ import org.broadinstitute.hellbender.cmdline.CommandLineProgram;
 import org.broadinstitute.hellbender.cmdline.StandardArgumentDefinitions;
 import org.broadinstitute.hellbender.cmdline.programgroups.CopyNumberProgramGroup;
 import org.broadinstitute.hellbender.exceptions.UserException;
-import org.broadinstitute.hellbender.tools.copynumber.allelic.alleliccount.AllelicCount;
 import org.broadinstitute.hellbender.tools.copynumber.allelic.alleliccount.AllelicCountCollection;
 import org.broadinstitute.hellbender.tools.copynumber.allelic.model.AlleleFractionPrior;
 import org.broadinstitute.hellbender.tools.copynumber.allelic.segmentation.AlleleFractionKernelSegmenter;
@@ -51,9 +50,8 @@ public final class ModelSegments extends CommandLineProgram {
 
     //filename tags for output
     public static final String HET_ALLELIC_COUNTS_FILE_SUFFIX = ".hets.tsv";
+    public static final String NORMAL_HET_ALLELIC_COUNTS_FILE_SUFFIX = ".hets.normal.tsv";
     public static final String SEGMENTS_FILE_SUFFIX = ".seg";
-    public static final String COPY_RATIO_SEGMENTS_FILE_SUFFIX = ".cr" + SEGMENTS_FILE_SUFFIX;
-    public static final String ALLELE_FRACTION_SEGMENTS_FILE_SUFFIX = ".af" + SEGMENTS_FILE_SUFFIX;
     public static final String CRAF_SEGMENTS_FILE_SUFFIX = ".craf" + SEGMENTS_FILE_SUFFIX;
     public static final String BEGIN_FIT_FILE_TAG = ".modelBegin";
     public static final String FINAL_FIT_FILE_TAG = ".modelFinal";
@@ -78,17 +76,17 @@ public final class ModelSegments extends CommandLineProgram {
     public static final String KERNEL_VARIANCE_ALLELE_FRACTION_LONG_NAME = "kernelVarianceAlleleFraction";
     public static final String KERNEL_VARIANCE_ALLELE_FRACTION_SHORT_NAME = "kernVarAF";
 
+    public static final String KERNEL_SCALING_ALLELE_FRACTION_LONG_NAME = "kernelScalingAlleleFraction";
+    public static final String KERNEL_SCALING_ALLELE_FRACTION_SHORT_NAME = "kernSclAF";
+
     public static final String KERNEL_APPROXIMATION_DIMENSION_LONG_NAME = "kernelApproximationDimension";
     public static final String KERNEL_APPROXIMATION_DIMENSION_SHORT_NAME = "kernApproxDim";
 
     public static final String WINDOW_SIZES_LONG_NAME = "windowSizes";
     public static final String WINDOW_SIZES_SHORT_NAME = "winSizes";
 
-    public static final String NUM_CHANGEPOINTS_PENALTY_FACTOR_COPY_RATIO_LONG_NAME = "numChangepointsPenaltyFactorCopyRatio";
-    public static final String NUM_CHANGEPOINTS_PENALTY_FACTOR_COPY_RATIO_SHORT_NAME = "numChangeptsPenCR";
-
-    public static final String NUM_CHANGEPOINTS_PENALTY_FACTOR_ALLELE_FRACTION_LONG_NAME = "numChangepointsPenaltyFactorAlleleFraction";
-    public static final String NUM_CHANGEPOINTS_PENALTY_FACTOR_ALLELE_FRACTION_SHORT_NAME = "numChangeptsPenAF";
+    public static final String NUM_CHANGEPOINTS_PENALTY_FACTOR_LONG_NAME = "numChangepointsPenaltyFactor";
+    public static final String NUM_CHANGEPOINTS_PENALTY_FACTOR_SHORT_NAME = "numChangeptsPenCR";
 
     public static final String MINOR_ALLELE_FRACTION_PRIOR_ALPHA_LONG_NAME = "minorAlleleFractionPriorAlpha";
     public static final String MINOR_ALLELE_FRACTION_PRIOR_ALPHA_SHORT_NAME = "alphaAF";
@@ -165,7 +163,7 @@ public final class ModelSegments extends CommandLineProgram {
     private int maxNumSegmentsPerChromosome = 1000;
 
     @Argument(
-            doc = "Minimum total count for filtering allelic counts.",
+            doc = "Minimum total count for filtering allelic counts, if available.",
             fullName = MINIMUM_TOTAL_ALLELE_COUNT_LONG_NAME,
             shortName = MINIMUM_TOTAL_ALLELE_COUNT_SHORT_NAME,
             minValue = 0,
@@ -174,7 +172,7 @@ public final class ModelSegments extends CommandLineProgram {
     private int minTotalAlleleCount = 30;
 
     @Argument(
-            doc = "P-value threshold for genotyping and filtering homozygous allelic counts.",
+            doc = "P-value threshold for genotyping and filtering homozygous allelic counts, if available.",
             fullName = GENOTYPING_P_VALUE_THRESHOLD_LONG_NAME,
             shortName = GENOTYPING_P_VALUE_THRESHOLD_SHORT_NAME,
             optional = true
@@ -182,7 +180,7 @@ public final class ModelSegments extends CommandLineProgram {
     private double genotypingPValueThreshold = 1E-2;
 
     @Argument(
-            doc = "Base error rate for genotyping and filtering homozygous allelic counts.",
+            doc = "Base error rate for genotyping and filtering homozygous allelic counts, if available.",
             fullName = GENOTYPING_BASE_ERROR_RATE_LONG_NAME,
             shortName = GENOTYPING_BASE_ERROR_RATE_SHORT_NAME,
             optional = true
@@ -190,7 +188,7 @@ public final class ModelSegments extends CommandLineProgram {
     private double genotypingBaseErrorRate = 1E-2;
 
     @Argument(
-            doc = "Variance of Gaussian kernel for copy-ratio segmentation.  If zero, a linear kernel will be used.",
+            doc = "Variance of Gaussian kernel for copy-ratio segmentation, if performed.  If zero, a linear kernel will be used.",
             fullName = KERNEL_VARIANCE_COPY_RATIO_LONG_NAME,
             shortName = KERNEL_VARIANCE_COPY_RATIO_SHORT_NAME,
             minValue = 0.,
@@ -199,7 +197,7 @@ public final class ModelSegments extends CommandLineProgram {
     private double kernelVarianceCopyRatio = 0.;
 
     @Argument(
-            doc = "Variance of Gaussian kernel for allele-fraction segmentation.  If zero, a linear kernel will be used.",
+            doc = "Variance of Gaussian kernel for allele-fraction segmentation, if performed.  If zero, a linear kernel will be used.",
             fullName = KERNEL_VARIANCE_ALLELE_FRACTION_LONG_NAME,
             shortName = KERNEL_VARIANCE_ALLELE_FRACTION_SHORT_NAME,
             minValue = 0.,
@@ -208,7 +206,17 @@ public final class ModelSegments extends CommandLineProgram {
     private double kernelVarianceAlleleFraction = 0.01;
 
     @Argument(
-            doc = "Dimension of kernel approximation.  A subsample containing this number of data points " +
+            doc = "Relative scaling S of the kernel K_AF for allele-fraction segmentation to the kernel K_CR for copy-ratio segmentation.  " +
+                    "If multidimensional segmentation is performed, the total kernel used will be K_CR + S * K_AF.",
+            fullName = KERNEL_SCALING_ALLELE_FRACTION_LONG_NAME,
+            shortName = KERNEL_SCALING_ALLELE_FRACTION_SHORT_NAME,
+            minValue = 0.,
+            optional = true
+    )
+    private double kernelScalingAlleleFraction = 0.1;
+
+    @Argument(
+            doc = "Dimension of the kernel approximation.  A subsample containing this number of data points " +
                     "will be used to construct the approximation for each chromosome.  " +
                     "If the total number of data points in a chromosome is greater " +
                     "than this number, then all data points in the chromosome will be used.  " +
@@ -234,30 +242,17 @@ public final class ModelSegments extends CommandLineProgram {
     private List<Integer> windowSizes = new ArrayList<>(Arrays.asList(8, 16, 32, 64, 128, 256));
 
     @Argument(
-            doc = "Factor A for the penalty on the number of changepoints per chromosome for copy-ratio segmentation.  " +
+            doc = "Factor A for the penalty on the number of changepoints per chromosome for segmentation.  " +
                     "Adds a penalty of the form A * C * [1 + log (N / C)], " +
                     "where C is the number of changepoints in the chromosome, " +
                     "to the cost function for each chromosome.  " +
                     "Must be non-negative.",
-            fullName = NUM_CHANGEPOINTS_PENALTY_FACTOR_COPY_RATIO_LONG_NAME,
-            shortName = NUM_CHANGEPOINTS_PENALTY_FACTOR_COPY_RATIO_SHORT_NAME,
+            fullName = NUM_CHANGEPOINTS_PENALTY_FACTOR_LONG_NAME,
+            shortName = NUM_CHANGEPOINTS_PENALTY_FACTOR_SHORT_NAME,
             minValue = 0.,
             optional = true
     )
-    private double numChangepointsPenaltyFactorCopyRatio = 1.;
-
-    @Argument(
-            doc = "Factor A for the penalty on the number of changepoints per chromosome for allele-fraction segmentation.  " +
-                    "Adds a penalty of the form A * C * [1 + log (N / C)], " +
-                    "where C is the number of changepoints in the chromosome, " +
-                    "to the cost function for each chromosome.  " +
-                    "Must be non-negative.",
-            fullName = NUM_CHANGEPOINTS_PENALTY_FACTOR_ALLELE_FRACTION_LONG_NAME,
-            shortName = NUM_CHANGEPOINTS_PENALTY_FACTOR_ALLELE_FRACTION_SHORT_NAME,
-            minValue = 0.,
-            optional = true
-    )
-    private double numChangepointsPenaltyFactorAlleleFraction = 1.;
+    private double numChangepointsPenaltyFactor = 1.;
 
     @Argument(
             doc = "Alpha hyperparameter for the 4-parameter beta-distribution prior on segment minor-allele fraction. " +
@@ -313,7 +308,7 @@ public final class ModelSegments extends CommandLineProgram {
             optional = true,
             minValue = 0.
     )
-    private double smoothingCredibleIntervalThresholdCopyRatio = 4.;
+    private double smoothingCredibleIntervalThresholdCopyRatio = 2.;
 
     @Argument(
             doc = "Number of 10% equal-tailed credible-interval widths to use for allele-fraction segmentation smoothing.",
@@ -331,7 +326,7 @@ public final class ModelSegments extends CommandLineProgram {
             optional = true,
             minValue = 0
     )
-    private int maxNumSmoothingIterations = 10;
+    private int maxNumSmoothingIterations = 25;
 
     @Argument(
             doc = "Number of segmentation-smoothing iterations per MCMC model refit. " +
@@ -344,7 +339,7 @@ public final class ModelSegments extends CommandLineProgram {
     )
     private int numSmoothingIterationsPerFit = 0;
 
-    //initialize data/segment variables, some of which may be optional
+    //initialize data variables, some of which may be optional
     private CopyRatioCollection denoisedCopyRatios = null;
     private AllelicCountCollection hetAllelicCounts = null;
 
@@ -352,7 +347,8 @@ public final class ModelSegments extends CommandLineProgram {
     protected Object doWork() {
         validateArguments();
 
-        //perform one-dimensional or multidimensional segmentation as appropriate and write the combined segments to file
+        //perform one-dimensional or multidimensional segmentation as appropriate and write to file
+        //(for use by CallCopyRatioSegments, if copy ratios are available)
         final CRAFSegmentCollection crafSegments;
         if (inputDenoisedCopyRatiosFile != null && inputAllelicCountsFile == null) {
             readDenoisedCopyRatios();
@@ -377,9 +373,9 @@ public final class ModelSegments extends CommandLineProgram {
             readAndFilterAllelicCounts();
             crafSegments = new MultidimensionalKernelSegmenter(denoisedCopyRatios, hetAllelicCounts)
                     .findSegmentation(maxNumSegmentsPerChromosome,
-                            kernelVarianceCopyRatio, kernelVarianceAlleleFraction, 0.1, kernelApproximationDimension,
+                            kernelVarianceCopyRatio, kernelVarianceAlleleFraction, kernelScalingAlleleFraction, kernelApproximationDimension,
                             ImmutableSet.copyOf(windowSizes).asList(),
-                            1., 1.);
+                            numChangepointsPenaltyFactor, numChangepointsPenaltyFactor);
         }
         writeSegments(crafSegments, CRAF_SEGMENTS_FILE_SUFFIX);
 
@@ -435,7 +431,7 @@ public final class ModelSegments extends CommandLineProgram {
         return new CopyRatioKernelSegmenter(denoisedCopyRatios)
                 .findSegmentation(maxNumChangepointsPerChromosome, kernelVarianceCopyRatio, kernelApproximationDimension,
                         ImmutableSet.copyOf(windowSizes).asList(),
-                        numChangepointsPenaltyFactorCopyRatio, numChangepointsPenaltyFactorCopyRatio);
+                        numChangepointsPenaltyFactor, numChangepointsPenaltyFactor);
     }
 
     private void readAndFilterAllelicCounts() {
@@ -516,7 +512,7 @@ public final class ModelSegments extends CommandLineProgram {
                                     genotypingBaseErrorRate,
                                     AlternativeHypothesis.TWO_SIDED) < genotypingPValueThreshold + EPSILON)
                             .collect(Collectors.toList()));
-            final File hetNormalAllelicCountsFile = new File(outputDir, outputPrefix + "." + normalSampleName + HET_ALLELIC_COUNTS_FILE_SUFFIX);
+            final File hetNormalAllelicCountsFile = new File(outputDir, outputPrefix + NORMAL_HET_ALLELIC_COUNTS_FILE_SUFFIX);
             hetNormalAllelicCounts.write(hetNormalAllelicCountsFile);
             logger.info(String.format("Retained %d / %d sites in matched normal after testing for heterozygosity...",
                     hetNormalAllelicCounts.getRecords().size(), unfilteredNormalAllelicCounts.getRecords().size()));
@@ -542,7 +538,7 @@ public final class ModelSegments extends CommandLineProgram {
         return new AlleleFractionKernelSegmenter(hetAllelicCounts)
                 .findSegmentation(maxNumChangepointsPerChromosome, kernelVarianceAlleleFraction, kernelApproximationDimension,
                         ImmutableSet.copyOf(windowSizes).asList(),
-                        numChangepointsPenaltyFactorAlleleFraction, numChangepointsPenaltyFactorAlleleFraction);
+                        numChangepointsPenaltyFactor, numChangepointsPenaltyFactor);
     }
 
     private void writeModeledSegmentsAndParameterFiles(final CRAFModeller modeller,

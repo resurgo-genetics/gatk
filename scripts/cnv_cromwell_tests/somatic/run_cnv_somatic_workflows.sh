@@ -29,8 +29,8 @@ sed -r "s/__GATK_DOCKER__/broadinstitute\/gatk\:$HASH_TO_USE/g" ${CNV_CROMWELL_T
 sed -r "s/__GATK_DOCKER__/broadinstitute\/gatk\:$HASH_TO_USE/g" ${CNV_CROMWELL_TEST_DIR}/cnv_somatic_panel_wgs_workflow.json >cnv_somatic_panel_wgs_workflow_mod.json
 sed -r "s/__GATK_DOCKER__/broadinstitute\/gatk\:$HASH_TO_USE/g" ${CNV_CROMWELL_TEST_DIR}/cnv_somatic_panel_wes_do-gc_workflow.json >cnv_somatic_panel_wes_do-gc_workflow_mod.json
 sed -r "s/__GATK_DOCKER__/broadinstitute\/gatk\:$HASH_TO_USE/g" ${CNV_CROMWELL_TEST_DIR}/cnv_somatic_panel_wgs_do-gc_workflow.json >cnv_somatic_panel_wgs_do-gc_workflow_mod.json
-sed -r "s/__GATK_DOCKER__/broadinstitute\/gatk\:$HASH_TO_USE/g" ${CNV_CROMWELL_TEST_DIR}/cnv_somatic_bam_wes_workflow.json >cnv_somatic_bam_wes_workflow_mod.json
-sed -r "s/__GATK_DOCKER__/broadinstitute\/gatk\:$HASH_TO_USE/g" ${CNV_CROMWELL_TEST_DIR}/cnv_somatic_bam_wgs_workflow.json >cnv_somatic_bam_wgs_workflow_mod.json
+sed -r "s/__GATK_DOCKER__/broadinstitute\/gatk\:$HASH_TO_USE/g" ${CNV_CROMWELL_TEST_DIR}/cnv_somatic_pair_wes_workflow.json >cnv_somatic_pair_wes_workflow_mod.json
+sed -r "s/__GATK_DOCKER__/broadinstitute\/gatk\:$HASH_TO_USE/g" ${CNV_CROMWELL_TEST_DIR}/cnv_somatic_pair_wgs_workflow.json >cnv_somatic_pair_wgs_workflow_mod.json
 
 echo "Running ========"
 CROMWELL_JAR="cromwell-0.28.jar"
@@ -44,7 +44,7 @@ java -jar ~/${CROMWELL_JAR} run /home/travis/build/broadinstitute/gatk/scripts/c
 # Panel WGS w/ explicit GC correction
 java -jar ~/${CROMWELL_JAR} run /home/travis/build/broadinstitute/gatk/scripts/cnv_wdl/somatic/cnv_somatic_panel_workflow.wdl cnv_somatic_panel_wgs_do-gc_workflow_mod.json
 
-# BAM WES
-java -jar ~/${CROMWELL_JAR} run /home/travis/build/broadinstitute/gatk/scripts/cnv_wdl/somatic/cnv_somatic_bam_workflow.wdl cnv_somatic_bam_wes_workflow_mod.json
-# BAM WGS
-java -jar ~/${CROMWELL_JAR} run /home/travis/build/broadinstitute/gatk/scripts/cnv_wdl/somatic/cnv_somatic_bam_workflow.wdl cnv_somatic_bam_wgs_workflow_mod.json
+# Pair WES
+java -jar ~/${CROMWELL_JAR} run /home/travis/build/broadinstitute/gatk/scripts/cnv_wdl/somatic/cnv_somatic_pair_workflow.wdl cnv_somatic_pair_wes_workflow_mod.json
+# Pair WGS
+java -jar ~/${CROMWELL_JAR} run /home/travis/build/broadinstitute/gatk/scripts/cnv_wdl/somatic/cnv_somatic_pair_workflow.wdl cnv_somatic_pair_wgs_workflow_mod.json

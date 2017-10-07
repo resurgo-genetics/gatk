@@ -310,11 +310,11 @@ public final class PlotModeledSegmentsIntegrationTest extends CommandLineProgram
     public void testPlottingWGS() {
         final String[] arguments = {
                 "-" + CopyNumberStandardArgument.DENOISED_COPY_RATIOS_FILE_SHORT_NAME, "/home/slee/working/gatk/TCGA-05-4389-01A-01D-1931-08.denoisedCR.tsv",
-                "-" + CopyNumberStandardArgument.ALLELIC_COUNTS_FILE_SHORT_NAME, "/home/slee/working/gatk/TCGA-05-4389-01A-01D-1931-08.hets.tsv",
-                "-" + CopyNumberStandardArgument.SEGMENTS_FILE_SHORT_NAME, "/home/slee/working/gatk/TCGA-05-4389-01A-01D-1931-08.modelFinal.seg",
+                "-" + CopyNumberStandardArgument.ALLELIC_COUNTS_FILE_SHORT_NAME, "/home/slee/working/gatk/TCGA-05-4389-01A-01D-1931-08.matched-normal.hets.tsv",
+                "-" + CopyNumberStandardArgument.SEGMENTS_FILE_SHORT_NAME, "/home/slee/working/gatk/TCGA-05-4389-01A-01D-1931-08.matched-normal.modelFinal.seg",
                 "-" + StandardArgumentDefinitions.SEQUENCE_DICTIONARY_SHORT_NAME, "/home/slee/working/gatk/Homo_sapiens_assembly19.dict",
                 "-" + StandardArgumentDefinitions.OUTPUT_SHORT_NAME, "/home/slee/working/gatk",
-                "-" + CopyNumberStandardArgument.OUTPUT_PREFIX_SHORT_NAME, "TCGA-05-4389-01A-01D-1931-08"
+                "-" + CopyNumberStandardArgument.OUTPUT_PREFIX_SHORT_NAME, "TCGA-05-4389-01A-01D-1931-08.matched-normal"
         };
         runCommandLine(arguments);
     }
@@ -338,7 +338,7 @@ public final class PlotModeledSegmentsIntegrationTest extends CommandLineProgram
     public void testPlottingWESHCC() {
         final String[] arguments = {
                 "-" + CopyNumberStandardArgument.DENOISED_COPY_RATIOS_FILE_SHORT_NAME, "/home/slee/working/gatk/hcc1143_T_clean.denoisedCR.tsv",
-//                "-" + CopyNumberStandardArgument.ALLELIC_COUNTS_FILE_SHORT_NAME, "/home/slee/working/gatk/hcc1143_T_clean.hets.tsv",
+                "-" + CopyNumberStandardArgument.ALLELIC_COUNTS_FILE_SHORT_NAME, "/home/slee/working/gatk/hcc1143_T_clean.hets.tsv",
                 "-" + CopyNumberStandardArgument.SEGMENTS_FILE_SHORT_NAME, "/home/slee/working/gatk/hcc1143_T_clean.no-ac.modelFinal.seg",
                 "-" + StandardArgumentDefinitions.SEQUENCE_DICTIONARY_SHORT_NAME, "/home/slee/working/gatk/GRCh38_full_analysis_set_plus_decoy_hla.dict",
                 "-" + StandardArgumentDefinitions.OUTPUT_SHORT_NAME, "/home/slee/working/gatk",

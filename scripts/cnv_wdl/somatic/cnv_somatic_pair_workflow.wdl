@@ -1,4 +1,4 @@
-# Workflow for running the GATK CNV pipeline on a single normal or tumor BAM. Supports both WGS and WES.
+# Workflow for running the GATK CNV pipeline on a matched pair. Supports both WGS and WES.
 #
 # Notes:
 #
@@ -7,24 +7,26 @@
 #   These targets will be padded on both sides by the amount specified by PadTargets.padding (default 250).
 #
 # - If a target file is not provided, then the WGS workflow will be run instead and the specified value of
-#   wgs_bin_length (default 10000) will be used.
+#   wgs_bin_length (default 500) will be used.
 #
 # - The sites file (common_sites) should be a Picard or GATK-style interval list.
 #
 # - Example invocation:
-#    java -jar cromwell.jar run cnv_somatic_bam_workflow.wdl myParameters.json
-#   See cnv_somatic_bam_workflow_template.json for a template json file to modify with your own parameters (please save
+#    java -jar cromwell.jar run cnv_somatic_pair_workflow.wdl myParameters.json
+#   See cnv_somatic_pair_workflow_template.json for a template json file to modify with your own parameters (please save
 #   your modified version with a different filename and do not commit to the gatk repository).
 #
 #############
 
 import "cnv_common_tasks.wdl" as CNVTasks
 
-workflow CNVSomaticBAMWorkflow {
+workflow CNVSomaticPairWorkflow {
     File? targets
     File common_sites
-    File bam
-    File bam_idx
+    File tumor_bam
+    File tumor_bam_idx
+    File normal_bam
+    File normal_bam_idx
     File ref_fasta
     File ref_fasta_dict
     File ref_fasta_fai
@@ -32,7 +34,7 @@ workflow CNVSomaticBAMWorkflow {
     String gatk_jar
 
     # If no target file is input, then do WGS workflow
-    Boolean is_wgs = select_first([targets, ""]) == ""
+    Boolean is_wgs = !defined(targets)
 
     String gatk_docker
 
@@ -45,23 +47,35 @@ workflow CNVSomaticBAMWorkflow {
         }
     }
 
-    call CNVTasks.CollectReadCounts {
+    call CNVTasks.CollectReadCounts as CollectReadCountsTumor {
         input:
             padded_targets = PadTargets.padded_targets,
-            bam = bam,
-            bam_idx = bam_idx,
+            bam = tumor_bam,
+            bam_idx = tumor_bam_idx,
             ref_fasta = ref_fasta,
             ref_fasta_fai = ref_fasta_fai,
             ref_fasta_dict = ref_fasta_dict,
             gatk_jar = gatk_jar,
             gatk_docker = gatk_docker
     }
-    
-    call CNVTasks.CollectAllelicCounts {
+
+    call CNVTasks.CollectReadCounts as CollectReadCountsNormal {
+        input:
+            padded_targets = PadTargets.padded_targets,
+            bam = normal_bam,
+            bam_idx = normal_bam_idx,
+            ref_fasta = ref_fasta,
+            ref_fasta_fai = ref_fasta_fai,
+            ref_fasta_dict = ref_fasta_dict,
+            gatk_jar = gatk_jar,
+            gatk_docker = gatk_docker
+    }
+
+    call CNVTasks.CollectAllelicCounts as CollectAllelicCountsTumor {
         input:
             common_sites = common_sites,
-            bam = bam,
-            bam_idx = bam_idx,
+            bam = tumor_bam,
+            bam_idx = tumor_bam_idx,
             ref_fasta = ref_fasta,
             ref_fasta_dict = ref_fasta_dict,
             ref_fasta_fai = ref_fasta_fai,
@@ -69,70 +83,113 @@ workflow CNVSomaticBAMWorkflow {
             gatk_docker = gatk_docker
     }
 
-    call DenoiseReadCounts {
+    call CNVTasks.CollectAllelicCounts as CollectAllelicCountsNormal {
         input:
-            entity_id = CollectReadCounts.entity_id,
-            read_counts = if is_wgs then CollectReadCounts.read_counts_hdf5 else CollectReadCounts.read_counts,
+            common_sites = common_sites,
+            bam = normal_bam,
+            bam_idx = normal_bam_idx,
+            ref_fasta = ref_fasta,
+            ref_fasta_dict = ref_fasta_dict,
+            ref_fasta_fai = ref_fasta_fai,
+            gatk_jar = gatk_jar,
+            gatk_docker = gatk_docker
+    }
+
+    call DenoiseReadCounts as DenoiseReadCountsTumor {
+        input:
+            entity_id = CollectReadCountsTumor.entity_id,
+            read_counts = if is_wgs then CollectReadCountsTumor.read_counts_hdf5 else CollectReadCountsTumor.read_counts,
             read_count_pon = read_count_pon,
             gatk_jar = gatk_jar,
             gatk_docker = gatk_docker
     }
 
-    call ModelSegments {
+    call DenoiseReadCounts as DenoiseReadCountsNormal {
         input:
-            entity_id = CollectReadCounts.entity_id,
-            denoised_copy_ratios = DenoiseReadCounts.denoised_copy_ratios,
-            allelic_counts = CollectAllelicCounts.allelic_counts,
+            entity_id = CollectReadCountsNormal.entity_id,
+            read_counts = if is_wgs then CollectReadCountsNormal.read_counts_hdf5 else CollectReadCountsNormal.read_counts,
+            read_count_pon = read_count_pon,
             gatk_jar = gatk_jar,
             gatk_docker = gatk_docker
     }
 
-    call CallCopyRatioSegments {
+    call ModelSegments as ModelSegmentsTumor {
         input:
-            entity_id = CollectReadCounts.entity_id,
-            denoised_copy_ratios = DenoiseReadCounts.denoised_copy_ratios,
-            copy_ratio_segments = ModelSegments.copy_ratio_segments,
+            entity_id = CollectReadCountsTumor.entity_id,
+            denoised_copy_ratios = DenoiseReadCountsTumor.denoised_copy_ratios,
+            allelic_counts = CollectAllelicCountsTumor.allelic_counts,
+            normal_allelic_counts = CollectAllelicCountsNormal.allelic_counts,
             gatk_jar = gatk_jar,
             gatk_docker = gatk_docker
     }
 
-    call PlotDenoisedCopyRatios {
+    call ModelSegments as ModelSegmentsNormal {
         input:
-            entity_id = CollectReadCounts.entity_id,
-            standardized_copy_ratios = DenoiseReadCounts.standardized_copy_ratios,
-            denoised_copy_ratios = DenoiseReadCounts.denoised_copy_ratios,
+            entity_id = CollectReadCountsNormal.entity_id,
+            denoised_copy_ratios = DenoiseReadCountsNormal.denoised_copy_ratios,
+            allelic_counts = CollectAllelicCountsNormal.allelic_counts,
+            gatk_jar = gatk_jar,
+            gatk_docker = gatk_docker
+    }
+
+    call CallCopyRatioSegments as CallCopyRatioSegmentsTumor {
+        input:
+            entity_id = CollectReadCountsTumor.entity_id,
+            denoised_copy_ratios = DenoiseReadCountsTumor.denoised_copy_ratios,
+            copy_ratio_segments = ModelSegmentsTumor.combined_segments,
+            gatk_jar = gatk_jar,
+            gatk_docker = gatk_docker
+    }
+
+    call CallCopyRatioSegments as CallCopyRatioSegmentsNormal {
+        input:
+            entity_id = CollectReadCountsNormal.entity_id,
+            denoised_copy_ratios = DenoiseReadCountsNormal.denoised_copy_ratios,
+            copy_ratio_segments = ModelSegmentsNormal.combined_segments,
+            gatk_jar = gatk_jar,
+            gatk_docker = gatk_docker
+    }
+
+    call PlotDenoisedCopyRatios as PlotDenoisedCopyRatiosTumor {
+        input:
+            entity_id = CollectReadCountsTumor.entity_id,
+            standardized_copy_ratios = DenoiseReadCountsTumor.standardized_copy_ratios,
+            denoised_copy_ratios = DenoiseReadCountsTumor.denoised_copy_ratios,
             ref_fasta_dict = ref_fasta_dict,
             gatk_jar = gatk_jar,
             gatk_docker = gatk_docker
     }
 
-    call PlotModeledSegments {
+    call PlotDenoisedCopyRatios as PlotDenoisedCopyRatiosNormal {
         input:
-            entity_id = CollectReadCounts.entity_id,
-            denoised_copy_ratios = DenoiseReadCounts.denoised_copy_ratios,
-            het_allelic_counts = ModelSegments.het_allelic_counts,
-            modeled_segments = ModelSegments.modeled_segments,
+            entity_id = CollectReadCountsNormal.entity_id,
+            standardized_copy_ratios = DenoiseReadCountsNormal.standardized_copy_ratios,
+            denoised_copy_ratios = DenoiseReadCountsNormal.denoised_copy_ratios,
             ref_fasta_dict = ref_fasta_dict,
             gatk_jar = gatk_jar,
             gatk_docker = gatk_docker
     }
 
-    output {
-        String entity_id = CollectReadCounts.entity_id
-        File read_counts = CollectReadCounts.read_counts
-        File allelic_counts = CollectAllelicCounts.allelic_counts
-        File standardized_copy_ratios = DenoiseReadCounts.standardized_copy_ratios
-        File denoised_copy_ratios = DenoiseReadCounts.denoised_copy_ratios
-        File het_allelic_counts = ModelSegments.het_allelic_counts
-        File copy_ratio_segments = ModelSegments.copy_ratio_segments
-        File allele_fraction_segments = ModelSegments.allele_fraction_segments
-        File modeled_segments = ModelSegments.modeled_segments
-        File copy_ratio_parameters = ModelSegments.copy_ratio_parameters
-        File allele_fraction_parameters = ModelSegments.allele_fraction_parameters
-        File called_copy_ratio_segments = CallCopyRatioSegments.called_copy_ratio_segments
-        File denoised_copy_ratios_plot = PlotDenoisedCopyRatios.denoised_copy_ratios_plot
-        File denoised_copy_ratios_lim_4_plot = PlotDenoisedCopyRatios.denoised_copy_ratios_lim_4_plot
-        File modeled_segments_plot = PlotModeledSegments.modeled_segments_plot
+    call PlotModeledSegments as PlotModeledSegmentsTumor {
+        input:
+            entity_id = CollectReadCountsTumor.entity_id,
+            denoised_copy_ratios = DenoiseReadCountsTumor.denoised_copy_ratios,
+            het_allelic_counts = ModelSegmentsTumor.het_allelic_counts,
+            modeled_segments = ModelSegmentsTumor.modeled_segments,
+            ref_fasta_dict = ref_fasta_dict,
+            gatk_jar = gatk_jar,
+            gatk_docker = gatk_docker
+    }
+
+    call PlotModeledSegments as PlotModeledSegmentsNormal {
+        input:
+            entity_id = CollectReadCountsNormal.entity_id,
+            denoised_copy_ratios = DenoiseReadCountsNormal.denoised_copy_ratios,
+            het_allelic_counts = ModelSegmentsNormal.het_allelic_counts,
+            modeled_segments = ModelSegmentsNormal.modeled_segments,
+            ref_fasta_dict = ref_fasta_dict,
+            gatk_jar = gatk_jar,
+            gatk_docker = gatk_docker
     }
 }
 
@@ -175,16 +232,17 @@ task ModelSegments {
     String entity_id
     File denoised_copy_ratios
     File allelic_counts
+    File? normal_allelic_counts
     Int? max_num_segments_per_chromosome
     Int? min_total_allele_count
     Float? genotyping_p_value_threshold
     Float? genotyping_base_error_rate
     Float? kernel_variance_copy_ratio
     Float? kernel_variance_allele_fraction
+    Float? kernel_scaling_allele_fraction
     Int? kernel_approximation_dimension
     Array[Int]? window_sizes = [8, 16, 32, 64, 128, 256]
-    Float? num_changepoints_penalty_factor_copy_ratio
-    Float? num_changepoints_penalty_factor_allele_fraction
+    Float? num_changepoints_penalty_factor
     Float? minor_allele_fraction_prior_alpha
     Int? num_samples_copy_ratio
     Int? num_burn_in_copy_ratio
@@ -210,16 +268,16 @@ task ModelSegments {
         java -Xmx${default="4" mem}g -jar ${gatk_jar} ModelSegments \
             --denoisedCopyRatios ${denoised_copy_ratios} \
             --allelicCounts ${allelic_counts} \
+            ${"--normalAllelicCounts " + normal_allelic_counts} \
             --maxNumSegmentsPerChromosome ${default="500" max_num_segments_per_chromosome} \
             --minTotalAlleleCount ${default="30" min_total_allele_count} \
-            --genotypingPValueThreshold ${default="0.001" genotyping_p_value_threshold} \
+            --genotypingPValueThreshold ${default="0.01" genotyping_p_value_threshold} \
             --genotypingBaseErrorRate ${default="0.01" genotyping_base_error_rate} \
             --kernelVarianceCopyRatio ${default="0.0" kernel_variance_copy_ratio} \
             --kernelVarianceAlleleFraction ${default="0.01" kernel_variance_allele_fraction} \
             --kernelApproximationDimension ${default="100" kernel_approximation_dimension} \
             --windowSizes ${sep= " --windowSizes " window_sizes} \
-            --numChangepointsPenaltyFactorCopyRatio ${default="1.0" num_changepoints_penalty_factor_copy_ratio} \
-            --numChangepointsPenaltyFactorAlleleFraction ${default="1.0" num_changepoints_penalty_factor_allele_fraction} \
+            --numChangepointsPenaltyFactor ${default="1.0" num_changepoints_penalty_factor} \
             --minorAlleleFractionPriorAlpha ${default="25.0" minor_allele_fraction_prior_alpha} \
             --numSamplesCopyRatio ${default=100 num_samples_copy_ratio} \
             --numBurnInCopyRatio ${default=50 num_burn_in_copy_ratio} \
@@ -242,9 +300,11 @@ task ModelSegments {
 
     output {
         File het_allelic_counts = "${output_dir_}/${entity_id}.hets.tsv"
-        File copy_ratio_segments = "${output_dir_}/${entity_id}.cr.seg"
-        File allele_fraction_segments = "${output_dir_}/${entity_id}.af.seg"
+        File? normal_het_allelic_counts = "${output_dir_}/${entity_id}.hets.normal.tsv"    #tumor is run in matched-normal mode, so a hets file is also produced for the matched normal
         File combined_segments = "${output_dir_}/${entity_id}.craf.seg"
+        File modeled_segments_begin = "${output_dir_}/${entity_id}.modelBegin.seg"
+        File copy_ratio_parameters_begin = "${output_dir_}/${entity_id}.modelBegin.cr.param"
+        File allele_fraction_parameters_begin = "${output_dir_}/${entity_id}.modelBegin.af.param"
         File modeled_segments = "${output_dir_}/${entity_id}.modelFinal.seg"
         File copy_ratio_parameters = "${output_dir_}/${entity_id}.modelFinal.cr.param"
         File allele_fraction_parameters = "${output_dir_}/${entity_id}.modelFinal.af.param"
@@ -321,6 +381,10 @@ task PlotDenoisedCopyRatios {
     output {
         File denoised_copy_ratios_plot = "${output_dir_}/${entity_id}.denoised.png"
         File denoised_copy_ratios_lim_4_plot = "${output_dir_}/${entity_id}.denoisedLimit4.png"
+        File standardized_MAD = "${output_dir_}/${entity_id}.standardizedMAD.txt"
+        File denoised_MAD = "${output_dir_}/${entity_id}.denoisedMAD.txt"
+        File delta_MAD = "${output_dir_}/${entity_id}.deltaMAD.txt"
+        File scaled_delta_MAD = "${output_dir_}/${entity_id}.scaledDeltaMAD.txt"
     }
 }
 
