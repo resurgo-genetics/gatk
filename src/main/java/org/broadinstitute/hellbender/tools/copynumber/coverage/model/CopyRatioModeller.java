@@ -116,7 +116,6 @@ public final class CopyRatioModeller {
         varianceSamples.addAll(gibbsSampler.getSamples(CopyRatioParameter.VARIANCE, Double.class, numBurnIn));
         outlierProbabilitySamples.addAll(gibbsSampler.getSamples(CopyRatioParameter.OUTLIER_PROBABILITY, Double.class, numBurnIn));
         segmentMeansSamples.addAll(gibbsSampler.getSamples(CopyRatioParameter.SEGMENT_MEANS, CopyRatioState.SegmentMeans.class, numBurnIn));
-        outlierIndicatorsSamples.addAll(gibbsSampler.getSamples(CopyRatioParameter.OUTLIER_INDICATORS, CopyRatioState.OutlierIndicators.class, numBurnIn));
     }
 
     public List<Double> getVarianceSamples() {
@@ -129,10 +128,6 @@ public final class CopyRatioModeller {
 
     public List<CopyRatioState.SegmentMeans> getSegmentMeansSamples() {
         return Collections.unmodifiableList(segmentMeansSamples);
-    }
-
-    public List<CopyRatioState.OutlierIndicators> getOutlierIndicatorsSamples() {
-        return Collections.unmodifiableList(outlierIndicatorsSamples);
     }
 
     /**

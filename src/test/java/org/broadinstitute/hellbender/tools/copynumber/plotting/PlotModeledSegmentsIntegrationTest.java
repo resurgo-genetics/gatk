@@ -282,11 +282,11 @@ public final class PlotModeledSegmentsIntegrationTest extends CommandLineProgram
     public void testPlottingChr20Chr21() {
         final String[] arguments = {
                 "-" + CopyNumberStandardArgument.DENOISED_COPY_RATIOS_FILE_SHORT_NAME, "/home/slee/working/gatk/TCGA-05-4389-01A-01D-1931-08-chr20-chr21.denoisedCR.tsv",
-                "-" + CopyNumberStandardArgument.ALLELIC_COUNTS_FILE_SHORT_NAME, "/home/slee/working/gatk/TCGA-05-4389-01A-01D-1931-08-chr20-chr21.hets.tsv",
-                "-" + CopyNumberStandardArgument.SEGMENTS_FILE_SHORT_NAME, "/home/slee/working/gatk/TCGA-05-4389-01A-01D-1931-08-chr20-chr21.modelFinal.seg",
+                "-" + CopyNumberStandardArgument.ALLELIC_COUNTS_FILE_SHORT_NAME, "/home/slee/working/gatk/TCGA-05-4389-01A-01D-1931-08-chr20-chr21.matched-normal.hets.tsv",
+                "-" + CopyNumberStandardArgument.SEGMENTS_FILE_SHORT_NAME, "/home/slee/working/gatk/TCGA-05-4389-01A-01D-1931-08-chr20-chr21.matched-normal.modelFinal.seg",
                 "-" + StandardArgumentDefinitions.SEQUENCE_DICTIONARY_SHORT_NAME, "/home/slee/working/gatk/Homo_sapiens_assembly19.dict",
                 "-" + StandardArgumentDefinitions.OUTPUT_SHORT_NAME, "/home/slee/working/gatk",
-                "-" + CopyNumberStandardArgument.OUTPUT_PREFIX_SHORT_NAME, "TCGA-05-4389-01A-01D-1931-08-chr20-chr21"
+                "-" + CopyNumberStandardArgument.OUTPUT_PREFIX_SHORT_NAME, "TCGA-05-4389-01A-01D-1931-08-chr20-chr21.matched-normal"
         };
         runCommandLine(arguments);
     }
@@ -323,7 +323,7 @@ public final class PlotModeledSegmentsIntegrationTest extends CommandLineProgram
     @Test
     public void testPlottingWGSNormal() {
         final String[] arguments = {
-//                "-" + CopyNumberStandardArgument.DENOISED_COPY_RATIOS_FILE_SHORT_NAME, "/home/slee/working/gatk/TCGA-05-4389-10A-01D-1931-08.denoisedCR.tsv",
+                "-" + CopyNumberStandardArgument.DENOISED_COPY_RATIOS_FILE_SHORT_NAME, "/home/slee/working/gatk/TCGA-05-4389-10A-01D-1931-08.denoisedCR.tsv",
                 "-" + CopyNumberStandardArgument.ALLELIC_COUNTS_FILE_SHORT_NAME, "/home/slee/working/gatk/TCGA-05-4389-10A-01D-1931-08.hets.tsv",
                 "-" + CopyNumberStandardArgument.SEGMENTS_FILE_SHORT_NAME, "/home/slee/working/gatk/TCGA-05-4389-10A-01D-1931-08.modelFinal.seg",
                 "-" + StandardArgumentDefinitions.SEQUENCE_DICTIONARY_SHORT_NAME, "/home/slee/working/gatk/Homo_sapiens_assembly19.dict",
@@ -339,7 +339,7 @@ public final class PlotModeledSegmentsIntegrationTest extends CommandLineProgram
         final String[] arguments = {
                 "-" + CopyNumberStandardArgument.DENOISED_COPY_RATIOS_FILE_SHORT_NAME, "/home/slee/working/gatk/hcc1143_T_clean.denoisedCR.tsv",
 //                "-" + CopyNumberStandardArgument.ALLELIC_COUNTS_FILE_SHORT_NAME, "/home/slee/working/gatk/hcc1143_T_clean.hets.tsv",
-                "-" + CopyNumberStandardArgument.SEGMENTS_FILE_SHORT_NAME, "/home/slee/working/gatk/hcc1143_T_clean.modelFinal.seg",
+                "-" + CopyNumberStandardArgument.SEGMENTS_FILE_SHORT_NAME, "/home/slee/working/gatk/hcc1143_T_clean.no-ac.modelFinal.seg",
                 "-" + StandardArgumentDefinitions.SEQUENCE_DICTIONARY_SHORT_NAME, "/home/slee/working/gatk/GRCh38_full_analysis_set_plus_decoy_hla.dict",
                 "-" + StandardArgumentDefinitions.OUTPUT_SHORT_NAME, "/home/slee/working/gatk",
                 "-" + CopyNumberStandardArgument.OUTPUT_PREFIX_SHORT_NAME, "hcc1143_T_clean.no-ac",

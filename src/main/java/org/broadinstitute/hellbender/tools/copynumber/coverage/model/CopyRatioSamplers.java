@@ -2,6 +2,7 @@ package org.broadinstitute.hellbender.tools.copynumber.coverage.model;
 
 import org.apache.commons.math3.distribution.BetaDistribution;
 import org.apache.commons.math3.random.RandomGenerator;
+import org.apache.commons.math3.util.FastMath;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.broadinstitute.hellbender.utils.MathUtils;
@@ -11,6 +12,7 @@ import org.broadinstitute.hellbender.utils.mcmc.SliceSampler;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 /**
@@ -18,6 +20,9 @@ import java.util.stream.IntStream;
  */
 final class CopyRatioSamplers {
     private static final Logger logger = LogManager.getLogger(CopyRatioSamplers.class);
+
+    private static final int NUM_POINTS_GLOBAL_SUBSAMPLE_THRESHOLD = 10000;
+    private static final int NUM_POINTS_SEGMENT_SUBSAMPLE_THRESHOLD = 1000;
 
     private CopyRatioSamplers() {}
 
@@ -50,18 +55,22 @@ final class CopyRatioSamplers {
                              final CopyRatioState state, 
                              final CopyRatioSegmentedData data) {
             logger.debug("Sampling variance...");
+            final List<CopyRatioSegmentedData.IndexedCopyRatio> indexedCopyRatiosSubsample = subsample(
+                    rng, data.getIndexedCopyRatios(), NUM_POINTS_GLOBAL_SUBSAMPLE_THRESHOLD);
+            final double scalingFactor = (double) data.getNumPoints() / indexedCopyRatiosSubsample.size();
             final Function<Double, Double> logConditionalPDF = newVariance -> {
-                final double gaussianLogNormalization = 0.5 * Math.log(newVariance);
+                final double gaussianLogNormalization = 0.5 * FastMath.log(newVariance);
                 double ll = 0.;
-                for (int segment = 0; segment < data.getNumSegments(); segment++) {
-                    final List<CopyRatioSegmentedData.IndexedCopyRatio> indexedCopyRatiosInSegment = data.getIndexedCopyRatiosInSegment(segment);
-                    for (final CopyRatioSegmentedData.IndexedCopyRatio indexedCopyRatio : indexedCopyRatiosInSegment) {
-                        if (!state.outlierIndicator(indexedCopyRatio.getIndex())) {
-                            ll -= normalTerm(indexedCopyRatio.getLog2CopyRatioValue(), state.segmentMean(segment), newVariance) + gaussianLogNormalization;
-                        }
+                for (final CopyRatioSegmentedData.IndexedCopyRatio indexedCopyRatio : indexedCopyRatiosSubsample) {
+                    if (!state.outlierIndicator(indexedCopyRatio.getIndex())) {
+                        ll -= gaussianLogNormalization +
+                                normalTerm(
+                                        indexedCopyRatio.getLog2CopyRatioValue(),
+                                        state.segmentMean(indexedCopyRatio.getSegmentIndex()),
+                                        newVariance);
                     }
                 }
-                return ll;
+                return scalingFactor * ll;
             };
             return new SliceSampler(rng, logConditionalPDF, varianceMin, varianceMax, varianceSliceSamplingWidth).sample(state.variance());
         }
@@ -119,8 +128,11 @@ final class CopyRatioSamplers {
                     means.add(Double.NaN);
                 } else {
                     logger.debug(String.format("Sampling mean for segment %d...", segment));
+                    final List<CopyRatioSegmentedData.IndexedCopyRatio> indexedCopyRatiosInSegmentSubsample = subsample(
+                            rng, indexedCopyRatiosInSegment, NUM_POINTS_SEGMENT_SUBSAMPLE_THRESHOLD);
+                    final double scalingFactor = (double) indexedCopyRatiosInSegment.size() / indexedCopyRatiosInSegmentSubsample.size();
                     final Function<Double, Double> logConditionalPDF = newMean ->
-                            indexedCopyRatiosInSegment.stream()
+                            scalingFactor * indexedCopyRatiosInSegmentSubsample.stream()
                                     .filter(c -> !state.outlierIndicator(c.getIndex()))
                                     .mapToDouble(c -> -normalTerm(c.getLog2CopyRatioValue(), newMean, state.variance()))
                                     .sum();
@@ -173,5 +185,14 @@ final class CopyRatioSamplers {
             }
             return new CopyRatioState.OutlierIndicators(indicators);
         }
+    }
+
+    private static List<CopyRatioSegmentedData.IndexedCopyRatio> subsample(final RandomGenerator rng,
+                                                                           final List<CopyRatioSegmentedData.IndexedCopyRatio> copyRatios,
+                                                                           final int numPointsSubsampleThreshold) {
+        //subsample the data if we are above the threshold
+        return copyRatios.size() > numPointsSubsampleThreshold
+                ? IntStream.range(0, numPointsSubsampleThreshold).boxed().map(i -> rng.nextInt(copyRatios.size())).map(copyRatios::get).collect(Collectors.toList())
+                : copyRatios;
     }
 }
