@@ -120,7 +120,6 @@ public final class KernelSegmenter<DATA> {
         Utils.validateArg(!windowSizes.isEmpty(), "At least one window size must be provided.");
         Utils.validateArg(windowSizes.stream().allMatch(ws -> ws > 0), "Window sizes must all be positive.");
         Utils.validateArg(windowSizes.stream().distinct().count() == windowSizes.size(), "Window sizes must all be unique.");
-        Utils.validateArg(Collections.min(windowSizes) * 2 <= data.size(), "Smallest window size should be at most half the number of data points.");
         ParamUtils.isPositiveOrZero(numChangepointsPenaltyLinearFactor,
                 "Linear factor for the penalty on the number of changepoints per chromosome must be non-negative.");
         ParamUtils.isPositiveOrZero(numChangepointsPenaltyLogLinearFactor,
@@ -199,8 +198,8 @@ public final class KernelSegmenter<DATA> {
                                                                        final BiFunction<DATA, DATA, Double> kernel,
                                                                        final int kernelApproximationDimension) {
         if (kernelApproximationDimension > data.size()) {
-            logger.warn("Specified dimension of the kernel approximation exceeds the number of data points to segment; " +
-                    "using all data points to calculate kernel matrix.");
+            logger.warn(String.format("Specified dimension of the kernel approximation (%d) exceeds the number of data points (%d) to segment; " +
+                    "using all data points to calculate kernel matrix.", kernelApproximationDimension, data.size()));
         }
 
         //subsample data with replacement
@@ -268,7 +267,7 @@ public final class KernelSegmenter<DATA> {
             logger.debug(String.format("Calculating local changepoints costs for window size %d...", windowSize));
             if (windowSize > data.size()) {
                 logger.warn(String.format("Number of points needed to calculate local changepoint costs (2 * window size = %d) " +
-                        "exceeds number of data points %d.  Local changepoint costs will not be calculated for this window size.",
+                        "exceeds number of data points (%d).  Local changepoint costs will not be calculated for this window size.",
                         2 * windowSize, data.size()));
                 continue;
             }

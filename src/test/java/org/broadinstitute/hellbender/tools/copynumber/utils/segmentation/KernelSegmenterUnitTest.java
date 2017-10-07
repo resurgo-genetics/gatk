@@ -106,8 +106,8 @@ public final class KernelSegmenterUnitTest extends BaseTest {
 
     @Test(dataProvider = "dataKernelSegmenter")
     public void testKernelSegmenterExtremePenalty(final List<Double> data,
-                                    final BiFunction<Double, Double, Double> kernel,
-                                    final List<Integer> changepointsExpected) {
+                                                  final BiFunction<Double, Double, Double> kernel,
+                                                  final List<Integer> changepointsExpected) {
         final int maxNumChangepoints = 25;
         final int kernelApproximationDimension = 20;
         final List<Integer> windowSizes = Arrays.asList(8, 16, 32, 64);
@@ -148,21 +148,6 @@ public final class KernelSegmenterUnitTest extends BaseTest {
         final int maxNumChangepoints = 25;
         final int kernelApproximationDimension = 20;
         final List<Integer> windowSizes = Collections.emptyList();
-        final double numChangepointsPenaltyLinearFactor = 0.;
-        final double numChangepointsPenaltyLogLinearFactor = 0.;
-        final List<Double> data = Arrays.asList(1., 2., 3.);
-        final BiFunction<Double, Double, Double> kernel = (x, y) -> x * y;
-
-        new KernelSegmenter<>(data)
-                .findChangepoints(maxNumChangepoints, kernel, kernelApproximationDimension, windowSizes,
-                        numChangepointsPenaltyLinearFactor, numChangepointsPenaltyLogLinearFactor, ChangepointSortOrder.BACKWARD_SELECTION);
-    }
-
-    @Test(expectedExceptions = IllegalArgumentException.class)
-    public void testKernelSegmenterSmallestWindowSizeTooBig() {
-        final int maxNumChangepoints = 25;
-        final int kernelApproximationDimension = 20;
-        final List<Integer> windowSizes = Arrays.asList(501, 750);
         final double numChangepointsPenaltyLinearFactor = 0.;
         final double numChangepointsPenaltyLogLinearFactor = 0.;
         final List<Double> data = Arrays.asList(1., 2., 3.);
