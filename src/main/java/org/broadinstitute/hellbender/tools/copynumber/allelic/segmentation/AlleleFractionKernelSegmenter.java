@@ -26,6 +26,8 @@ import java.util.stream.IntStream;
 public final class AlleleFractionKernelSegmenter {
     private static final Logger logger = LogManager.getLogger(AlleleFractionKernelSegmenter.class);
 
+    private static final int MIN_NUM_POINTS_REQUIRED_PER_CHROMOSOME = 10;
+
     //Gaussian kernel for a specified variance; if variance is zero, use a linear kernel
     private static final Function<Double, BiFunction<Double, Double, Double>> kernel =
             variance -> variance == 0.
@@ -92,6 +94,16 @@ public final class AlleleFractionKernelSegmenter {
             logger.info(String.format("Finding changepoints in chromosome %s...", chromosome));
             final List<AllelicCount> allelicCountsInChromosome = allelicCountsPerChromosome.get(chromosome);
             final List<Double> alternateAlleleFractionsInChromosome = alternateAlleleFractionsPerChromosome.get(chromosome);
+
+            final int numAllelicCountsInChromosome = allelicCountsInChromosome.size();
+            if (numAllelicCountsInChromosome < MIN_NUM_POINTS_REQUIRED_PER_CHROMOSOME) {
+                logger.warn(String.format("Number of points in chromosome %s (%d) is less than that required (%d), skipping segmentation...",
+                        chromosome, numAllelicCountsInChromosome, MIN_NUM_POINTS_REQUIRED_PER_CHROMOSOME));
+                final int start = allelicCountsInChromosome.get(0).getStart();
+                final int end = allelicCountsInChromosome.get(numAllelicCountsInChromosome - 1).getEnd();
+                segments.add(new AlleleFractionSegment(
+                        new SimpleInterval(chromosome, start, end), numAllelicCountsInChromosome));
+            }
 
             final List<Integer> changepoints = new ArrayList<>(new KernelSegmenter<>(alternateAlleleFractionsInChromosome)
                 .findChangepoints(maxNumChangepointsPerChromosome, kernel.apply(kernelVariance), kernelApproximationDimension,

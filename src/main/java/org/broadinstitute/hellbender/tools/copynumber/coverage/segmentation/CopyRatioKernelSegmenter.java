@@ -26,6 +26,8 @@ import java.util.stream.IntStream;
 public final class CopyRatioKernelSegmenter {
     private static final Logger logger = LogManager.getLogger(CopyRatioKernelSegmenter.class);
 
+    private static final int MIN_NUM_POINTS_REQUIRED_PER_CHROMOSOME = 10;
+
     //Gaussian kernel for a specified variance; if variance is zero, use a linear kernel
     private static final Function<Double, BiFunction<Double, Double, Double>> kernel =
             variance -> variance == 0.
@@ -82,6 +84,16 @@ public final class CopyRatioKernelSegmenter {
         for (final String chromosome : denoisedCopyRatiosPerChromosome.keySet()) {
             logger.info(String.format("Finding changepoints in chromosome %s...", chromosome));
             final List<Double> denoisedCopyRatiosInChromosome = denoisedCopyRatiosPerChromosome.get(chromosome);
+
+            final int numDenoisedCopyRatiosInChromosome = denoisedCopyRatiosInChromosome.size();
+            if (numDenoisedCopyRatiosInChromosome < MIN_NUM_POINTS_REQUIRED_PER_CHROMOSOME) {
+                logger.warn(String.format("Number of points in chromosome %s (%d) is less than that required (%d), skipping segmentation...",
+                        chromosome, numDenoisedCopyRatiosInChromosome, MIN_NUM_POINTS_REQUIRED_PER_CHROMOSOME));
+                final int start = intervalsPerChromosome.get(chromosome).get(0).getStart();
+                final int end = intervalsPerChromosome.get(chromosome).get(numDenoisedCopyRatiosInChromosome - 1).getEnd();
+                segments.add(new CopyRatioSegment(
+                        new SimpleInterval(chromosome, start, end), denoisedCopyRatiosInChromosome));
+            }
 
             final List<Integer> changepoints = new ArrayList<>(new KernelSegmenter<>(denoisedCopyRatiosInChromosome)
                 .findChangepoints(maxNumChangepointsPerChromosome, kernel.apply(kernelVariance), kernelApproximationDimension,

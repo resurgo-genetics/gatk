@@ -68,7 +68,7 @@ public final class AlleleFractionInitializer {
         minorFractions = calculateInitialMinorFractions(data);
         double previousIterationLogLikelihood;
         double nextIterationLogLikelihood = Double.NEGATIVE_INFINITY;
-        logger.info(String.format("Initializing allele-fraction model.  Iterating until log likelihood converges to within %.3f.",
+        logger.info(String.format("Initializing allele-fraction model, iterating until log likelihood converges to within %.3f...",
                 LOG_LIKELIHOOD_CONVERGENCE_THRESHOLD));
         int iteration = 1;
         do {
@@ -78,7 +78,8 @@ public final class AlleleFractionInitializer {
             minorFractions = estimateMinorFractions();
 
             nextIterationLogLikelihood = AlleleFractionLikelihoods.logLikelihood(globalParameters, minorFractions, data);
-            logger.info(String.format("Iteration %d, model log likelihood = %.3f.", iteration, nextIterationLogLikelihood));
+            logger.info(String.format("Iteration %d, model log likelihood = %.3f...", iteration, nextIterationLogLikelihood));
+            logger.info(globalParameters);
             iteration++;
         } while (iteration < MAX_ITERATIONS &&
                 nextIterationLogLikelihood - previousIterationLogLikelihood > LOG_LIKELIHOOD_CONVERGENCE_THRESHOLD);

@@ -229,7 +229,7 @@ final class SegmentUnioner {
                         1,
                         kernelForFirstTypeSegmentation,
                         Math.min(KERNEL_APPROXIMATION_DIMENSION, firstTypePoints.size()),
-                        Collections.singletonList(Math.max(firstTypePoints.size() / WINDOW_SIZE_DIVISOR, 2)),    //try to pick a relatively big window size, but we are only guaranteed to have at least 3 points)
+                        Collections.singletonList(Math.max(firstTypePoints.size() / WINDOW_SIZE_DIVISOR, 1)),    //try to pick a relatively big window size, but we are only guaranteed to have at least 3 points)
                         0., 0.,                     //no penalty guarantees one changepoint
                         KernelSegmenter.ChangepointSortOrder.BACKWARD_SELECTION).get(0);
                 final FirstType bestChangepoint = firstTypePoints.get(bestChangepointIndex);

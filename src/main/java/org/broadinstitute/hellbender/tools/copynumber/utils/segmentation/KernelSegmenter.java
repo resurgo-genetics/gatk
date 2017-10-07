@@ -120,6 +120,7 @@ public final class KernelSegmenter<DATA> {
         Utils.validateArg(!windowSizes.isEmpty(), "At least one window size must be provided.");
         Utils.validateArg(windowSizes.stream().allMatch(ws -> ws > 0), "Window sizes must all be positive.");
         Utils.validateArg(windowSizes.stream().distinct().count() == windowSizes.size(), "Window sizes must all be unique.");
+        Utils.validateArg(Collections.min(windowSizes) * 2 <= data.size(), "Smallest window size should be at most half the number of data points.");
         ParamUtils.isPositiveOrZero(numChangepointsPenaltyLinearFactor,
                 "Linear factor for the penalty on the number of changepoints per chromosome must be non-negative.");
         ParamUtils.isPositiveOrZero(numChangepointsPenaltyLogLinearFactor,
@@ -281,6 +282,7 @@ public final class KernelSegmenter<DATA> {
         }
 
         if (changepointCandidates.isEmpty()) {
+            System.out.println();
             throw new GATKException.ShouldNeverReachHereException("No changepoint candidates found.");
         }
 

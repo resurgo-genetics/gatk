@@ -111,6 +111,7 @@ workflow CNVSomaticBAMWorkflow {
             entity_id = CollectReadCounts.entity_id,
             denoised_copy_ratios = DenoiseReadCounts.denoised_copy_ratios,
             het_allelic_counts = ModelSegments.het_allelic_counts,
+            modeled_segments = ModelSegments.modeled_segments,
             ref_fasta_dict = ref_fasta_dict,
             gatk_jar = gatk_jar,
             gatk_docker = gatk_docker
@@ -327,6 +328,7 @@ task PlotModeledSegments {
     String entity_id
     File denoised_copy_ratios
     File het_allelic_counts
+    File modeled_segments
     File ref_fasta_dict
     Int? minimum_contig_length
     String? output_dir
@@ -346,6 +348,7 @@ task PlotModeledSegments {
         java -Xmx${default="4" mem}g -jar ${gatk_jar} PlotModeledSegments \
             --denoisedCopyRatios ${denoised_copy_ratios} \
             --allelicCounts ${het_allelic_counts} \
+            --segments ${modeled_segments} \
             -SD ${ref_fasta_dict} \
             --minimumContigLength ${default="1000000" minimum_contig_length} \
             --output ${output_dir_} \

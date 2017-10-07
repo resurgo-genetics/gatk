@@ -1,5 +1,7 @@
 package org.broadinstitute.hellbender.tools.copynumber.allelic.model;
 
+import org.broadinstitute.hellbender.tools.copynumber.multidimensional.model.CRAFModeller;
+
 /**
  * Encapsulates the global parameters of the allele fraction model: the mean and variance of the common prior on
  * allelic biases and the outlier probability.
@@ -7,6 +9,8 @@ package org.broadinstitute.hellbender.tools.copynumber.allelic.model;
  * @author David Benjamin &lt;davidben@broadinstitute.org&gt;
  */
 final class AlleleFractionGlobalParameters {
+    private static final String DOUBLE_FORMAT = CRAFModeller.DOUBLE_FORMAT;
+
     private final double meanBias;
     private final double biasVariance;
     private final double outlierProbability;
@@ -51,5 +55,14 @@ final class AlleleFractionGlobalParameters {
 
     AlleleFractionGlobalParameters copyWithNewOutlierProbability(final double newOutlierProbability) {
         return new AlleleFractionGlobalParameters(meanBias, biasVariance, newOutlierProbability);
+    }
+
+    @Override
+    public String toString() {
+        return String.format("AlleleFractionGlobalParameters{" +
+                "meanBias=" + DOUBLE_FORMAT +
+                ", biasVariance=" + DOUBLE_FORMAT +
+                ", outlierProbability=" + DOUBLE_FORMAT +
+                '}', meanBias, biasVariance, outlierProbability);
     }
 }

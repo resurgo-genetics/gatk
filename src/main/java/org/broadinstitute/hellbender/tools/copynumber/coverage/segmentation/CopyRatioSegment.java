@@ -69,13 +69,9 @@ public class CopyRatioSegment implements Locatable {
             return false;
         }
         final CopyRatioSegment that = (CopyRatioSegment) o;
-        if (numPoints != that.numPoints) {
-            return false;
-        }
-        if (Double.compare(that.meanLog2CopyRatio, meanLog2CopyRatio) != 0) {
-            return false;
-        }
-        return interval.equals(that.interval);
+        return numPoints == that.numPoints &&
+                Double.compare(that.meanLog2CopyRatio, meanLog2CopyRatio) == 0 &&
+                interval.equals(that.interval);
     }
 
     @Override

@@ -332,4 +332,19 @@ public final class PlotModeledSegmentsIntegrationTest extends CommandLineProgram
         };
         runCommandLine(arguments);
     }
+
+    //checks that output files with reasonable file sizes are generated, but correctness of output is not checked
+    @Test
+    public void testPlottingWESHCC() {
+        final String[] arguments = {
+                "-" + CopyNumberStandardArgument.DENOISED_COPY_RATIOS_FILE_SHORT_NAME, "/home/slee/working/gatk/hcc1143_T_clean.denoisedCR.tsv",
+                "-" + CopyNumberStandardArgument.ALLELIC_COUNTS_FILE_SHORT_NAME, "/home/slee/working/gatk/hcc1143_T_clean.hets.tsv",
+                "-" + CopyNumberStandardArgument.SEGMENTS_FILE_SHORT_NAME, "/home/slee/working/gatk/hcc1143_T_clean.modelFinal.seg",
+                "-" + StandardArgumentDefinitions.SEQUENCE_DICTIONARY_SHORT_NAME, "/home/slee/working/gatk/GRCh38_full_analysis_set_plus_decoy_hla.dict",
+                "-" + StandardArgumentDefinitions.OUTPUT_SHORT_NAME, "/home/slee/working/gatk",
+                "-" + CopyNumberStandardArgument.OUTPUT_PREFIX_SHORT_NAME, "hcc1143_T_clean",
+                "-" + StandardArgumentDefinitions.VERBOSITY_NAME, "DEBUG"
+        };
+        runCommandLine(arguments);
+    }
 }

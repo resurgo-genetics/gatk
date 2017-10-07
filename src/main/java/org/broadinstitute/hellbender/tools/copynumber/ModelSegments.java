@@ -45,6 +45,8 @@ import java.util.stream.Collectors;
 public final class ModelSegments extends CommandLineProgram {
     private static final long serialVersionUID = 1L;
 
+    private static final double EPSILON = 1E-10;
+
     //filename tags for output
     public static final String HET_ALLELIC_COUNTS_FILE_SUFFIX = ".hets.tsv";
     public static final String SEGMENTS_FILE_SUFFIX = ".seg";
@@ -170,7 +172,7 @@ public final class ModelSegments extends CommandLineProgram {
             shortName = GENOTYPING_P_VALUE_THRESHOLD_SHORT_NAME,
             optional = true
     )
-    private double genotypingPValueThreshold = 1E-3;
+    private double genotypingPValueThreshold = 1E-2;
 
     @Argument(
             doc = "Base error rate for genotyping and filtering homozygous allelic counts.",
@@ -442,7 +444,7 @@ public final class ModelSegments extends CommandLineProgram {
                                 ac.getTotalReadCount(),
                                 Math.min(ac.getAltReadCount(), ac.getRefReadCount()),
                                 genotypingBaseErrorRate,
-                                AlternativeHypothesis.TWO_SIDED) <= genotypingPValueThreshold)
+                                AlternativeHypothesis.TWO_SIDED) <= genotypingPValueThreshold + EPSILON)
                         .collect(Collectors.toList()));
         final File hetAllelicCountsFile = new File(outputDir, outputPrefix + HET_ALLELIC_COUNTS_FILE_SUFFIX);
         hetAllelicCounts.write(hetAllelicCountsFile);
@@ -473,6 +475,6 @@ public final class ModelSegments extends CommandLineProgram {
                                final String fileSuffix) {
         final File segmentsFile = new File(outputDir, outputPrefix + fileSuffix);
         segments.write(segmentsFile);
-        logger.info(String.format("Segments written to %s.", segmentsFile));
+        logger.info(String.format("Segments written to %s", segmentsFile));
     }
 }
