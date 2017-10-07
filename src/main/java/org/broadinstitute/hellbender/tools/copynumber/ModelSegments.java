@@ -354,7 +354,7 @@ public final class ModelSegments extends CommandLineProgram {
 
         //perform one-dimensional or multidimensional segmentation as appropriate and write the combined segments to file
         final CRAFSegmentCollection crafSegments;
-        if (inputDenoisedCopyRatiosFile != null) {
+        if (inputDenoisedCopyRatiosFile != null && inputAllelicCountsFile == null) {
             readDenoisedCopyRatios();
             final CopyRatioSegmentCollection copyRatioSegments = performCopyRatioSegmentation();
             crafSegments = new CRAFSegmentCollection(
@@ -363,7 +363,7 @@ public final class ModelSegments extends CommandLineProgram {
                             .map(s -> new CRAFSegment(s.getInterval(), s.getNumPoints(), 0, s.getMeanLog2CopyRatio()))
                             .collect(Collectors.toList()));
             hetAllelicCounts = new AllelicCountCollection(denoisedCopyRatios.getSampleName(), Collections.emptyList()); //create an empty collection with the appropriate name
-        } else if (inputAllelicCountsFile != null) {
+        } else if (inputDenoisedCopyRatiosFile == null && inputAllelicCountsFile != null) {
             readAndFilterAllelicCounts();
             final AlleleFractionSegmentCollection alleleFractionSegments = performAlleleFractionSegmentation();
             crafSegments = new CRAFSegmentCollection(
