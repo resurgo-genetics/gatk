@@ -373,6 +373,8 @@ public final class ModelSegments extends CommandLineProgram {
                             .collect(Collectors.toList()));
             denoisedCopyRatios = new CopyRatioCollection(hetAllelicCounts.getSampleName(), Collections.emptyList());     //create an empty collection with the appropriate name
         } else {
+            readDenoisedCopyRatios();
+            readAndFilterAllelicCounts();
             crafSegments = new MultidimensionalKernelSegmenter(denoisedCopyRatios, hetAllelicCounts)
                     .findSegmentation(maxNumSegmentsPerChromosome,
                             kernelVarianceCopyRatio, kernelVarianceAlleleFraction, 0.1, kernelApproximationDimension,
