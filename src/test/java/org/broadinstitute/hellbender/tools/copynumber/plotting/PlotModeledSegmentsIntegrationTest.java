@@ -324,11 +324,25 @@ public final class PlotModeledSegmentsIntegrationTest extends CommandLineProgram
     public void testPlottingWGSNormal() {
         final String[] arguments = {
                 "-" + CopyNumberStandardArgument.DENOISED_COPY_RATIOS_FILE_SHORT_NAME, "/home/slee/working/gatk/TCGA-05-4389-10A-01D-1931-08.denoisedCR.tsv",
-                "-" + CopyNumberStandardArgument.ALLELIC_COUNTS_FILE_SHORT_NAME, "/home/slee/working/gatk/TCGA-05-4389-10A-01D-1931-08.hets.tsv",
+//                "-" + CopyNumberStandardArgument.ALLELIC_COUNTS_FILE_SHORT_NAME, "/home/slee/working/gatk/TCGA-05-4389-10A-01D-1931-08.hets.tsv",
                 "-" + CopyNumberStandardArgument.SEGMENTS_FILE_SHORT_NAME, "/home/slee/working/gatk/TCGA-05-4389-10A-01D-1931-08.modelFinal.seg",
                 "-" + StandardArgumentDefinitions.SEQUENCE_DICTIONARY_SHORT_NAME, "/home/slee/working/gatk/Homo_sapiens_assembly19.dict",
                 "-" + StandardArgumentDefinitions.OUTPUT_SHORT_NAME, "/home/slee/working/gatk",
                 "-" + CopyNumberStandardArgument.OUTPUT_PREFIX_SHORT_NAME, "TCGA-05-4389-10A-01D-1931-08"
+        };
+        runCommandLine(arguments);
+    }
+
+    @Test(enabled = false)
+    public void testPlottingWESMatchedNormal() {
+        final String[] arguments = {
+                "-" + CopyNumberStandardArgument.DENOISED_COPY_RATIOS_FILE_SHORT_NAME, "/home/slee/working/gatk/TCGA-05-4389-01A-01D-1265-08-gc-corrected.tn.tsv",
+                "-" + CopyNumberStandardArgument.ALLELIC_COUNTS_FILE_SHORT_NAME, "/home/slee/working/gatk/TCGA-05-4389-01A-01D-1265-08-3E-1.matched-normal.hets.tsv",
+                "-" + CopyNumberStandardArgument.SEGMENTS_FILE_SHORT_NAME, "/home/slee/working/gatk/TCGA-05-4389-01A-01D-1265-08-3E-1.matched-normal.modelFinal.seg",
+                "-" + StandardArgumentDefinitions.SEQUENCE_DICTIONARY_SHORT_NAME, "/home/slee/working/gatk/Homo_sapiens_assembly19.dict",
+                "-" + StandardArgumentDefinitions.OUTPUT_SHORT_NAME, "/home/slee/working/gatk",
+                "-" + CopyNumberStandardArgument.OUTPUT_PREFIX_SHORT_NAME, "TCGA-05-4389-01A-01D-1265-08-3E-1.matched-normal",
+                "-" + StandardArgumentDefinitions.VERBOSITY_NAME, "DEBUG"
         };
         runCommandLine(arguments);
     }

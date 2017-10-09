@@ -366,7 +366,7 @@ public final class KernelSegmenter<DATA> {
                 .collect(Collectors.toList());
         final int numChangepointsOptimal = totalSegmentationCostsPlusPenalties.indexOf(Collections.min(totalSegmentationCostsPlusPenalties));
 
-        logger.debug(String.format("Found %d changepoints after applying the changepoint penalty.", numChangepointsOptimal));
+        logger.info(String.format("Found %d changepoints after applying the changepoint penalty.", numChangepointsOptimal));
         return changepoints.subList(0, numChangepointsOptimal);
     }
 
