@@ -75,7 +75,7 @@ task CollectReadCounts {
                 java -Xmx${default="4" mem}g -jar ${gatk_jar} SparkGenomeReadCounts \
                     --input ${bam} \
                     --reference ${ref_fasta} \
-                    --binLength ${default="10000" wgs_bin_length} \
+                    --binLength ${default="1000" wgs_bin_length} \
                     --keepXYMT ${default="false" keep_non_autosomes} \
                     --disableToolDefaultReadFilters ${default="false" disable_all_read_filters} \
                     --disableSequenceDictionaryValidation ${default="true" disable_sequence_dictionary_validation} \

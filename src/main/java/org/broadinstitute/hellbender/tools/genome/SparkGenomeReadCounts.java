@@ -95,11 +95,11 @@ public class SparkGenomeReadCounts extends GATKSparkTool {
     )
     private boolean keepNonAutosomes = false;
 
-    @Argument(doc = "The length of bins (in bp) for each interval specified.  E.g. chr2:100-200 --> chr2:100-150, chr2:151-200 if binLength = 50.",
+    @Argument(doc = "The length of bins (in bp) for each interval specified.  E.g. chr2:1-100 --> chr2:1-50, chr2:51-100 if binLength = 50.",
             fullName = BIN_LENGTH_LONG_NAME,
             shortName = BIN_LENGTH_SHORT_NAME,
             optional = true)
-    private int binLength = 10000;
+    private int binLength = 1000;
 
     @Argument(doc = "Whether we should write an additional read-counts HDF5 file with extension " + HDF5_EXT,
             fullName = WRITE_HDF5_LONG_NAME,
