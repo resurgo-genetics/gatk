@@ -268,10 +268,11 @@ public class SparkGenomeReadCounts extends GATKSparkTool {
         return IntervalUtils.cutToShards(getIntervals(), binLength);
     }
 
-    private static SimpleInterval createKey(final GATKRead read, final SAMSequenceDictionary sequenceDictionary, final int binLength){
+    private static SimpleInterval createKey(final GATKRead read, final SAMSequenceDictionary sequenceDictionary, final int binLength) {
         final String contig = read.getContig();
-        final int newStart = (read.getStart() / binLength) * binLength + 1;
-        final int newEnd = Math.min(newStart + binLength - 1, sequenceDictionary.getSequence(contig).getSequenceLength());
+        final int contigLength = sequenceDictionary.getSequence(contig).getSequenceLength();
+        final int newStart = Math.min((read.getStart() / binLength) * binLength + 1, contigLength);
+        final int newEnd = Math.min(newStart + binLength - 1, contigLength);
 
         return new SimpleInterval(contig, newStart, newEnd);
     }
