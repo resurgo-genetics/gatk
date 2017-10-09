@@ -157,7 +157,7 @@ public final class LocatableCollectionUnitTest extends BaseTest {
         Assert.assertEquals(simpleLocatableCollectionExpectedUnsortedListArgument, SIMPLE_LOCATABLE_COLLECTION_EXPECTED);
     }
     
-    @Test(expectedExceptions = UserException.BadInput.class)
+    @Test(expectedExceptions = IllegalArgumentException.class)
     public void testBadOrderInput() {
         new SimpleLocatableCollection(SIMPLE_LOCATABLE_COLLECTION_NON_LEXICOGRAPHICAL_ORDER_FILE);
     }
