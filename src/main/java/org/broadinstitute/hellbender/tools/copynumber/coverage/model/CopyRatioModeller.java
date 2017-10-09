@@ -45,7 +45,6 @@ public final class CopyRatioModeller {
     private final List<Double> varianceSamples = new ArrayList<>();
     private final List<Double> outlierProbabilitySamples = new ArrayList<>();
     private final List<CopyRatioState.SegmentMeans> segmentMeansSamples = new ArrayList<>();
-    private final List<CopyRatioState.OutlierIndicators> outlierIndicatorsSamples = new ArrayList<>();
 
     /**
      * Constructs a copy-ratio model given copy ratios and segments.

@@ -5,7 +5,9 @@ import org.broadinstitute.hellbender.utils.mcmc.ParameterizedState;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.BitSet;
 import java.util.List;
+import java.util.stream.IntStream;
 
 /**
  * The state of the copy-ratio model, containing: <p>
@@ -27,11 +29,12 @@ final class CopyRatioState extends ParameterizedState<CopyRatioParameter> {
         }
     }
 
-    static final class OutlierIndicators extends ArrayList<Boolean> {
+    static final class OutlierIndicators extends BitSet {
         private static final long serialVersionUID = 357159L;
 
         OutlierIndicators(final List<Boolean> outlierIndicators) {
-            super(new ArrayList<>(outlierIndicators));
+            super(outlierIndicators.size());
+            IntStream.range(0, outlierIndicators.size()).filter(outlierIndicators::get).forEach(this::set);
         }
     }
 
