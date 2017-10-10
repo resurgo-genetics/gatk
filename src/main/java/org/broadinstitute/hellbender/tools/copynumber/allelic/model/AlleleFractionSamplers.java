@@ -80,7 +80,7 @@ final class AlleleFractionSamplers {
         }
     }
 
-    protected static final class OutlierProbabilitySampler implements ParameterSampler<Double, AlleleFractionParameter, AlleleFractionState, AlleleFractionSegmentedData> {
+    static final class OutlierProbabilitySampler implements ParameterSampler<Double, AlleleFractionParameter, AlleleFractionState, AlleleFractionSegmentedData> {
         private static final double MIN_OUTLIER_PROBABILITY = 0.;
 
         private final double maxOutlierProbability;
@@ -107,7 +107,7 @@ final class AlleleFractionSamplers {
     }
 
     // sample minor fractions of all segments
-    protected static final class MinorFractionsSampler implements ParameterSampler<AlleleFractionState.MinorFractions, AlleleFractionParameter, AlleleFractionState, AlleleFractionSegmentedData> {
+    static final class MinorFractionsSampler implements ParameterSampler<AlleleFractionState.MinorFractions, AlleleFractionParameter, AlleleFractionState, AlleleFractionSegmentedData> {
         private static double MIN_MINOR_FRACTION = 0.;
         private static double MAX_MINOR_FRACTION = 0.5;
         private static final double PRIOR_BETA = 1.;
