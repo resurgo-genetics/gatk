@@ -7,7 +7,7 @@
 #   These targets will be padded on both sides by the amount specified by PadTargets.padding (default 250).
 #
 # - If a target file is not provided, then the WGS workflow will be run instead and the specified value of
-#   wgs_bin_length (default 10000) will be used.
+#   wgs_bin_length (default 1000) will be used.
 #
 # - A normal BAM (normal_bam) is requrired for the tumor/normal workflow.  If not provided, the tumor-only workflow
 #   will be run.

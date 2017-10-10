@@ -7,7 +7,7 @@
 #   These targets will be padded on both sides by the amount specified by PadTargets.padding (default 250).
 #
 # - If a target file is not provided, then the WGS workflow will be run instead and the specified value of
-#   wgs_bin_length (default 500) will be used.
+#   wgs_bin_length (default 1000) will be used.
 #
 # - The sites file (common_sites) should be a Picard or GATK-style interval list.
 #

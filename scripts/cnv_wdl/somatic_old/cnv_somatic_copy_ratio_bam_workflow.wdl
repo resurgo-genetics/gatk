@@ -6,7 +6,7 @@
 #    contig    start    stop    name
 #
 # - If a target file is not provided, then the WGS workflow will be run instead and the specified value of
-#   wgs_bin_length (default 10000) will be used.
+#   wgs_bin_length (default 1000) will be used.
 #
 #############
 
