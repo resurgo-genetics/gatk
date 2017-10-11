@@ -34,7 +34,7 @@
 ################
 
 
-import "cnv_germline_single_sample_workflow.wdl" as CNVGermline
+import "cnv_germline_single_sample_workflow.wdl" as CNVGermlineSingleSampleWorkflow
 
 workflow CNVGermlineCohortWorkflow {
   # Workflow input files
@@ -61,7 +61,7 @@ workflow CNVGermlineCohortWorkflow {
   String output_path
 
   scatter (normal_bam in normal_bams) {
-    call CNVGermline.CNVGermlineSingleSampleWorkflow as SingleSampleWorkflow {
+    call CNVGermlineSingleSampleWorkflow.CNVGermlineSingleSampleWorkflow as SingleSampleWorkflow {
       input:
         targets = targets,
         normal_bam = normal_bam[0],
