@@ -10,5 +10,6 @@
   "CNVSomaticPairWorkflow.ref_fasta_dict": "/home/travis/build/broadinstitute/gatk/src/test/resources/large/cnv_somatic_workflows_test_files/human_g1k_v37.chr-20.truncated.dict",
   "CNVSomaticPairWorkflow.gatk_jar": "/root/gatk.jar",
   "CNVSomaticPairWorkflow.gatk_docker": "__GATK_DOCKER__",
-  "CNVSomaticPairWorkflow.CollectReadCounts.wgs_bin_length": "10000"
+  "CNVSomaticPairWorkflow.CollectReadCountsTumor.wgs_bin_length": "10000",
+  "CNVSomaticPairWorkflow.CollectReadCountsNormal.wgs_bin_length": "10000"
 }

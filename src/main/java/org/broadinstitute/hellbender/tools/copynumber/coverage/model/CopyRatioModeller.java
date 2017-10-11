@@ -61,6 +61,7 @@ public final class CopyRatioModeller {
         //set widths for slice sampling of variance and segment-mean posteriors using empirical variance estimate.
         //variance posterior is inverse chi-squared, segment-mean posteriors are Gaussian; the below expressions
         //approximate the standard deviations of these distributions.
+        //we also make sure all initial values are within appropriate bounds
         final double dataRangeOrNaN = data.getMaxLog2CopyRatioValue() - data.getMinLog2CopyRatioValue();
         final double dataRange = Double.isNaN(dataRangeOrNaN) ? LOG2_COPY_RATIO_RANGE : dataRangeOrNaN;
         final double varianceEstimateOrNaN = data.estimateVariance();
@@ -68,6 +69,9 @@ public final class CopyRatioModeller {
         final double varianceSliceSamplingWidth = 2. * varianceEstimate;
         final double varianceMax = Math.max(10. * varianceEstimate, dataRange * dataRange);
         final double meanSliceSamplingWidth = Math.sqrt(varianceEstimate * data.getNumSegments() / data.getNumPoints());
+        final List<Double> segmentMeans = data.estimateSegmentMeans().stream()
+                .map(m -> Math.min(LOG2_COPY_RATIO_MIN, Math.min(LOG2_COPY_RATIO_MAX, m)))
+                .collect(Collectors.toList());
 
         //the uniform log-likelihood for outliers is determined by the minimum and maximum coverages in the dataset;
         //the outlier-probability parameter should be interpreted accordingly
@@ -75,7 +79,7 @@ public final class CopyRatioModeller {
 
         //use empirical segment means and empirical average variance across segments to initialize CopyRatioState
         final CopyRatioState initialState = new CopyRatioState(varianceEstimate, CopyRatioModeller.OUTLIER_PROBABILITY_INITIAL,
-                        data.estimateSegmentMeans(), new CopyRatioState.OutlierIndicators(Collections.nCopies(data.getNumPoints(), false)));
+                new CopyRatioState.SegmentMeans(segmentMeans), new CopyRatioState.OutlierIndicators(Collections.nCopies(data.getNumPoints(), false)));
 
         //define ParameterSamplers
         final ParameterSampler<Double, CopyRatioParameter, CopyRatioState, CopyRatioSegmentedData> varianceSampler =
