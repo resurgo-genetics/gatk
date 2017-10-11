@@ -70,7 +70,7 @@ public final class CopyRatioModeller {
         final double varianceMax = Math.max(10. * varianceEstimate, dataRange * dataRange);
         final double meanSliceSamplingWidth = Math.sqrt(varianceEstimate * data.getNumSegments() / data.getNumPoints());
         final List<Double> segmentMeans = data.estimateSegmentMeans().stream()
-                .map(m -> Math.min(LOG2_COPY_RATIO_MIN, Math.min(LOG2_COPY_RATIO_MAX, m)))
+                .map(m -> Math.max(LOG2_COPY_RATIO_MIN, Math.min(LOG2_COPY_RATIO_MAX, m)))
                 .collect(Collectors.toList());
 
         //the uniform log-likelihood for outliers is determined by the minimum and maximum coverages in the dataset;
