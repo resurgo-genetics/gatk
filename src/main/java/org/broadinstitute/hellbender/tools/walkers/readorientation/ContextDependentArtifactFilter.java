@@ -10,6 +10,7 @@ import org.broadinstitute.hellbender.engine.filters.ReadFilter;
 import org.broadinstitute.hellbender.utils.BaseUtils;
 import org.broadinstitute.hellbender.utils.MathUtils;
 import org.broadinstitute.hellbender.utils.Nucleotide;
+import org.broadinstitute.hellbender.utils.Utils;
 import org.broadinstitute.hellbender.utils.pileup.ReadPileup;
 import org.broadinstitute.hellbender.utils.read.ReadUtils;
 
@@ -44,14 +45,15 @@ public class ContextDependentArtifactFilter extends LocusWalker {
     @Argument(fullName = StandardArgumentDefinitions.OUTPUT_LONG_NAME, shortName = StandardArgumentDefinitions.OUTPUT_SHORT_NAME, doc = "a tab-seprated table of hyperparameters")
     static File output = null;
 
-    public static Map<String, PerContextData> contextDependentDataMap;
+    public static PerContextData[] contextDependentDataMap;
 
     public static final List<String> ALL_3_MERS = SequenceUtil.generateAllKmers(3).stream().map(String::new).collect(Collectors.toList());
 
     public static final List<String> SOME_3_MERS = Arrays.asList("ACT", "GTT", "AAA", "CGT");
 
-    // 37M bases in the exome, and there's about 1 SNP every 1000 bases, and assume all 64 contexts are equally likely
-    static final int DEFAULT_INITIAL_LIST_SIZE = 37_000/64;
+    // 37M bases in the exome, and there's about 1 SNP every 1000 bases. If we assume all 64 contexts are equally likely
+    // we get 37_000/64 = 57. Use 64 for the closest power of 2
+    static final int DEFAULT_INITIAL_LIST_SIZE = 64;
 
 
     @Override
@@ -66,11 +68,10 @@ public class ContextDependentArtifactFilter extends LocusWalker {
 
     @Override
     public void onTraversalStart(){
-        contextDependentDataMap = new HashMap<>();
+        contextDependentDataMap = new PerContextData[64]; // 4^3 = 64
 
         for (final String refContext : ALL_3_MERS){
-            contextDependentDataMap.put(refContext,
-                        new PerContextData(refContext));
+            contextDependentDataMap[contextToIndex(refContext)] = new PerContextData(refContext);
         }
     }
 
@@ -79,6 +80,7 @@ public class ContextDependentArtifactFilter extends LocusWalker {
         // referenceContext always comes withe window of single base, so
         // manually expand the window and get the 3-mer for now.
         // TODO: implement getBasesInInterval() in referenceContext. Maybe simplify to getKmer(int k)?
+        // TODO: this is still relevant (10/2). I shouldn't mess with the internal state of the ref context object
         referenceContext.setWindow(1, 1);
         final String reference3mer = new String(referenceContext.getBases());
         assert reference3mer.length() == 3 : "kmer must have length 3";
@@ -87,7 +89,8 @@ public class ContextDependentArtifactFilter extends LocusWalker {
         }
 
         if (reference3mer == null){
-            logger.info(String.format("null reference found at interval %s, k-mer = %s", referenceContext.getInterval().toString(), reference3mer));
+            logger.info(String.format("null reference found at interval %s, k-mer = %s",
+                    referenceContext.getInterval().toString(), reference3mer));
             return;
         }
 
@@ -95,17 +98,12 @@ public class ContextDependentArtifactFilter extends LocusWalker {
 
         // FIXME; this is not ideal. AlignmentContext should come filtered and not reach here if it's empty
         if (pileup.size() == 0){
+            logger.info(String.format("Empty pileup at position %s:%d-%d",
+                    alignmentContext.getContig(), alignmentContext.getStart(), alignmentContext.getEnd()));
             return;
         }
 
-        final int[] baseCounts = pileup.getBaseCounts();
-
-        // R in the docs
-        final int depth = (int) MathUtils.sum(baseCounts);
-
-        final byte refBase = reference3mer.getBytes()[1];
-
-        /*** Enter Heuristic Land ***/
+        /*** Start heuristics ***/
 
         // skip INDELs
 
@@ -114,6 +112,7 @@ public class ContextDependentArtifactFilter extends LocusWalker {
 
         // there is no shortcut or a standard API for converting an int[] to List<Integer> (we don't want List<int[]>)
         // so we must convert int[] to a List<Integer> with a for loop
+        // Median in Apache commons takes in a double[], not int[], so it's not much of an improvement
         for (final int mq : pileup.getMappingQuals()) {
             mappingQualities.add(mq);
         }
@@ -124,83 +123,84 @@ public class ContextDependentArtifactFilter extends LocusWalker {
             return;
         }
 
-        final Optional<Byte> altBase = findAltBaseFromBaseCounts(baseCounts, refBase);
-        final boolean variantSite = altBase.isPresent();
-        final boolean referenceSite = ! variantSite;
+        final int[] baseCounts = pileup.getBaseCounts();
 
+        // R in the docs
+        final int depth = (int) MathUtils.sum(baseCounts);
 
-        /*** Exit Heuristic Land ***/
+        final Nucleotide refBase = Nucleotide.valueOf(reference3mer.getBytes()[1]);
+
+        // make a copy fo base counts, update the counts of ref to -infty. Now the argmax of the array gives us
+        // the alt base.
+        final int[] baseCountsCopy = Arrays.copyOf(baseCounts, baseCounts.length);
+        baseCountsCopy[refBase.ordinal()] = Integer.MIN_VALUE;
+        final int altBaseIndex = MathUtils.argmax(baseCountsCopy);
+        final boolean referenceSite = baseCounts[altBaseIndex] == 0;
+
+        /*** End heuristics ***/
 
         // if the site is ref, we simply update the coverage histogram
         if (referenceSite){
             // TODO: accessing the map excessively. Use array, it'd be faster
-            contextDependentDataMap.get(reference3mer).addRefExample(depth);
+            contextDependentDataMap[contextToIndex(reference3mer)].addRefExample(depth);
             return;
         }
 
+        // we have an alt site
+        final Nucleotide altBase = Nucleotide.valueOf(BaseUtils.baseIndexToSimpleBase(altBaseIndex));
+
         // m in the docs
-        final short altDepth = variantSite ? (short) baseCounts[BaseUtils.simpleBaseToBaseIndex(altBase.get())] : 0;
+        final short altDepth = (short) baseCounts[altBase.ordinal()];
 
         // x in the docs
-        final short altF1R2Depth = variantSite ? (short) pileup.getNumberOfElements(pe -> pe.getBase() == altBase.get() && ! ReadUtils.isF2R1(pe.getRead())) : 0;
-        assert altDepth >= altF1R2Depth : String.format("altDepth >= altF1R2Depth but got %d, %d", altDepth, altF1R2Depth);
+        final short altF1R2Depth = (short) pileup.getNumberOfElements(pe -> Nucleotide.valueOf(pe.getBase()) == altBase && ! ReadUtils.isF2R1(pe.getRead()));
 
-        Nucleotide altAllele = Nucleotide.valueOf(altBase.get());
-        contextDependentDataMap.get(reference3mer).addAltExample(depth, altDepth, altF1R2Depth, altAllele, alignmentContext);
-        return;
-    }
-
-    // FIXME: write tests
-    private Optional<Byte> findAltBaseFromBaseCounts(final int[] baseCounts, final byte refBase) {
-        final int[] baseCountsCopy = Arrays.copyOf(baseCounts, baseCounts.length);
-        final long numObservedBases = Arrays.stream(baseCounts).filter(c -> c != 0).count();
-        // FIXME: must handle hom var case when all the reads are alt
-        if (numObservedBases == 1){
-            return Optional.empty();
+        // TODO: this may be refactored
+        final int[] altF1R2Counts = new int[4];
+        for (Nucleotide nucleotide : Arrays.asList(Nucleotide.A, Nucleotide.C, Nucleotide.G, Nucleotide.G)){
+            altF1R2Counts[nucleotide.ordinal()] = pileup.getNumberOfElements(pe -> Nucleotide.valueOf(pe.getBase()) == nucleotide && ! ReadUtils.isF2R1(pe.getRead()));
         }
 
-        // now that we know there are multiple bases observed at the locus,
-        // find the max out of the bases that are not ref
-        // FIXME: also impose a minimum alt allele count and perhaps allele fraction (we're in the heuristic land anyway)
-        baseCountsCopy[BaseUtils.simpleBaseToBaseIndex(refBase)] = 0;
-        return Optional.of(BaseUtils.baseIndexToSimpleBase(MathUtils.argmax(baseCountsCopy)));
+        contextDependentDataMap[contextToIndex(reference3mer)].addAltExample(depth, baseCounts, altF1R2Counts, altBase, alignmentContext);
+        return;
     }
 
     @Override
     public Object onTraversalSuccess() {
         List<Hyperparameters> hyperparameterEstimates = new ArrayList<>();
-        // remember we run EM separately for each of 4^3 = 64 ref contexts
 
-        // debug
+        // remember we run EM separately for each of 4^3 = 64 ref contexts
         for (final String refContext : test ? SOME_3_MERS : ALL_3_MERS){
-            PerContextData data = contextDependentDataMap.get(refContext);
+            final PerContextData data = contextDependentDataMap[contextToIndex(refContext)];
             if (data.getNumAltExamples() == 0){
                 // without alt examples there's no point in reporting any probabilities
                 continue;
             }
 
-            ContextDependentArtifactFilterEngine engine = new ContextDependentArtifactFilterEngine(data);
-            Hyperparameters hyperparameters = engine.runEMAlgorithm(logger);
+            final ContextDependentArtifactFilterEngine engine = new ContextDependentArtifactFilterEngine(data);
+            final Hyperparameters hyperparameters = engine.runEMAlgorithm(logger);
             hyperparameterEstimates.add(hyperparameters);
-
-
-//            List<Integer> activeIndices = IntStream.range(0, numSites).filter(i -> contextData.getAltDepths().get(i) > 0)
-//                    .boxed().collect(Collectors.toList());
-//            List<Short> activeAltDepths = activeIndices.stream().map(i -> contextData.altDepths.get(i)).collect(Collectors.toList());
-//            List<Short> activeAltF1R2Depths = activeIndices.stream().map(i -> contextData.altF1R2Depths.get(i)).collect(Collectors.toList());
-//            List<String> activePositions= activeIndices.stream().map(i -> contextData.positions.get(i)).collect(Collectors.toList());
-//            int bogus = 3;
         }
 
         Hyperparameters.writeHyperparameters(hyperparameterEstimates, output);
 
-        /**
-         *  internal state check - must go to a separate test at some point
-         *  20:21196089-21196089, 9, 5 // ACG;
-         *  20:46952142-46952142, 1, 1 // ACG
-         *  20:53355622-53355622, 9, 2 // AAC
-         */
-
         return "SUCCESS";
+    }
+
+    /***
+     * Maps a reference 3-mer to an array index using the quaternary (base-4) numeral system
+     * Example: AGT is represented as 023 in quaternary, which in decimal is  2*4^1 + 3*4^0 = 8+3 = 11
+     *
+     * @param reference3mer
+     * @return
+     */
+    protected int contextToIndex(String reference3mer){
+        Utils.validateArg(reference3mer.matches("[ACGT]{3}"),
+                "input must be a string of length 3 and comprise of A, C, G,and T");
+        final int digit2 = Nucleotide.valueOf(reference3mer.substring(0, 1)).ordinal();
+        final int digit1 = Nucleotide.valueOf(reference3mer.substring(1, 2)).ordinal();
+        final int digit0 = Nucleotide.valueOf(reference3mer.substring(2, 3)).ordinal();
+
+        return digit2 * 16 + digit1 * 4 + digit0;
     }
 }

@@ -1,17 +1,17 @@
 package org.broadinstitute.hellbender.tools.walkers.readorientation;
 
-import htsjdk.variant.variantcontext.Allele;
 import org.apache.logging.log4j.LogManager;
 import org.broadinstitute.hellbender.engine.AlignmentContext;
-import org.broadinstitute.hellbender.utils.BaseUtils;
+import org.broadinstitute.hellbender.exceptions.UserException;
 import org.broadinstitute.hellbender.utils.Nucleotide;
 import org.broadinstitute.hellbender.utils.SimpleInterval;
 import org.broadinstitute.hellbender.utils.pileup.ReadPileup;
 import org.testng.Assert;
 import org.testng.annotations.Test;
-import org.broadinstitute.hellbender.tools.walkers.readorientation.ContextDependentArtifactFilterEngine.States;
+import org.broadinstitute.hellbender.tools.walkers.readorientation.ContextDependentArtifactFilterEngine.State;
 
 import java.util.Arrays;
+import java.util.List;
 
 /**
  * Created by tsato on 8/14/17.
@@ -29,13 +29,14 @@ public class ContextDependentArtifactFilterEngineUnitTest {
     private final AlignmentContext alignmentContext = new AlignmentContext(snpLocation, new ReadPileup(snpLocation));
 
     final int DEPTH = 100;
-    final short STANDARD_ALT_DEPTH = 20;
-    final short BALANCED_ALT_F1R2_DEPTH = STANDARD_ALT_DEPTH/2;
-    final short ENTIRELY_F1R2 = STANDARD_ALT_DEPTH;
-    final short ENTIRELY_F2R1 = 0;
+    final int ALT_DEPTH = 20;
+    final int[] altDepthCounts = new int[]{0,0,0, ALT_DEPTH};
+    final int[] balancedAltF1R2DepthCounts = new int[]{0,0,0, ALT_DEPTH /2};
+    final int[] biasedAltF1R2DepthCounts = new int[]{0,0,0, ALT_DEPTH};
+
 
     /**
-     * Create a test case: 100 sites for a single context AGT. G -> T transition observed in NUM_F1R2_EXAMPLES sites
+     * 100 sites for a single context AGT. G -> T transition observed in NUM_F1R2_EXAMPLES sites
      * All of the alt sites have 100% Alt F1R2 reads. The rest of the examples are hom ref.
      */
     @Test
@@ -48,9 +49,9 @@ public class ContextDependentArtifactFilterEngineUnitTest {
 
         final PerContextData data = new PerContextData(refContext);
         for (int n = 0; n < NUM_EXAMPLES; n++){
-            // assume 20 in 100 examples is alt, and 20% allele fraction, and alt reads are entirely F1R2
+            // assume 20 in 100 examples is alt at ALT_DEPTH/DEPTH % allele fraction, and alt reads are entirely F1R2
             if (n < NUM_ALT_EXAMPLES){
-                data.addAltExample(DEPTH, STANDARD_ALT_DEPTH, ENTIRELY_F1R2, Nucleotide.T, alignmentContext);
+                data.addAltExample(DEPTH, altDepthCounts, biasedAltF1R2DepthCounts, Nucleotide.T, alignmentContext);
             } else {
                 data.addRefExample(DEPTH);
             }
@@ -59,20 +60,21 @@ public class ContextDependentArtifactFilterEngineUnitTest {
         ContextDependentArtifactFilterEngine engine = new ContextDependentArtifactFilterEngine(data);
         Hyperparameters hyperparameters = engine.runEMAlgorithm(LogManager.getLogger(this.getClass()));
 
-        Assert.assertEquals(engine.effectiveCounts[States.F1R2.ordinal()], (double) NUM_F1R2_EXAMPLES, EPSILON);
-        // START HERE, we get something like 78 - but we want 80. For such a simple example, we gotta get this right
-        Assert.assertEquals(engine.effectiveCounts[States.BALANCED_HOM_REF.ordinal()], (double) NUM_EXAMPLES - NUM_ALT_EXAMPLES, EPSILON);
+        Assert.assertEquals(engine.effectiveCounts[State.F1R2_T.ordinal()], (double) NUM_F1R2_EXAMPLES, EPSILON);
+        Assert.assertEquals(engine.effectiveCounts[State.HOM_REF.ordinal()], (double) NUM_EXAMPLES - NUM_ALT_EXAMPLES, EPSILON);
 
-        // Given that the allele is G, the ref allele, p(z = hom ref|a = G) must equal 1.0
-        Assert.assertEquals(hyperparameters.getPi()[Nucleotide.G.ordinal()][States.BALANCED_HOM_REF.ordinal()], 1.0, EPSILON);
+        // check pi
+        Assert.assertEquals(hyperparameters.getPi()[State.F1R2_T.ordinal()], (double) NUM_ALT_EXAMPLES/NUM_EXAMPLES, EPSILON);
+        Assert.assertEquals(hyperparameters.getPi()[State.HOM_REF.ordinal()], 1.0 - (double) NUM_ALT_EXAMPLES/NUM_EXAMPLES, EPSILON);
 
-        // Given that the allele is T, all of the examples were F1R2 artifacts, so we want p(z = F1R2|a = T) = 1.0 and
-        // p(z = F2R1|a = T) = 0.0
-        Assert.assertEquals(hyperparameters.getPi()[BaseUtils.simpleBaseToBaseIndex(T)][States.F1R2.ordinal()], 1.0);
-        Assert.assertEquals(hyperparameters.getPi()[BaseUtils.simpleBaseToBaseIndex(T)][States.F2R1.ordinal()], 0.0);
+        // We expect the model to learn the correct allele fraction for the case of an artifact
+        Assert.assertEquals(hyperparameters.getF()[State.F1R2_T.ordinal()], (double) ALT_DEPTH /DEPTH, EPSILON);
+        Assert.assertEquals(hyperparameters.getF()[State.F2R1_T.ordinal()], 0.0, EPSILON);
+        Assert.assertEquals(hyperparameters.getF()[State.GERMLINE_HET.ordinal()], 0.0, EPSILON);
+        Assert.assertEquals(hyperparameters.getF()[State.SOMATIC_HET.ordinal()], 0.0, EPSILON);
+        Assert.assertEquals(hyperparameters.getF()[State.HOM_REF.ordinal()], 0.0, EPSILON);
 
-        // We expect the model to learn the correct allele fraction given z = F1R2
-        Assert.assertEquals(hyperparameters.getF()[States.F1R2.ordinal()], (double) ENTIRELY_F1R2/DEPTH);
+        // And theta?
     }
 
 
@@ -82,28 +84,36 @@ public class ContextDependentArtifactFilterEngineUnitTest {
      */
     @Test
     public void testMoreComplicatedCase() {
+        // use a more lenient epsilon as these cases are harder TODO: lower as we learn theta, f
+        final double epsilon = 0.5;
         final String refContext = "AGT";
 
-        final int NUM_EXAMPLES = 250; // this many examples, ref and alt, per allele
-        final int NUM_ALT_EXAMPLES = 100; // for each alt allele we have this many alt sites
-        final int NUM_F1R2_EXAMPLES_G_TO_T = 20; // G -> T transversion only, this many alt sites have F1R2 artifact
-        final int NUM_F2R1_EXAMPLES_G_TO_A = 30; // G -> A transition only, this many alt sites have F2R1 artifact
+        final int NUM_EXAMPLES_PER_ALLELE = 10000; // this many examples, ref and alt, per allele
+        final int NUM_ALT_EXAMPLES = 10; // for each alt allele we have this many alt sites
+        // TODO: want to have - 2 here instead of -1 and still detect the artifact. For that, we must learn theta
+        final int NUM_G_TO_T_F1R2_ARTIFACT = ALT_DEPTH - 1; // G -> T transversion only, this many alt sites have F1R2 artifact
+        final int NUM_G_TO_A_F2R1_ARTIFACT = ALT_DEPTH - 1; // G -> A transition only, this many alt sites have F2R1 artifact
 
         // first create the examples for the G -> T transitions, a fraction of which has read orientation bias
+        List<Nucleotide> alleles = Arrays.asList(Nucleotide.A, Nucleotide.C, Nucleotide.G, Nucleotide.T);
         final PerContextData data = new PerContextData(refContext);
-        for (Nucleotide allele : Arrays.asList(Nucleotide.A, Nucleotide.C, Nucleotide.G, Nucleotide.T)) {
-            for (int n = 0; n < NUM_EXAMPLES; n++) {
+        for (Nucleotide allele : alleles) {
+            for (int n = 0; n < NUM_EXAMPLES_PER_ALLELE; n++) {
                 if (n < NUM_ALT_EXAMPLES && allele != Nucleotide.G) {
-                    // create alt examples
-                    final short altF1R2Depth;
-                    if (allele.equals(Nucleotide.T) && n < NUM_F1R2_EXAMPLES_G_TO_T){
-                        altF1R2Depth = ENTIRELY_F1R2;
-                    } else if (allele.equals(Nucleotide.A) && n < NUM_F2R1_EXAMPLES_G_TO_A){
-                        altF1R2Depth = ENTIRELY_F2R1;
-                    } else {
-                        altF1R2Depth = BALANCED_ALT_F1R2_DEPTH;
+                    // Give G -> T transition 90% F1R2 artifact
+                    // Give G -> A transition 95% F2R1 artifact
+                    final int[] altDepthCounts = new int[alleles.size()];
+                    final int[] altF1R2Counts = new int[alleles.size()];
+
+                    altDepthCounts[allele.ordinal()] = ALT_DEPTH;
+                    switch (allele) {
+                        case T : altF1R2Counts[allele.ordinal()] = NUM_G_TO_T_F1R2_ARTIFACT; break; // 19 out of 20 alt reads is F1R2
+                        case A : altF1R2Counts[allele.ordinal()] = ALT_DEPTH - NUM_G_TO_A_F2R1_ARTIFACT; break; // 19 out of 20 alt reads is F2R1
+                        case C : altF1R2Counts[allele.ordinal()] = ALT_DEPTH / 2; break; // G -> C should be balanced
+                        default : throw new UserException(String.format("We should never reach here but got allele %s", allele));
                     }
-                    data.addAltExample(DEPTH, STANDARD_ALT_DEPTH, altF1R2Depth, allele, alignmentContext);
+
+                    data.addAltExample(DEPTH, altDepthCounts, altF1R2Counts, allele, alignmentContext);
                 } else {
                     // create hom ref examples
                     data.addRefExample(DEPTH);
@@ -115,33 +125,28 @@ public class ContextDependentArtifactFilterEngineUnitTest {
         ContextDependentArtifactFilterEngine engine = new ContextDependentArtifactFilterEngine(data);
         Hyperparameters hyperparameters = engine.runEMAlgorithm(LogManager.getLogger(this.getClass()));
 
-        Assert.assertEquals(engine.effectiveCounts[States.F1R2.ordinal()],
-                (double) NUM_F1R2_EXAMPLES_G_TO_T, EPSILON);
-        Assert.assertEquals(engine.effectiveCounts[States.BALANCED_HOM_REF.ordinal()],
-                (double) 4*NUM_EXAMPLES - 3*NUM_ALT_EXAMPLES, EPSILON);
-        Assert.assertEquals(engine.effectiveCounts[States.BALANCED_HET.ordinal()],
-                (double) 3*NUM_ALT_EXAMPLES - NUM_F1R2_EXAMPLES_G_TO_T - NUM_F2R1_EXAMPLES_G_TO_A, EPSILON);
+        Assert.assertEquals(engine.effectiveCounts[State.F1R2_T.ordinal()], (double) NUM_ALT_EXAMPLES, epsilon);
+        Assert.assertEquals(engine.effectiveCounts[State.F2R1_A.ordinal()], (double) NUM_ALT_EXAMPLES, epsilon);
+        Assert.assertEquals(engine.effectiveCounts[State.SOMATIC_HET.ordinal()], (double) NUM_ALT_EXAMPLES, epsilon);
 
-        // Given that the allele is G, the ref allele, p(z = hom ref|a = G) must equal 1.0
-        Assert.assertEquals(hyperparameters.getPi()[BaseUtils.simpleBaseToBaseIndex(G)][States.BALANCED_HOM_REF.ordinal()], 1.0, EPSILON);
 
-        // Given that the allele is T, a fraction of the samples had the F1R2 artifacts
-        Assert.assertEquals(hyperparameters.getPi()[BaseUtils.simpleBaseToBaseIndex(T)][States.F1R2.ordinal()],
-                (double) NUM_F1R2_EXAMPLES_G_TO_T/NUM_ALT_EXAMPLES, EPSILON);
-        Assert.assertEquals(hyperparameters.getPi()[BaseUtils.simpleBaseToBaseIndex(T)][States.BALANCED_HET.ordinal()],
-                1 - (double) NUM_F1R2_EXAMPLES_G_TO_T/NUM_ALT_EXAMPLES, EPSILON);
+        // test pi
+        Assert.assertEquals(hyperparameters.getPi()[State.F1R2_T.ordinal()], (double) NUM_ALT_EXAMPLES/NUM_EXAMPLES_PER_ALLELE, 1e-3);
+        Assert.assertEquals(hyperparameters.getPi()[State.F2R1_A.ordinal()], (double) NUM_ALT_EXAMPLES/NUM_EXAMPLES_PER_ALLELE, 1e-3);
+        Assert.assertEquals(hyperparameters.getPi()[State.SOMATIC_HET.ordinal()], (double) NUM_ALT_EXAMPLES/NUM_EXAMPLES_PER_ALLELE, 1e-3);
 
-        // Given that the allele is A, a fraction of the samples had the F2R1 artifacts
-        Assert.assertEquals(hyperparameters.getPi()[BaseUtils.simpleBaseToBaseIndex(A)][States.F2R1.ordinal()],
-                (double) NUM_F2R1_EXAMPLES_G_TO_A/NUM_ALT_EXAMPLES, EPSILON);
-        Assert.assertEquals(hyperparameters.getPi()[BaseUtils.simpleBaseToBaseIndex(A)][States.BALANCED_HET.ordinal()],
-                1 - (double) NUM_F2R1_EXAMPLES_G_TO_A/NUM_ALT_EXAMPLES, EPSILON);
+        // impossible states get 0 probability
+        for (State z : State.getImpossibleStates(Nucleotide.G)){
+            Assert.assertEquals(hyperparameters.getPi()[z.ordinal()], 0.0);
+        }
 
-        // Given that the allele is C, all of the samples are balanced HET
-        Assert.assertEquals(hyperparameters.getPi()[BaseUtils.simpleBaseToBaseIndex(C)][States.BALANCED_HET.ordinal()], 1.0, EPSILON);
+        // test f
+        Assert.assertEquals(hyperparameters.getF()[State.F1R2_T.ordinal()], (double) ALT_DEPTH/DEPTH, 1e-3);
+        Assert.assertEquals(hyperparameters.getF()[State.F2R1_A.ordinal()], (double) ALT_DEPTH/DEPTH, 1e-3);
+        Assert.assertEquals(hyperparameters.getF()[State.SOMATIC_HET.ordinal()], (double) ALT_DEPTH/DEPTH, 1e-3);
 
-        // We expect the model to learn the correct allele fractions
-        Assert.assertEquals(hyperparameters.getF()[States.F1R2.ordinal()], (double) STANDARD_ALT_DEPTH/DEPTH, EPSILON);
+        // test theta
+        // TODO: implement theta
 
     }
 

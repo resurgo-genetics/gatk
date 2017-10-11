@@ -20,18 +20,18 @@ import java.util.List;
  */
 public class Hyperparameters {
     private final String referenceContext;
-    private final double[][] pi;
+    private final double[] pi;
     private final double[] f;
     private final double[] theta;
 
-    public Hyperparameters(final String referenceContext, final double[][] pi, final double[] f, final double[] theta) {
+    public Hyperparameters(final String referenceContext, final double[] pi, final double[] f, final double[] theta) {
         this.referenceContext = referenceContext;
         this.pi = pi;
         this.f = f;
         this.theta = theta;
     }
 
-    public double[][] getPi() {
+    public double[] getPi() {
         return pi;
     }
 
@@ -43,7 +43,7 @@ public class Hyperparameters {
         return theta;
     }
 
-    String getReferenceContext() {
+    public String getReferenceContext() {
         return referenceContext;
     }
 
@@ -62,17 +62,15 @@ public class Hyperparameters {
             // Note that allele fraction f is not allele-specific, thus the same f array will be printed
             // four times for each context
             dataLine.set(HyperparameterTableColumn.CONTEXT.toString(), hps.getReferenceContext())
-                    .set(HyperparameterTableColumn.PI_A.toString(), doubleArrayToString(hps.getPi()[BaseUtils.simpleBaseToBaseIndex("A".getBytes()[0])]))
-                    .set(HyperparameterTableColumn.PI_C.toString(), doubleArrayToString(hps.getPi()[BaseUtils.simpleBaseToBaseIndex("C".getBytes()[0])]))
-                    .set(HyperparameterTableColumn.PI_G.toString(), doubleArrayToString(hps.getPi()[BaseUtils.simpleBaseToBaseIndex("G".getBytes()[0])]))
-                    .set(HyperparameterTableColumn.PI_T.toString(), doubleArrayToString(hps.getPi()[BaseUtils.simpleBaseToBaseIndex("T".getBytes()[0])]))
+                    .set(HyperparameterTableColumn.PI.toString(), doubleArrayToString(hps.getPi()))
                     .set(HyperparameterTableColumn.F.toString(), doubleArrayToString(hps.getF()))
                     .set(HyperparameterTableColumn.THETA.toString(), doubleArrayToString(hps.getTheta()));
         }
     }
 
-    /** Converts a double array to a comma-separated string without brackets.
-     *  Contrasts Arrays.toString, which includes brackets
+    /**
+     *  Converts a double array to a comma-separated string without surrounding brackets
+     *  Compare to Arrays.toString(), which includes brackets and therefore is inferior
      */
     private static String doubleArrayToString(final double[] xs){
         Utils.validateArg(xs.length > 0, "xs must not be an empty (uninitialized?) array");
@@ -101,7 +99,7 @@ public class Hyperparameters {
     }
 
     /** Read a row for specific hyperparameters from the table **/
-    public static Hyperparameters readHyperparameter(final File table, final String referenceContext) {
+    public static Hyperparameters readHyperparameters(final File table, final String referenceContext) {
         Utils.validateArg(referenceContext.length() == 3, "reference context must be 3 bases long");
         try (HyperParameterTableReader reader = new HyperParameterTableReader(table)) {
             // TODO: might be worth revisiting if this is the right approach
@@ -126,35 +124,19 @@ public class Hyperparameters {
         @Override
         protected Hyperparameters createRecord(final DataLine dataLine) {
             final String referenceContext = dataLine.get(HyperparameterTableColumn.CONTEXT);
-            final double[] piA = Arrays.stream(dataLine.get(HyperparameterTableColumn.PI_A).split(","))
+            final double[] pi = Arrays.stream(dataLine.get(HyperparameterTableColumn.PI).split(","))
                     .mapToDouble(Double::parseDouble).toArray();
-            final double[] piC = Arrays.stream(dataLine.get(HyperparameterTableColumn.PI_C).split(","))
-                    .mapToDouble(Double::parseDouble).toArray();
-            final double[] piG = Arrays.stream(dataLine.get(HyperparameterTableColumn.PI_G).split(","))
-                    .mapToDouble(Double::parseDouble).toArray();
-            final double[] piT = Arrays.stream(dataLine.get(HyperparameterTableColumn.PI_T).split(","))
-                    .mapToDouble(Double::parseDouble).toArray();
-
-            final double[][] pi = new double[ContextDependentArtifactFilterEngine.NUM_ALLELES][ContextDependentArtifactFilterEngine.NUM_STATUSES];
-            pi[BaseUtils.simpleBaseToBaseIndex("A".getBytes()[0])] = piA;
-            pi[BaseUtils.simpleBaseToBaseIndex("C".getBytes()[0])] = piC;
-            pi[BaseUtils.simpleBaseToBaseIndex("G".getBytes()[0])] = piG;
-            pi[BaseUtils.simpleBaseToBaseIndex("T".getBytes()[0])] = piT;
-
             final double[] f = Arrays.stream(dataLine.get(HyperparameterTableColumn.F).split(","))
                     .mapToDouble(Double::parseDouble).toArray();
-            ;
             final double[] theta = Arrays.stream(dataLine.get(HyperparameterTableColumn.THETA).split(","))
                     .mapToDouble(Double::parseDouble).toArray();
-            ;
-
             return new Hyperparameters(referenceContext, pi, f, theta);
         }
     }
 
     private enum HyperparameterTableColumn {
         CONTEXT("context"),
-        PI_A("pi_A"), PI_C("pi_C"), PI_G("pi_G"), PI_T("pi_T"),
+        PI("pi"),
         F("allele_fraction"),
         THETA("alt_f1r2_fraction");
 
@@ -170,8 +152,7 @@ public class Hyperparameters {
         }
 
         public static final TableColumnCollection COLUMNS = new TableColumnCollection((Object[]) values());
-
-
     }
+
 }
 

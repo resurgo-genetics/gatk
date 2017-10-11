@@ -3,11 +3,13 @@ package org.broadinstitute.hellbender.tools.walkers.mutect;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFConstants;
-import org.apache.commons.math3.distribution.BinomialDistribution;
+import org.broadinstitute.hellbender.exceptions.UserException;
 import org.broadinstitute.hellbender.tools.walkers.annotator.*;
 import org.broadinstitute.hellbender.tools.walkers.contamination.ContaminationRecord;
 import org.broadinstitute.hellbender.tools.walkers.readorientation.ContextDependentArtifactFilter;
 import org.broadinstitute.hellbender.tools.walkers.readorientation.ContextDependentArtifactFilterEngine;
+import org.broadinstitute.hellbender.tools.walkers.readorientation.ContextDependentArtifactFilterEngine.State;
+
 import org.broadinstitute.hellbender.tools.walkers.readorientation.Hyperparameters;
 import org.broadinstitute.hellbender.utils.GATKProtectedVariantContextUtils;
 import org.broadinstitute.hellbender.utils.MathUtils;
@@ -24,10 +26,13 @@ public class Mutect2FilteringEngine {
     private M2FiltersArgumentCollection MTFAC;
     private final String tumorSample;
     public static final String FILTERING_STATUS_VCF_KEY = "filtering_status";
+    private final List<Hyperparameters> hyperparametersForReadOrientaitonModel;
 
     public Mutect2FilteringEngine(final M2FiltersArgumentCollection MTFAC, final String tumorSample) {
         this.MTFAC = MTFAC;
         this.tumorSample = tumorSample;
+        hyperparametersForReadOrientaitonModel = Hyperparameters.readHyperparameters(MTFAC.readOrientationHyperparameters);
+
     }
 
     // very naive M1-style contamination filter -- remove calls with AF less than the contamination fraction
@@ -201,25 +206,36 @@ public class Mutect2FilteringEngine {
 
 
     private void applyReadOrientationFilter(final M2FiltersArgumentCollection MTFAC, final VariantContext vc, final Collection<String> filters){
-        // skip INDEL sites
+        // skip INDELs
         if (vc.getAlternateAllele(0).length() > 1){
             return;
         }
 
         // VCF must contain: reference context
-        final Nucleotide allele = Nucleotide.valueOf(vc.getAlternateAllele(0).toString());
+        final Nucleotide altAllele = Nucleotide.valueOf(vc.getAlternateAllele(0).toString());
+        final State[] relevantArtifactStates;
+        switch (altAllele) {
+            case A : relevantArtifactStates = new State[]{ State.F1R2_A, State.F2R1_A }; break;
+            case C : relevantArtifactStates = new State[]{ State.F1R2_C, State.F2R1_C }; break;
+            case G : relevantArtifactStates = new State[]{ State.F1R2_G, State.F2R1_G }; break;
+            case T : relevantArtifactStates = new State[]{ State.F1R2_T, State.F2R1_T }; break;
+            default: throw new UserException(String.format("Alt allele must be in {A, C, G, T} but got %s", altAllele));
+        }
+
         final String referenceContext = vc.getAttributeAsString(GATKVCFConstants.REFERENCE_CONTEXT_KEY, "");
         Utils.validate(referenceContext.length() == 3, String.format("reference context must be of length 3 but got %s", referenceContext));
         final Genotype tumorGenotype = vc.getGenotype(tumorSample);
         final int depth = tumorGenotype.getDP();
         final int altDepth = tumorGenotype.getAD()[1]; // what about multiple alleles?
-        final int altF1R2Depth = 3; // f1r2 genotype field, vc.getAttributeAsIntList()
-
-        final Hyperparameters hyps = Hyperparameters.readHyperparameter(MTFAC.readOrientationHyperparameters, referenceContext);
+        final int altF1R2Depth = vc.getAttributeAsIntList(GATKVCFConstants.F1R2_KEY, -1).get(1); // f1r2 genotype field, vc.getAttributeAsIntList()
+        final Hyperparameters hyps = hyperparametersForReadOrientaitonModel.stream()
+                .filter(h -> h.getReferenceContext().equals(referenceContext))
+                .findFirst()
+                .get();
 
         // A by K matrix of prior probabilities over K latent states, given allele a \in A
         // \pi_{ak} is the prior probability of state k given observed allele a.
-        final double[][] pi = hyps.getPi();
+        final double[] pi = hyps.getPi();
 
         // a vector of length K, the probability of drawing an alt read (i.e. allele fraction) given z
         final double[] f = hyps.getF();
@@ -227,16 +243,43 @@ public class Mutect2FilteringEngine {
         // a vector of length K, the probability of drawing an F1R2 alt read given z
         final double[] theta = hyps.getTheta();
 
-        // May have to do this in log space
-        final double[] unnormalizedPosteriorProbabilities = IntStream.range(0, ContextDependentArtifactFilterEngine.NUM_STATUSES)
-                .mapToDouble(k -> pi[allele.ordinal()][k] * MathUtils.binomialProbability(depth, altDepth, f[k]) * MathUtils.binomialProbability(altDepth, altF1R2Depth, theta[k]))
-                .toArray();
-        final double[] posteriorProbabilties = MathUtils.normalizeFromRealSpace(unnormalizedPosteriorProbabilities);
+        final double[] log10UnnormalizedPosteriorProbabilities = new double[ContextDependentArtifactFilterEngine.NUM_STATES];
+        for (State z : State.values()){
+            final int k = z.ordinal();
+            if (z == State.SOMATIC_HET){
+                log10UnnormalizedPosteriorProbabilities[k] = Math.log10(pi[k]) +
+                        MathUtils.log10BetaBinomialDensity(altDepth, depth, ContextDependentArtifactFilterEngine.alpha, ContextDependentArtifactFilterEngine.beta) +
+                        MathUtils.log10BinomialProbability(altDepth, altF1R2Depth, Math.log10(theta[k]));
 
+            } else if (State.getBalancedStates().contains(z)) {
+                log10UnnormalizedPosteriorProbabilities[k] = Math.log10(pi[k]) +
+                        MathUtils.log10BinomialProbability(depth, altDepth, f[k]) +
+                        MathUtils.log10BinomialProbability(altDepth, altF1R2Depth, theta[k]);
 
-        final double threshold = 0.2;
-        if (posteriorProbabilties[ContextDependentArtifactFilterEngine.States.F1R2.ordinal()] > MTFAC.readOrientationFilterThreshold){
-            filters.add(GATKVCFConstants.READ_ORIENTATION_FILTER_NAME);
+            } else {
+                // we are in artifact states
+                if (altAllele != State.getAltAlleleOfTransition(z)){
+                    // We assume that the artifact states that are irrelevant to the particular transition we're looking at
+                    // did not happen e.g. under G -> T SNP, F1R2_A, F1R2_C, and F1R2_G are all irrelevant
+                    // In other words, we compute the posterior probability of F1R2_T and F2R1_T given that these irrelevant
+                    // states did not occur. To do so we set the log posterior probabilities of these states to -Infinity
+                    log10UnnormalizedPosteriorProbabilities[k] = Double.NEGATIVE_INFINITY;
+                } else {
+                    log10UnnormalizedPosteriorProbabilities[k] = Math.log10(pi[k]) +
+                            MathUtils.log10BinomialProbability(depth, altDepth, f[k]) +
+                            MathUtils.log10BinomialProbability(altDepth, altF1R2Depth, theta[k]);
+                }
+
+            }
+
+        }
+
+        final double[] posteriorProbabilties = MathUtils.normalizeFromLog10ToLinearSpace(log10UnnormalizedPosteriorProbabilities);
+
+        for (State z : relevantArtifactStates){
+            if (posteriorProbabilties[z.ordinal()] > MTFAC.readOrientationFilterThreshold){
+                filters.add(GATKVCFConstants.READ_ORIENTATION_FILTER_NAME);
+            }
         }
     }
 

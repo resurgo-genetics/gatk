@@ -21,7 +21,7 @@ public class ContextDependentArtifactFilterIntegrationTest extends CommandLinePr
 
 
         runCommandLine(args);
-        final int yo = 30;
+        final int placeHolderForDebugging = 30;
     }
 
     /***

@@ -1080,4 +1080,22 @@ public final class MathUtilsUnitTest extends BaseTest {
         Assert.assertEquals(MathUtils.argmax(array3), expected3);
         Assert.assertEquals(MathUtils.argmax(array4), expected4);
     }
+
+
+    @DataProvider(name = "log10BetaBinomialData")
+    public Object[][] getLog10BetaBinomialData() {
+        return new Object[][] {
+                { 2, 20, 3, 7, -0.804103},
+                { 1, 3, 8.7, 9.5, -0.1169066}
+        };
+    }
+
+    @Test
+    public void testLog10BetaBinomialDensity(final int k, final int n, final double alpha, final double beta,
+                                             final double expected){
+        final double EPSILON = 1e-3;
+        Assert.assertEquals(MathUtils.log10BetaBinomialDensity(k, n, alpha, beta), expected, EPSILON);
+
+
+    }
 }
