@@ -82,8 +82,8 @@ workflow CNVGermlineCohortWorkflow {
   }
   
   output {
-    Array[Array[File]] posterior_files = CohortCalling.posteriors
-    Array[Array[File]] segment_files = CohortCalling.segments
+    Array[Array[File]] posterior_files = SingleSampleWorkflow.posteriors
+    Array[Array[File]] segment_files = SingleSampleWorkflow.segments
   }
   
 }
