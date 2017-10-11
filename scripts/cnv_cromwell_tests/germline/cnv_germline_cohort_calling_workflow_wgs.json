@@ -16,5 +16,5 @@
   "CNVGermlineCohortCallingWorkflow.model_path": "/home/travis/build/broadinstitute/gatk/src/test/resources/large/cnv_germline_workflows_test_files/inputs/wgs_pon/model_final/",
   "CNVGermlineCohortCallingWorkflow.output_path": "output",
   "CNVGermlineCohortCallingWorkflow.gatk_docker": "__GATK_DOCKER__",
-  "CNVGermlineCohortCallingWorkflow.CNVTasks.CollectReadCounts.wgs_bin_length": "10000"
+  "CNVGermlineCohortCallingWorkflow.CollectReadCounts.wgs_bin_length": "10000"
 }

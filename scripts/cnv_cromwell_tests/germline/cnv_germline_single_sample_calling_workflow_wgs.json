@@ -17,5 +17,5 @@
   "CNVGermlineSingleSampleWorkflow.model_path": "/home/travis/build/broadinstitute/gatk/src/test/resources/large/cnv_germline_workflows_test_files/inputs/wgs_pon/model_final/",
   "CNVGermlineSingleSampleWorkflow.output_path": "output",
   "CNVGermlineSingleSampleWorkflow.gatk_docker": "__GATK_DOCKER__",
-  "CNVGermlineSingleSampleWorkflow.CNVTasks.CollectReadCounts.wgs_bin_length": "10000"
+  "CNVGermlineSingleSampleWorkflow.CollectReadCounts.wgs_bin_length": "10000"
 }
