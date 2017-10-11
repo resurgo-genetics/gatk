@@ -7,5 +7,5 @@
   "CNVSomaticPanelWorkflow.do_explicit_gc_correction": "true",
   "CNVSomaticPanelWorkflow.gatk_jar": "/root/gatk.jar",
   "CNVSomaticPanelWorkflow.gatk_docker": "__GATK_DOCKER__",
-  "CNVSomaticPanelWorkflow.CreateReadCountPanelOfNormals.number_of_eigensamples": "1"
+  "CNVSomaticPanelWorkflow.CollectReadCounts.wgs_bin_length": "10000"
 }
