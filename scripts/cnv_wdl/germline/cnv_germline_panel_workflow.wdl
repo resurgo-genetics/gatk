@@ -1,5 +1,5 @@
-# Subworkflow for running GATK germline CNV on a single BAM. Supports both WGS and WES samples.
-# Notes: 
+# Workflow for creating a panel of normals for germline CNV pipeline
+# Notes:
 #
 # -Basic sex genotype tab-separated table for homo sapiens must be formatted as follows (Refer to the Javadoc of SexGenotypeTableReader for full description):
 #    SAMPLE_NAME  SEX_GENOTYPE
@@ -16,6 +16,10 @@
 #    X         ALLOSOMAL       2          0
 #    Y         ALLOSOMAL       1          1
 #
+# - Input file (normal_bams_list) must contain file paths to bam and bam index files separated by tabs in the following format:
+#    normal_bam_1 bam_idx_1
+#    normal_bam_2 bam_idx_2
+#
 # - The target file (targets) is required for the WES workflow and should be a tab-separated file with the column headers:
 #    contig    start    stop    name
 #   These targets will be padded on both sides by the amount specified by PadTargets.padding (default 250).
@@ -24,66 +28,76 @@
 #   wgs_bin_length (default 1000) will be used.
 #
 # - Example invocation:
-#    java -jar cromwell.jar run cnv_germline_single_sample_calling_workflow.wdl myParameters.json
-#   We recommend taking cnv_germline_cohort_calling_workflow.json as a template json file and modifying it accordingly (please save
-#   your modified version with a different filename and do not commit to the gatk-protected repository).
-################
+#    java -jar cromwell.jar run cnv_germline_panel_workflow.wdl myParameters.json
+#   We recommend taking cnv_germline_cohort_workflow.json as a template json file and modifying it accordingly (please save
+#   your modified version with a different filename and do not commit to the gatk repository).
+##################
 
 import "cnv_common_tasks.wdl" as CNVTasks
 
-workflow CNVGermlineSingleSampleWorkflow {
+workflow CNVGermlinePanelWorkflow {
   # Workflow input files
   File? targets
-  File normal_bam
-  File normal_bam_idx
+  File normal_bams_list
+  Array[Array[String]]+ normal_bams = read_tsv(normal_bams_list)
+  File sex_genotypes 
+  File contig_ploidy_annotations
+  File transition_prior_table
+  Array[File] copy_number_transition_prior_files
   File ref_fasta
   File ref_fasta_dict
   File ref_fasta_fai
-  File sex_genotypes
-  File contig_ploidy_annotations 
-  String gatk_jar
+  File gatk_jar
   String gatk_docker
 
-  # Transtion prior table files
-  File transition_prior_table
-  Array[File] copy_number_transition_prior_files
-
-  # Model directory and parameters
-  File model_path
+  # Model parameters
   Int num_latents
-
-  # Output path
-  String output_path
-
+  # CombineReadCounts name
+  String combined_entity_id = "combined_coverage"
+  # Sex genotypes file name
+  String sex_genotypes_entity_id = "sex_genotypes"
+  # PoN output path
+  String pon_output_path
   # If no target file is input, then do WGS workflow
-  Boolean is_wgs = !defined(targets) 
-  
+  Boolean is_wgs = !defined(targets)
+
   if (!is_wgs) {
     call CNVTasks.PadTargets {
       input:
-        # The task will fail if targets is not defined when it gets here, but that should not be allowed to happen.
+        # This is a bit of a hack.  The task will fail if targets is not defined when it gets here.
         targets = select_first([targets, ""]),
         gatk_jar = gatk_jar,
         gatk_docker = gatk_docker
     }
   }
 
-  call CNVTasks.CollectReadCounts {
+  scatter (normal_bam in normal_bams) {
+    call CNVTasks.CollectReadCounts {
+      input:
+        padded_targets = PadTargets.padded_targets,
+        keep_non_autosomes = true,
+        bam = normal_bam[0],
+        bam_idx = normal_bam[1],
+        ref_fasta = ref_fasta,
+        ref_fasta_fai = ref_fasta_fai,
+        ref_fasta_dict = ref_fasta_dict,
+        gatk_jar = gatk_jar,
+        gatk_docker = gatk_docker
+    }
+  }
+
+  call CombineReadCounts {
     input:
-      padded_targets = PadTargets.padded_targets,
-      bam = normal_bam,
-      bam_idx = normal_bam_idx,
-      ref_fasta = ref_fasta,
-      ref_fasta_fai = ref_fasta_fai,
-      ref_fasta_dict = ref_fasta_dict,
+      combined_entity_id = combined_entity_id,
+      coverage_file_list = CollectReadCounts.read_counts,
       gatk_jar = gatk_jar,
       gatk_docker = gatk_docker
   }
 
   call CNVTasks.AnnotateIntervals {
     input:
-      entity_id = CollectReadCounts.entity_id,
-      intervals = CollectReadCounts.intervals,
+      entity_id = combined_entity_id,
+      intervals = CollectReadCounts.intervals[0],
       ref_fasta = ref_fasta,
       ref_fasta_fai = ref_fasta_fai,
       ref_fasta_dict = ref_fasta_dict,
@@ -93,12 +107,12 @@ workflow CNVGermlineSingleSampleWorkflow {
 
   call CNVTasks.CorrectGCBias {
     input:
-      entity_id = CollectReadCounts.entity_id,
-      coverage = CollectReadCounts.read_counts,
+      entity_id = combined_entity_id,
+      coverage = CombineReadCounts.combined_coverage,
       annotated_intervals = AnnotateIntervals.annotated_intervals,
       gatk_jar = gatk_jar,
       gatk_docker = gatk_docker
-  }
+  } 
 
   call GermlineCNVCaller {
     input:
@@ -107,27 +121,59 @@ workflow CNVGermlineSingleSampleWorkflow {
       sex_genotypes = sex_genotypes,
       transition_prior_table = transition_prior_table,
       copy_number_transition_prior_files = copy_number_transition_prior_files,
-      model_path = model_path,
+      pon_output_path = pon_output_path,
       num_latents = num_latents, 
-      output_path = output_path,
       gatk_jar = gatk_jar,
       gatk_docker = gatk_docker
   }
- 
+
   output {
     Array[File] posteriors = GermlineCNVCaller.posteriors
+    Array[File] model = GermlineCNVCaller.model
     Array[File] segments = GermlineCNVCaller.segments
-  }  
+  }
 }
 
+# Combine sample-level coverage files into a single file
+task CombineReadCounts {
+    String combined_entity_id
+    Array[File]+ coverage_file_list
+    Int? max_open_files
+    String gatk_jar
+
+    # Runtime parameters
+    Int? mem
+    String gatk_docker
+    Int? preemptible_attempts
+    Int? disk_space_gb
+
+    command {
+        java -Xmx${default=4 mem}g -jar ${gatk_jar} CombineReadCounts \
+            --input ${sep=" --input " coverage_file_list} \
+            --maxOpenFiles ${default=100 max_open_files} \
+            --output ${combined_entity_id}.tsv
+    }
+
+    runtime {
+        docker: "${gatk_docker}"
+        memory: select_first([mem, 5]) + " GB"
+        disks: "local-disk " + select_first([disk_space_gb, 150]) + " HDD"
+        preemptible: select_first([preemptible_attempts, 2])
+    }
+
+    output {
+        File combined_coverage = "${combined_entity_id}.tsv"
+    }
+}
+  
+# Learn the coverage model
 task GermlineCNVCaller {
     File coverage
     File contig_ploidy_annotations
     File sex_genotypes
     File transition_prior_table
     Array[File] copy_number_transition_prior_files
-    String output_path
-    File model_path
+    String pon_output_path
     Int num_latents
     String gatk_jar
 
@@ -140,13 +186,12 @@ task GermlineCNVCaller {
     command {
         java -Xmx${default=4 mem}g -Ddtype=double -jar ${gatk_jar} GermlineCNVCaller \
             --input ${coverage} \
-            --inputModelPath ${model_path} \
             --contigAnnotationsTable ${contig_ploidy_annotations} \
             --sexGenotypeTable ${sex_genotypes} \
             --copyNumberTransitionPriorTable ${transition_prior_table} \
-            --outputPath ${output_path} \
+            --outputPath ${pon_output_path} \
+            --jobType LEARN_AND_CALL \
             --numLatents ${default=5 num_latents} \
-            --jobType CALL_ONLY \
             --rddCheckpointing false \
             --disableSpark true
     }
@@ -159,7 +204,8 @@ task GermlineCNVCaller {
     }
 
     output {
-        Array[File] posteriors = glob("./${output_path}/posteriors_final/*")
-        Array[File] segments = glob("./${output_path}/posteriors_final/segments/*")
-    }
+        Array[File] posteriors = glob("./${pon_output_path}/posteriors_final/*")
+        Array[File] model = glob("./${pon_output_path}/model_final/*") 
+        Array[File] segments = glob("./${pon_output_path}/posteriors_final/segments/*")  
+    }       
 }

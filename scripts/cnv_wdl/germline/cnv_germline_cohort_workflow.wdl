@@ -28,15 +28,15 @@
 #   wgs_bin_length (default 1000) will be used.
 #
 # - Example invocation:
-#    java -jar cromwell.jar run cnv_germline_cohort_calling_workflow.wdl myParameters.json
-#   We recommend taking cnv_germline_cohort_calling_workflow.json as a template json file and modifying it accordingly (please save
-#   your modified version with a different filename and do not commit to the gatk-protected repository).
+#    java -jar cromwell.jar run cnv_germline_cohort_workflow.wdl myParameters.json
+#   We recommend taking cnv_germline_cohort_workflow.json as a template json file and modifying it accordingly (please save
+#   your modified version with a different filename and do not commit to the gatk repository).
 ################
 
 
-import "cnv_germline_single_sample_calling_workflow.wdl" as CNVGermlineCalling
+import "cnv_germline_single_sample_workflow.wdl" as CNVGermline
 
-workflow CNVGermlineCohortCallingWorkflow {
+workflow CNVGermlineCohortWorkflow {
   # Workflow input files
   File? targets
   File normal_bams_list
@@ -61,7 +61,7 @@ workflow CNVGermlineCohortCallingWorkflow {
   String output_path
 
   scatter (normal_bam in normal_bams) {
-    call CNVGermlineCalling.CNVGermlineSingleSampleWorkflow as CohortCalling {
+    call CNVGermline.CNVGermlineSingleSampleWorkflow as SingleSampleWorkflow {
       input:
         targets = targets,
         normal_bam = normal_bam[0],
