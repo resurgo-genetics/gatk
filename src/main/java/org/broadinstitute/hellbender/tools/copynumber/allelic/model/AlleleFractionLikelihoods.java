@@ -11,7 +11,6 @@ import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.IntStream;
 
-import static org.apache.commons.math3.util.FastMath.log;
 import static org.apache.commons.math3.util.FastMath.sqrt;
 import static org.broadinstitute.hellbender.utils.MathUtils.log10Factorial;
 import static org.broadinstitute.hellbender.utils.MathUtils.log10ToLog;
@@ -46,6 +45,8 @@ import static org.broadinstitute.hellbender.utils.MathUtils.log10ToLog;
  * @author Samuel Lee &lt;slee@broadinstitute.org&gt;
  */
 final class AlleleFractionLikelihoods {
+    private static final double EPSILON = 1E-10;
+
     private static final FunctionCache logGammaCache = new FunctionCache(Gamma::logGamma);
     private static final FunctionCache logCache = new FunctionCache(FastMath::log);
 
@@ -142,7 +143,7 @@ final class AlleleFractionLikelihoods {
      */
     private static double biasPosteriorMode(final double alpha, final double beta, final double f, final int a, final int r) {
         final double w = (1 - f) * (a - alpha + 1) + beta * f;
-        return (sqrt(w * w + 4 * beta * f * (1 - f) * (r + alpha - 1)) - w) / (2 * beta * (1 - f));
+        return Math.max((sqrt(w * w + 4 * beta * f * (1 - f) * (r + alpha - 1)) - w) / (2 * beta * (1 - f)), EPSILON);
     }
 
     /**
@@ -168,7 +169,7 @@ final class AlleleFractionLikelihoods {
      * @param kappa     curvature of allelic-bias posterior
      */
     private static double biasPosteriorEffectiveAlpha(final double lambda0, final double kappa) {
-        return 1 - kappa * lambda0 * lambda0;
+        return Math.max(1 - kappa * lambda0 * lambda0, EPSILON);
     }
 
     /**
@@ -178,6 +179,10 @@ final class AlleleFractionLikelihoods {
      * @param kappa     curvature of allelic-bias posterior
      */
     private static double biasPosteriorEffectiveBeta(final double lambda0, final double kappa) {
-        return -kappa * lambda0;
+        return Math.max(-kappa * lambda0, EPSILON);
+    }
+
+    private static double log(final double x) {
+        return FastMath.log(Math.max(EPSILON, x));
     }
 }

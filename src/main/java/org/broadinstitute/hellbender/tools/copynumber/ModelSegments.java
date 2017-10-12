@@ -2,8 +2,8 @@ package org.broadinstitute.hellbender.tools.copynumber;
 
 import com.google.common.collect.ImmutableSet;
 import htsjdk.samtools.util.OverlapDetector;
-import org.apache.commons.math3.stat.inference.AlternativeHypothesis;
-import org.apache.commons.math3.stat.inference.BinomialTest;
+import org.apache.commons.math3.special.Beta;
+import org.apache.commons.math3.util.FastMath;
 import org.broadinstitute.barclay.argparser.Argument;
 import org.broadinstitute.barclay.argparser.BetaFeature;
 import org.broadinstitute.barclay.argparser.CommandLineProgramProperties;
@@ -12,6 +12,7 @@ import org.broadinstitute.hellbender.cmdline.CommandLineProgram;
 import org.broadinstitute.hellbender.cmdline.StandardArgumentDefinitions;
 import org.broadinstitute.hellbender.cmdline.programgroups.CopyNumberProgramGroup;
 import org.broadinstitute.hellbender.exceptions.UserException;
+import org.broadinstitute.hellbender.tools.copynumber.allelic.alleliccount.AllelicCount;
 import org.broadinstitute.hellbender.tools.copynumber.allelic.alleliccount.AllelicCountCollection;
 import org.broadinstitute.hellbender.tools.copynumber.allelic.model.AlleleFractionPrior;
 import org.broadinstitute.hellbender.tools.copynumber.allelic.segmentation.AlleleFractionKernelSegmenter;
@@ -46,8 +47,6 @@ import java.util.stream.Collectors;
 @DocumentedFeature
 @BetaFeature
 public final class ModelSegments extends CommandLineProgram {
-    private static final double EPSILON = 1E-10;
-
     //filename tags for output
     public static final String HET_ALLELIC_COUNTS_FILE_SUFFIX = ".hets.tsv";
     public static final String NORMAL_HET_ALLELIC_COUNTS_FILE_SUFFIX = ".hets.normal.tsv";
@@ -64,8 +63,8 @@ public final class ModelSegments extends CommandLineProgram {
     public static final String MINIMUM_TOTAL_ALLELE_COUNT_LONG_NAME = "minTotalAlleleCount";
     public static final String MINIMUM_TOTAL_ALLELE_COUNT_SHORT_NAME = "minAC";
 
-    public static final String GENOTYPING_P_VALUE_THRESHOLD_LONG_NAME = "genotypingPValueThreshold";
-    public static final String GENOTYPING_P_VALUE_THRESHOLD_SHORT_NAME = "pValTh";
+    public static final String GENOTYPING_HOMOZYGOUS_LOG_RATIO_THRESHOLD_LONG_NAME = "genotypingHomozygousLogRatioThreshold";
+    public static final String GENOTYPING_HOMOZYGOUS_LOG_RATIO_THRESHOLD_SHORT_NAME = "homLRT";
 
     public static final String GENOTYPING_BASE_ERROR_RATE_LONG_NAME = "genotypingBaseErrorRate";
     public static final String GENOTYPING_BASE_ERROR_RATE_SHORT_NAME = "baseErrRate";
@@ -172,15 +171,19 @@ public final class ModelSegments extends CommandLineProgram {
     private int minTotalAlleleCount = 30;
 
     @Argument(
-            doc = "P-value threshold for genotyping and filtering homozygous allelic counts, if available.",
-            fullName = GENOTYPING_P_VALUE_THRESHOLD_LONG_NAME,
-            shortName = GENOTYPING_P_VALUE_THRESHOLD_SHORT_NAME,
+            doc = "Log-ratio threshold for genotyping and filtering homozygous allelic counts, if available.  " +
+                    "Increasing this value will increase the number of sites assumed to be heterozygous for modeling.",
+            fullName = GENOTYPING_HOMOZYGOUS_LOG_RATIO_THRESHOLD_LONG_NAME,
+            shortName = GENOTYPING_HOMOZYGOUS_LOG_RATIO_THRESHOLD_SHORT_NAME,
             optional = true
     )
-    private double genotypingPValueThreshold = 1E-2;
+    private double genotypingHomozygousLogRatioThreshold = -6.;
 
     @Argument(
-            doc = "Base error rate for genotyping and filtering homozygous allelic counts, if available.",
+            doc = "Maximum base-error rate for genotyping and filtering homozygous allelic counts, if available.  " +
+                    "The likelihood for an allelic count to be generated from a homozygous site will be integrated " +
+                    "from zero base-error rate up to this value.  Decreasing this value will increase " +
+                    "the number of sites assumed to be heterozygous for modeling.",
             fullName = GENOTYPING_BASE_ERROR_RATE_LONG_NAME,
             shortName = GENOTYPING_BASE_ERROR_RATE_SHORT_NAME,
             optional = true
@@ -470,11 +473,7 @@ public final class ModelSegments extends CommandLineProgram {
             hetAllelicCounts = new AllelicCountCollection(
                     unfilteredAllelicCounts.getSampleName(),
                     filteredAllelicCounts.getRecords().stream()
-                            .filter(ac -> new BinomialTest().binomialTest(
-                                    ac.getTotalReadCount(),
-                                    Math.min(ac.getAltReadCount(), ac.getRefReadCount()),
-                                    genotypingBaseErrorRate,
-                                    AlternativeHypothesis.TWO_SIDED) < genotypingPValueThreshold + EPSILON)
+                            .filter(ac -> calculateHomozygousLogRatio(ac, genotypingBaseErrorRate) < genotypingHomozygousLogRatioThreshold)
                             .collect(Collectors.toList()));
             final File hetAllelicCountsFile = new File(outputDir, outputPrefix + HET_ALLELIC_COUNTS_FILE_SUFFIX);
             hetAllelicCounts.write(hetAllelicCountsFile);
@@ -506,11 +505,7 @@ public final class ModelSegments extends CommandLineProgram {
             final AllelicCountCollection hetNormalAllelicCounts = new AllelicCountCollection(
                     normalSampleName,
                     filteredNormalAllelicCounts.getRecords().stream()
-                            .filter(ac -> new BinomialTest().binomialTest(
-                                    ac.getTotalReadCount(),
-                                    Math.min(ac.getAltReadCount(), ac.getRefReadCount()),
-                                    genotypingBaseErrorRate,
-                                    AlternativeHypothesis.TWO_SIDED) < genotypingPValueThreshold + EPSILON)
+                            .filter(ac -> calculateHomozygousLogRatio(ac, genotypingBaseErrorRate) < genotypingHomozygousLogRatioThreshold)
                             .collect(Collectors.toList()));
             final File hetNormalAllelicCountsFile = new File(outputDir, outputPrefix + NORMAL_HET_ALLELIC_COUNTS_FILE_SUFFIX);
             hetNormalAllelicCounts.write(hetNormalAllelicCountsFile);
@@ -530,6 +525,18 @@ public final class ModelSegments extends CommandLineProgram {
             hetAllelicCounts.write(hetAllelicCountsFile);
             logger.info(String.format("Allelic counts for case sample at heterozygous sites in matched normal written to %s.", hetAllelicCountsFile));
         }
+    }
+
+    private static double calculateHomozygousLogRatio(final AllelicCount allelicCount,
+                                                      final double genotypingBaseErrorRate) {
+        final int r = allelicCount.getRefReadCount();
+        final int n = allelicCount.getTotalReadCount();
+        final double betaAll = Beta.regularizedBeta(1, r + 1, n - r + 1);
+        final double betaError = Beta.regularizedBeta(genotypingBaseErrorRate, r + 1, n - r + 1);
+        final double betaOneMinusError = Beta.regularizedBeta(1 - genotypingBaseErrorRate, r + 1, n - r + 1);
+        final double betaHom = betaError + betaAll - betaOneMinusError;
+        final double betaHet = betaOneMinusError - betaError;
+        return FastMath.log(betaHom) - FastMath.log(betaHet);
     }
 
     private AlleleFractionSegmentCollection performAlleleFractionSegmentation() {

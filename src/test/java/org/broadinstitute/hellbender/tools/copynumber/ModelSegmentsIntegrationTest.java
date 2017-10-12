@@ -84,15 +84,14 @@ public class ModelSegmentsIntegrationTest extends CommandLineProgramTest {
         runCommandLine(arguments);
     }
 
-    @Test(enabled = false)
+    @Test//(enabled = false)
     public void testWESMatchedNormal() {
         final String[] arguments = {
                 "-" + CopyNumberStandardArgument.DENOISED_COPY_RATIOS_FILE_SHORT_NAME, "/home/slee/working/gatk/TCGA-05-4389-01A-01D-1265-08-gc-corrected.tn.tsv",
                 "-" + CopyNumberStandardArgument.ALLELIC_COUNTS_FILE_SHORT_NAME, "/home/slee/working/gatk/TCGA-05-4389-01A-01D-1265-08.ac.tsv",
                 "-" + CopyNumberStandardArgument.NORMAL_ALLELIC_COUNTS_FILE_SHORT_NAME, "/home/slee/working/gatk/TCGA-05-4389-10A-01D-1265-08.ac.tsv",
-                "-" + CopyNumberStandardArgument.OUTPUT_PREFIX_SHORT_NAME, "TCGA-05-4389-01A-01D-1265-08-3E-1.matched-normal",
+                "-" + CopyNumberStandardArgument.OUTPUT_PREFIX_SHORT_NAME, "TCGA-05-4389-01A-01D-1265-08.matched-normal",
                 "-" + StandardArgumentDefinitions.OUTPUT_SHORT_NAME, "/home/slee/working/gatk",
-                "-" + ModelSegments.NUM_CHANGEPOINTS_PENALTY_FACTOR_SHORT_NAME, "0.3",
                 "-" + StandardArgumentDefinitions.VERBOSITY_NAME, "INFO"
         };
         runCommandLine(arguments);
@@ -116,7 +115,7 @@ public class ModelSegmentsIntegrationTest extends CommandLineProgramTest {
                 "-" + CopyNumberStandardArgument.DENOISED_COPY_RATIOS_FILE_SHORT_NAME, "/home/slee/working/gatk/hcc1143_T_clean.denoisedCR.tsv",
                 "-" + CopyNumberStandardArgument.ALLELIC_COUNTS_FILE_SHORT_NAME, "/home/slee/working/gatk/hcc1143_T_clean.allelicCounts.tsv",
                 "-" + CopyNumberStandardArgument.NORMAL_ALLELIC_COUNTS_FILE_SHORT_NAME, "/home/slee/working/gatk/hcc1143_N_clean.allelicCounts.tsv",
-                "-" + CopyNumberStandardArgument.OUTPUT_PREFIX_SHORT_NAME, "hcc1143_T_clean",
+                "-" + CopyNumberStandardArgument.OUTPUT_PREFIX_SHORT_NAME, "hcc1143_T_clean.matched-normal",
                 "-" + StandardArgumentDefinitions.OUTPUT_SHORT_NAME, "/home/slee/working/gatk",
                 "-" + StandardArgumentDefinitions.VERBOSITY_NAME, "INFO"
         };

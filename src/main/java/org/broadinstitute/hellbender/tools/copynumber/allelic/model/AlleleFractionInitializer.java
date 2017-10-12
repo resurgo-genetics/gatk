@@ -48,10 +48,10 @@ public final class AlleleFractionInitializer {
     private static final int MAX_ITERATIONS = 50;
 
     //define maxima of search intervals for maximum likelihood -- parameter values above these would be ridiculous
-    static final double MAX_REASONABLE_OUTLIER_PROBABILITY = 0.1;
+    static final double MAX_REASONABLE_OUTLIER_PROBABILITY = 0.15;
     static final double MAX_REASONABLE_MEAN_BIAS = 5.0;
-    static final double MAX_REASONABLE_BIAS_VARIANCE = 1.0;
-    private static final double EPSILON_FOR_NEAR_MAX_WARNING = 1E-3;
+    static final double MAX_REASONABLE_BIAS_VARIANCE = 0.5;
+    private static final double EPSILON_FOR_NEAR_MAX_WARNING = 1E-2;
 
     //the minor-allele fraction of a segment must be less than one half by definition
     private static final double MAX_MINOR_ALLELE_FRACTION = 0.5;
@@ -95,7 +95,7 @@ public final class AlleleFractionInitializer {
                                       final double epsilon) {
         if (maxValue - value < epsilon) {
             logger.warn(String.format("The maximum-likelihood estimate for the global parameter %s (%s) was near its boundary (%s), " +
-                            "the model is likely not a good fit to the data!",
+                            "the model is likely not a good fit to the data!  Consider changing parameters for filtering homozygous sites.",
                     parameterName,
                     String.format(AlleleFractionGlobalParameters.DOUBLE_FORMAT, value),
                     String.format(AlleleFractionGlobalParameters.DOUBLE_FORMAT, maxValue)));

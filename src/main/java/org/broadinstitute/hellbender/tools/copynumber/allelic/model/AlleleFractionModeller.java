@@ -52,7 +52,7 @@ public final class AlleleFractionModeller {
 
     private static final double MAX_REASONABLE_MEAN_BIAS = AlleleFractionInitializer.MAX_REASONABLE_MEAN_BIAS;
     private static final double MAX_REASONABLE_BIAS_VARIANCE = AlleleFractionInitializer.MAX_REASONABLE_BIAS_VARIANCE;
-    static final double MAX_REASONABLE_OUTLIER_PROBABILITY = AlleleFractionInitializer.MAX_REASONABLE_OUTLIER_PROBABILITY;
+    private static final double MAX_REASONABLE_OUTLIER_PROBABILITY = AlleleFractionInitializer.MAX_REASONABLE_OUTLIER_PROBABILITY;
     private static final double MIN_MINOR_FRACTION_SAMPLING_WIDTH = 1E-3;
 
     private final String sampleName;

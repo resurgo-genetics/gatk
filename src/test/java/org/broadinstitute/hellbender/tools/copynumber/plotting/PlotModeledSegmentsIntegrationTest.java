@@ -324,7 +324,7 @@ public final class PlotModeledSegmentsIntegrationTest extends CommandLineProgram
     public void testPlottingWGSNormal() {
         final String[] arguments = {
                 "-" + CopyNumberStandardArgument.DENOISED_COPY_RATIOS_FILE_SHORT_NAME, "/home/slee/working/gatk/TCGA-05-4389-10A-01D-1931-08.denoisedCR.tsv",
-//                "-" + CopyNumberStandardArgument.ALLELIC_COUNTS_FILE_SHORT_NAME, "/home/slee/working/gatk/TCGA-05-4389-10A-01D-1931-08.hets.tsv",
+                "-" + CopyNumberStandardArgument.ALLELIC_COUNTS_FILE_SHORT_NAME, "/home/slee/working/gatk/TCGA-05-4389-10A-01D-1931-08.hets.tsv",
                 "-" + CopyNumberStandardArgument.SEGMENTS_FILE_SHORT_NAME, "/home/slee/working/gatk/TCGA-05-4389-10A-01D-1931-08.modelFinal.seg",
                 "-" + StandardArgumentDefinitions.SEQUENCE_DICTIONARY_SHORT_NAME, "/home/slee/working/gatk/Homo_sapiens_assembly19.dict",
                 "-" + StandardArgumentDefinitions.OUTPUT_SHORT_NAME, "/home/slee/working/gatk",
@@ -337,11 +337,11 @@ public final class PlotModeledSegmentsIntegrationTest extends CommandLineProgram
     public void testPlottingWESMatchedNormal() {
         final String[] arguments = {
                 "-" + CopyNumberStandardArgument.DENOISED_COPY_RATIOS_FILE_SHORT_NAME, "/home/slee/working/gatk/TCGA-05-4389-01A-01D-1265-08-gc-corrected.tn.tsv",
-                "-" + CopyNumberStandardArgument.ALLELIC_COUNTS_FILE_SHORT_NAME, "/home/slee/working/gatk/TCGA-05-4389-01A-01D-1265-08-3E-1.matched-normal.hets.tsv",
-                "-" + CopyNumberStandardArgument.SEGMENTS_FILE_SHORT_NAME, "/home/slee/working/gatk/TCGA-05-4389-01A-01D-1265-08-3E-1.matched-normal.modelFinal.seg",
+                "-" + CopyNumberStandardArgument.ALLELIC_COUNTS_FILE_SHORT_NAME, "/home/slee/working/gatk/TCGA-05-4389-01A-01D-1265-08.matched-normal.hets.tsv",
+                "-" + CopyNumberStandardArgument.SEGMENTS_FILE_SHORT_NAME, "/home/slee/working/gatk/TCGA-05-4389-01A-01D-1265-08.matched-normal.modelFinal.seg",
                 "-" + StandardArgumentDefinitions.SEQUENCE_DICTIONARY_SHORT_NAME, "/home/slee/working/gatk/Homo_sapiens_assembly19.dict",
                 "-" + StandardArgumentDefinitions.OUTPUT_SHORT_NAME, "/home/slee/working/gatk",
-                "-" + CopyNumberStandardArgument.OUTPUT_PREFIX_SHORT_NAME, "TCGA-05-4389-01A-01D-1265-08-3E-1.matched-normal",
+                "-" + CopyNumberStandardArgument.OUTPUT_PREFIX_SHORT_NAME, "TCGA-05-4389-01A-01D-1265-08.matched-normal",
                 "-" + StandardArgumentDefinitions.VERBOSITY_NAME, "DEBUG"
         };
         runCommandLine(arguments);
@@ -353,10 +353,25 @@ public final class PlotModeledSegmentsIntegrationTest extends CommandLineProgram
         final String[] arguments = {
                 "-" + CopyNumberStandardArgument.DENOISED_COPY_RATIOS_FILE_SHORT_NAME, "/home/slee/working/gatk/hcc1143_T_clean.denoisedCR.tsv",
                 "-" + CopyNumberStandardArgument.ALLELIC_COUNTS_FILE_SHORT_NAME, "/home/slee/working/gatk/hcc1143_T_clean.hets.tsv",
-                "-" + CopyNumberStandardArgument.SEGMENTS_FILE_SHORT_NAME, "/home/slee/working/gatk/hcc1143_T_clean.no-ac.modelFinal.seg",
+                "-" + CopyNumberStandardArgument.SEGMENTS_FILE_SHORT_NAME, "/home/slee/working/gatk/hcc1143_T_clean.modelFinal.seg",
                 "-" + StandardArgumentDefinitions.SEQUENCE_DICTIONARY_SHORT_NAME, "/home/slee/working/gatk/GRCh38_full_analysis_set_plus_decoy_hla.dict",
                 "-" + StandardArgumentDefinitions.OUTPUT_SHORT_NAME, "/home/slee/working/gatk",
-                "-" + CopyNumberStandardArgument.OUTPUT_PREFIX_SHORT_NAME, "hcc1143_T_clean.no-ac",
+                "-" + CopyNumberStandardArgument.OUTPUT_PREFIX_SHORT_NAME, "hcc1143_T_clean",
+                "-" + StandardArgumentDefinitions.VERBOSITY_NAME, "DEBUG"
+        };
+        runCommandLine(arguments);
+    }
+
+    //checks that output files with reasonable file sizes are generated, but correctness of output is not checked
+    @Test(enabled = false)
+    public void testPlottingWESHCCMatchedNormal() {
+        final String[] arguments = {
+                "-" + CopyNumberStandardArgument.DENOISED_COPY_RATIOS_FILE_SHORT_NAME, "/home/slee/working/gatk/hcc1143_T_clean.denoisedCR.tsv",
+                "-" + CopyNumberStandardArgument.ALLELIC_COUNTS_FILE_SHORT_NAME, "/home/slee/working/gatk/hcc1143_T_clean.matched-normal.hets.tsv",
+                "-" + CopyNumberStandardArgument.SEGMENTS_FILE_SHORT_NAME, "/home/slee/working/gatk/hcc1143_T_clean.matched-normal.modelFinal.seg",
+                "-" + StandardArgumentDefinitions.SEQUENCE_DICTIONARY_SHORT_NAME, "/home/slee/working/gatk/GRCh38_full_analysis_set_plus_decoy_hla.dict",
+                "-" + StandardArgumentDefinitions.OUTPUT_SHORT_NAME, "/home/slee/working/gatk",
+                "-" + CopyNumberStandardArgument.OUTPUT_PREFIX_SHORT_NAME, "hcc1143_T_clean.matched-normal",
                 "-" + StandardArgumentDefinitions.VERBOSITY_NAME, "DEBUG"
         };
         runCommandLine(arguments);
