@@ -235,7 +235,7 @@ task ModelSegments {
     File? normal_allelic_counts
     Int? max_num_segments_per_chromosome
     Int? min_total_allele_count
-    Float? genotyping_log_ratio_threshold
+    Float? genotyping_homozygous_log_ratio_threshold
     Float? genotyping_base_error_rate
     Float? kernel_variance_copy_ratio
     Float? kernel_variance_allele_fraction
@@ -271,7 +271,7 @@ task ModelSegments {
             ${"--normalAllelicCounts " + normal_allelic_counts} \
             --maxNumSegmentsPerChromosome ${default="500" max_num_segments_per_chromosome} \
             --minTotalAlleleCount ${default="30" min_total_allele_count} \
-            --genotypingLogRatioThreshold ${default="-6.0" genotyping_log_ratio_threshold} \
+            --genotypingHomozygousLogRatioThreshold ${default="-6.0" genotyping_homozygous_log_ratio_threshold} \
             --genotypingBaseErrorRate ${default="0.01" genotyping_base_error_rate} \
             --kernelVarianceCopyRatio ${default="0.0" kernel_variance_copy_ratio} \
             --kernelVarianceAlleleFraction ${default="0.01" kernel_variance_allele_fraction} \
