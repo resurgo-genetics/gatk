@@ -142,7 +142,7 @@ task CollectAllelicCounts {
     String allelic_counts_filename = "${base_filename}.allelicCounts.tsv"
 
     command {
-        java -Xmx${default="4" mem}g -jar ${gatk_jar} CollectAllelicCounts \
+        java -Xmx${default="8" mem}g -jar ${gatk_jar} CollectAllelicCounts \
             -L ${common_sites} \
             --input ${bam} \
             --reference ${ref_fasta} \
