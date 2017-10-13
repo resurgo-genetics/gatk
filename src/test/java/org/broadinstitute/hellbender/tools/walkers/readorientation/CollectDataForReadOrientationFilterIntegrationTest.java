@@ -8,20 +8,21 @@ import java.io.File;
 /**
  * Created by tsato on 8/1/17.
  */
-public class ContextDependentArtifactFilterIntegrationTest extends CommandLineProgramTest {
+public class CollectDataForReadOrientationFilterIntegrationTest extends CommandLineProgramTest {
 
     @Test
     public void test() {
-        final File table = createTempFile("contamination", ".table");
+        final File refTable = createTempFile("ref", ".table");
+        final File altTable = createTempFile("alt", ".table");
+
         final String[] args = {
                 "-R", v37_chr17_1Mb_Reference,
                 "-I", NA12878_chr17_1k_BAM,
-                "-O", table.getAbsolutePath()
+                "-alt_table", altTable.getAbsolutePath(),
+                "-ref_table", refTable.getAbsolutePath()
         };
 
-
         runCommandLine(args);
-        final int placeHolderForDebugging = 30;
     }
 
     /***
@@ -31,5 +32,6 @@ public class ContextDependentArtifactFilterIntegrationTest extends CommandLinePr
      * 20:21196089-21196089, 9, 5
      * 20:46952142-46952142, 1, 1
      * 20:53355622-53355622, 9, 2
+     *
      */
 }

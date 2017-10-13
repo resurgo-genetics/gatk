@@ -1,7 +1,11 @@
 package org.broadinstitute.hellbender.tools.walkers.readorientation;
 
+import htsjdk.samtools.util.SequenceUtil;
 import org.apache.commons.math3.util.MathArrays;
-import org.apache.logging.log4j.Logger;
+import org.broadinstitute.barclay.argparser.Argument;
+import org.broadinstitute.barclay.argparser.CommandLineProgramProperties;
+import org.broadinstitute.hellbender.cmdline.CommandLineProgram;
+import org.broadinstitute.hellbender.cmdline.programgroups.VariantProgramGroup;
 import org.broadinstitute.hellbender.exceptions.UserException;
 import org.broadinstitute.hellbender.utils.GATKProtectedMathUtils;
 import org.broadinstitute.hellbender.utils.MathUtils;
@@ -9,21 +13,42 @@ import org.broadinstitute.hellbender.utils.Nucleotide;
 import org.broadinstitute.hellbender.utils.Utils;
 import org.spark_project.guava.annotations.VisibleForTesting;
 
-import java.util.Arrays;
-import java.util.List;
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileReader;
+import java.io.IOException;
+import java.util.*;
+import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+
 
 /**
  * Created by tsato on 7/26/17.
  */
-public class ContextDependentArtifactFilterEngine {
+@CommandLineProgramProperties(
+        summary = "",
+        oneLineSummary = "",
+        programGroup = VariantProgramGroup.class // TODO: check that this is correct
+)
+
+public class ReadOrientationFilterLearningEngine extends CommandLineProgram {
+    @Argument(fullName = CollectDataForReadOrientationFilter.REF_HISTOGRAM_TABLE_LONG_NAME,
+            shortName = CollectDataForReadOrientationFilter.REF_HISTOGRAM_TABLE_SHORT_NAME,
+            doc = "a tab-separated depth histogram over ref sites from CollectDataForReadOrientationFilter")
+    private File refHistogramTable;
+
+    @Argument(fullName = CollectDataForReadOrientationFilter.ALT_DATA_TABLE_LONG_NAME,
+            shortName = CollectDataForReadOrientationFilter.ALT_DATA_TABLE_SHORT_NAME,
+            doc = "")
+    private File altDataTable;
+
+    @Argument()
+    private File output;
+
+
     public static final int NUM_STATES = State.values().length;
 
     static final String[] ALL_ALLELES = new String[] { "A", "C", "G", "T" };
-
-
-    // A, C, G, or T, since we only look at SNP sites
-    static final int NUM_ALLELES = ALL_ALLELES.length; // aka 4
 
     // When the increase in likelihood falls under this value, we call the algorithm converged
     static final double CONVERGENCE_THRESHOLD = 1e-3;
@@ -36,8 +61,9 @@ public class ContextDependentArtifactFilterEngine {
 
     final Nucleotide refAllele;
 
-    // Observed data
-    final PerContextData data;
+    final RefSiteHistogram refHistogram;
+
+    final List<AltSiteRecord> altDesignMatrix;
 
     // N by K matrix of posterior probabilities of latent variable z, where N is the number of alt sites,
     // evaluated at the current estimates of the hyperparameters pi, f, and theta
@@ -46,7 +72,9 @@ public class ContextDependentArtifactFilterEngine {
     // {@code MAX_COVERAGE} by K matrix of a cache of responsibilities of a ref site (i.e. m = 0, x = 0)
     // for ref sites with coverage 0, 1, ..., MAX_VALUE - 1. To reiterate, the rows represent different coverages,
     // not samples (the count of samples in each coverage is stored in a separate histogram)
-    final double[][] refResponsibilities = new double[PerContextData.MAX_COVERAGE][NUM_STATES];
+    final double[][] refResponsibilities = new double[RefSiteHistogram.MAX_DEPTH][NUM_STATES];
+
+    final int numAltExamples;
 
     final int numExamples;
 
@@ -88,11 +116,13 @@ public class ContextDependentArtifactFilterEngine {
     public double[] l2distancesOfParameters = new double[MAX_ITERATIONS];
 
 
-    public ContextDependentArtifactFilterEngine(final PerContextData data){
-        this.data = data;
-        numExamples = data.getNumExamples();
-        altResponsibilities = new double[numExamples][NUM_STATES];
-        referenceContext = data.getReferenceContext();
+    public ReadOrientationFilterLearningEngine(final RefSiteHistogram refHistogram, final List<AltSiteRecord> altDesignMatrix){
+        this.refHistogram = refHistogram;
+        this.altDesignMatrix = altDesignMatrix;
+        numAltExamples = altDesignMatrix.size();
+        numExamples = numAltExamples + IntStream.of(refHistogram.getCounts()).sum();
+        altResponsibilities = new double[numAltExamples][NUM_STATES];
+        referenceContext = refHistogram.getReferenceContext();
         refAllele = Nucleotide.valueOf(referenceContext.substring(1,2));
 
         // initialize pi
@@ -130,7 +160,7 @@ public class ContextDependentArtifactFilterEngine {
             theta[state.ordinal()] = EPSILON;
         }
 
-        for (State state : State.getBalancedStates()){
+        for (State state : State.getNonArtifactStates()){
             theta[state.ordinal()] = 0.5;
         }
 
@@ -139,19 +169,19 @@ public class ContextDependentArtifactFilterEngine {
         // FIXME: revisit after the test - we only need to initialize either resonsibilities (M-step first) or
         // hyperparameters (E-step first). Probably makes sense to initialize hyperparameters.
         final double initialResponsibility = 1.0/NUM_STATES;
-        for (int n = 0; n < data.getNumExamples(); n++ ) {
+        for (int n = 0; n < numAltExamples; n++ ) {
             Arrays.fill(altResponsibilities[n], initialResponsibility);
         }
 
         /**
          * TODO: explain how we optimize for ref sites
          */
-        for (int n = 0; n < PerContextData.MAX_COVERAGE; n++ ) {
+        for (int n = 0; n < RefSiteHistogram.MAX_DEPTH; n++ ) {
             Arrays.fill(refResponsibilities[n], initialResponsibility);
         }
     }
 
-    public Hyperparameters runEMAlgorithm(final Logger logger){
+    public Hyperparameters runEMAlgorithm(){
         boolean converged = false;
         double[] oldPi = new double[NUM_STATES];
 
@@ -184,7 +214,7 @@ public class ContextDependentArtifactFilterEngine {
         // we save some computation here by recognizing that ref sites with the same depth have the same alt depth and
         // alt F1R2 depth (i.e. m = x = 0). Thus responsibilities for ref sites are a function only of the depth (ref and
         // alt combined) and therefore we need only compute the responsibility once for unique depth 0, 1, ..., MAX_COVERAGE
-        for (int depth = 0; depth < PerContextData.MAX_COVERAGE; depth++){
+        for (int depth = 0; depth < RefSiteHistogram.MAX_DEPTH; depth++){
             final int r = depth; // another hack to use depth in a stream
 
             final double[] log10UnnormalizedResponsibilities = new double[NUM_STATES];
@@ -212,13 +242,13 @@ public class ContextDependentArtifactFilterEngine {
         }
 
         // compute the altResponsibilities of each of n alt sites \gamma_{nk}
-        for (int example = 0; example < data.getNumAltExamples(); example++){
-            final int n = example; // hack to work around the fact that java stream doesn't let you use a non-final variable
+        for (int n = 0; n < numAltExamples; n++){
+            final AltSiteRecord example = altDesignMatrix.get(n);
 
-            final int depth = data.getDepths().get(n);
-            final int[] baseCounts = data.getBaseCounts().get(n);
-            final int[] f1r2Counts = data.getF1r2Counts().get(n);
-            final Nucleotide altAllele = data.getAltAlleles().get(n);
+            final int depth = example.getDepth();
+            final int[] baseCounts = example.getBaseCounts();
+            final int[] f1r2Counts = example.getF1R2Counts();
+            final Nucleotide altAllele = example.getAltAllele();
 
             final int depthOfMostLikelyAltAllele = baseCounts[altAllele.ordinal()];
             final int f1r2DepthOfMostLikelyAltAllele = f1r2Counts[altAllele.ordinal()];
@@ -279,13 +309,13 @@ public class ContextDependentArtifactFilterEngine {
         /*** compute responsibility-based statistics based on the current log10AltResponsibilities ***/
 
         // First we compute the effective counts of each state, N_k in the docs. We do so separately over alt and ref sites
-        final double[] effectiveAltCounts = GATKProtectedMathUtils.sumArrayFunction(0, data.getNumAltExamples(), n -> altResponsibilities[n]);
+        final double[] effectiveAltCounts = GATKProtectedMathUtils.sumArrayFunction(0, numAltExamples, n -> altResponsibilities[n]);
 
         // TODO: at some depth, the responsibilities must be 1 for z = hom ref and 0 for everything else, we could probably save some time there
         // Over ref sites, we have a histogram of sites over different depths. At each depth we simply multiply the responsibilities by the number of sites,
         // and sum them over all of depths. Because we cut off the depth histogram at {@code MAX_COVERAGE}, we underestimate the ref effective counts by design
-        final double[] effectiveRefCounts = GATKProtectedMathUtils.sumArrayFunction(0, PerContextData.MAX_COVERAGE, c ->
-                        MathArrays.scale((double)data.refsiteCoverageHistogram[c], refResponsibilities[c]));
+        final double[] effectiveRefCounts = GATKProtectedMathUtils.sumArrayFunction(0, RefSiteHistogram.MAX_DEPTH, c ->
+                        MathArrays.scale((double)refHistogram.getCounts()[c], refResponsibilities[c]));
         effectiveCounts = MathArrays.ebeAdd(effectiveAltCounts, effectiveRefCounts);
 
         assert effectiveCounts.length == NUM_STATES : "effectiveCount must be a k-dimensional vector";
@@ -294,21 +324,21 @@ public class ContextDependentArtifactFilterEngine {
 
         // K-dimensional vector of mean alt depth weighted by the responsibilities, times the effective count. N_k \bar{m} in the docs
         // ref sites do not contribute to the sum as m_nk = 0 for ref sites
-        final double[] weightedEffectiveAltDepth = GATKProtectedMathUtils.sumArrayFunction(0, data.getNumAltExamples(),
-                n -> MathArrays.ebeMultiply(data.getAltCountsNicelyArranged(n), altResponsibilities[n]));
+        final double[] weightedEffectiveAltDepth = GATKProtectedMathUtils.sumArrayFunction(0, numAltExamples,
+                n -> MathArrays.ebeMultiply(getAltCountsArrangedByState(n, ObservedData.ALT_DEPTH), altResponsibilities[n]));
         assert weightedEffectiveAltDepth.length == NUM_STATES : "weightedAvgAltDepth should have length K";
 
         // K-dimensional vector of mean alt F1R2 depth weighted by the responsibilityes, times the effective count. N_k \bar{x} in the docs
         // ref sites do not contribute to the sum as x_n = 0 for ref sites
-        final double[] weightedEffectiveAltF1R2Depth = GATKProtectedMathUtils.sumArrayFunction(0, data.getNumAltExamples(),
-                n -> MathArrays.ebeMultiply(data.getAltF1R2CountsNicelyArranged(n), altResponsibilities[n]));
+        final double[] weightedEffectiveAltF1R2Depth = GATKProtectedMathUtils.sumArrayFunction(0, numAltExamples,
+                n -> MathArrays.ebeMultiply(getAltCountsArrangedByState(n, ObservedData.ALT_F1R2_DEPTH), altResponsibilities[n]));
         assert weightedEffectiveAltF1R2Depth.length == NUM_STATES : "weightedAvgAltF1R2Depth should have length K";
 
-        final double[] weightedEffectiveDepthOverAltSites = GATKProtectedMathUtils.sumArrayFunction(0, data.getNumAltExamples(),
-                n -> MathArrays.scale((double) data.getDepths().get(n), altResponsibilities[n]));
-        final double[] weightedAvgDepthOverRefSites = GATKProtectedMathUtils.sumArrayFunction(0, PerContextData.MAX_COVERAGE, c ->
+        final double[] weightedEffectiveDepthOverAltSites = GATKProtectedMathUtils.sumArrayFunction(0, numAltExamples,
+                n -> MathArrays.scale((double) altDesignMatrix.get(n).getDepth(), altResponsibilities[n]));
+        final double[] weightedAvgDepthOverRefSites = GATKProtectedMathUtils.sumArrayFunction(0, RefSiteHistogram.MAX_DEPTH, c ->
                 {
-                    final double numSitesAtThisCoverage = (double) data.refsiteCoverageHistogram[c];
+                    final double numSitesAtThisCoverage = (double) refHistogram.getCounts()[c];
                     // TODO: coverage should really start at one - revisit
                     final double[] coverageWeightedByResponsibilities = MathArrays.scale((double) c, refResponsibilities[c]);
                     return MathArrays.scale(numSitesAtThisCoverage, coverageWeightedByResponsibilities);
@@ -354,6 +384,83 @@ public class ContextDependentArtifactFilterEngine {
         return;
     }
 
+    @Override
+    public Object doWork(){
+        final List<String> all3mers = SequenceUtil.generateAllKmers(3).stream().map(String::new).collect(Collectors.toList());
+        List<RefSiteHistogram> histograms = RefSiteHistogram.readRefSiteHistograms(refHistogramTable);
+        int lines = 0;
+
+        try (BufferedReader reader = new BufferedReader(new FileReader(altDataTable));){
+            // Count the number of lines (i.e. number of rows in the design matrix) in the hope that initializing the
+            // array list to the exact size will give us performance boost
+            while (reader.readLine() != null) {
+                lines++;
+            }
+        } catch (IOException e){
+            throw new UserException(String.format("Encountered an IO exception while counting the number of lines in %s", altDataTable.toString()), e);
+        }
+
+        List<AltSiteRecord> altDesignMatrix = AltSiteRecord.readAltSiteRecords(altDataTable, lines);
+        Map<String, List<AltSiteRecord>> altDesignMatrixByContext = altDesignMatrix.stream().collect(Collectors.groupingBy(AltSiteRecord::getReferenceContext));
+
+        List<Hyperparameters> hyperparameterEstimates = new ArrayList<>(64);
+        for (final String refContext : all3mers){
+            Optional<RefSiteHistogram> histogram = histograms.stream().filter(h -> h.getReferenceContext().equals(refContext)).findFirst();
+            List<AltSiteRecord> altDesignMatrixOfContext = altDesignMatrixByContext.get(refContext);
+
+            if (! histogram.isPresent() || altDesignMatrixOfContext == null){
+                logger.info(String.format(String.format("Did not find the context %s in the table, will skip", refContext)));
+                continue;
+            }
+
+            final ReadOrientationFilterLearningEngine engine = new ReadOrientationFilterLearningEngine(histogram.get(), altDesignMatrixOfContext);
+            final Hyperparameters hyperparameters = engine.runEMAlgorithm();
+            hyperparameterEstimates.add(hyperparameters);
+        }
+
+        Hyperparameters.writeHyperparameters(hyperparameterEstimates, output);
+        return "SUCCESS";
+    }
+
+    private enum ObservedData {
+        ALT_F1R2_DEPTH, ALT_DEPTH
+    }
+
+    // Return K-dimensional array of alt counts m_nk. Each state k uses a different value of alt depth
+    // e.g. Z = F1R2_A uses the base count of A's, and Z = F1R2_T uses the count of T's.
+    // Returns a double[], not int[], because the downstream API (MathArrays.ebeMultiply()) requires an array of doubles
+    private double[] getAltCountsArrangedByState(final int n, final ObservedData observedData){
+        final AltSiteRecord altSiteRecord = altDesignMatrix.get(n);
+        final Nucleotide refAllele = Nucleotide.valueOf(referenceContext.substring(1, 2));
+        final Nucleotide altAllele = altSiteRecord.getAltAllele();
+        final double[] arrangedByState = new double[State.values().length];
+
+        int[] counts;
+        switch (observedData) {
+            case ALT_DEPTH: counts = altSiteRecord.getBaseCounts(); break;
+            case ALT_F1R2_DEPTH: counts = altSiteRecord.getF1R2Counts(); break;
+            default : throw new UserException("Should be impossible to get here");
+        }
+
+        final double countOfAltAllele = counts[altAllele.ordinal()];
+        final List<State> impossibleStates = State.getImpossibleStates(refAllele);
+
+        // for the non-artifact states, set m_nk equal to the count of the most likely alt allele
+        for (State z : State.getNonArtifactStates()){
+            arrangedByState[z.ordinal()] = countOfAltAllele;
+        }
+
+        for (State z : State.artifactStates){
+            if (impossibleStates.contains(z)){
+                continue;
+            }
+
+            // for artifact states, get the count of the allele that the artifact e.g. the count of A's for Z=F1R2_A
+            arrangedByState[z.ordinal()] = counts[State.getAltAlleleOfTransition(z).ordinal()];
+        }
+        return arrangedByState;
+    }
+
     private boolean checkLikelihoodHasConverged(final double oldLikelihood, final double newLikelihood){
         return Math.abs(newLikelihood - oldLikelihood) < CONVERGENCE_THRESHOLD;
     }
@@ -391,7 +498,7 @@ public class ContextDependentArtifactFilterEngine {
             return new State[]{F2R1_A, F2R1_C, F2R1_G, F2R1_T};
         }
 
-        public static List<State> getBalancedStates(){
+        public static List<State> getNonArtifactStates(){
             return Arrays.asList(HOM_REF, GERMLINE_HET, SOMATIC_HET, HOM_VAR);
         }
 

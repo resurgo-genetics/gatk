@@ -6,9 +6,8 @@ import htsjdk.variant.vcf.VCFConstants;
 import org.broadinstitute.hellbender.exceptions.UserException;
 import org.broadinstitute.hellbender.tools.walkers.annotator.*;
 import org.broadinstitute.hellbender.tools.walkers.contamination.ContaminationRecord;
-import org.broadinstitute.hellbender.tools.walkers.readorientation.ContextDependentArtifactFilter;
-import org.broadinstitute.hellbender.tools.walkers.readorientation.ContextDependentArtifactFilterEngine;
-import org.broadinstitute.hellbender.tools.walkers.readorientation.ContextDependentArtifactFilterEngine.State;
+import org.broadinstitute.hellbender.tools.walkers.readorientation.ReadOrientationFilterLearningEngine;
+import org.broadinstitute.hellbender.tools.walkers.readorientation.ReadOrientationFilterLearningEngine.State;
 
 import org.broadinstitute.hellbender.tools.walkers.readorientation.Hyperparameters;
 import org.broadinstitute.hellbender.utils.GATKProtectedVariantContextUtils;
@@ -17,7 +16,6 @@ import org.broadinstitute.hellbender.utils.Nucleotide;
 import org.broadinstitute.hellbender.utils.Utils;
 import org.broadinstitute.hellbender.utils.variant.GATKVCFConstants;
 import java.util.*;
-import java.util.stream.IntStream;
 
 /**
  * Created by David Benjamin on 9/15/16.
@@ -243,15 +241,15 @@ public class Mutect2FilteringEngine {
         // a vector of length K, the probability of drawing an F1R2 alt read given z
         final double[] theta = hyps.getTheta();
 
-        final double[] log10UnnormalizedPosteriorProbabilities = new double[ContextDependentArtifactFilterEngine.NUM_STATES];
+        final double[] log10UnnormalizedPosteriorProbabilities = new double[ReadOrientationFilterLearningEngine.NUM_STATES];
         for (State z : State.values()){
             final int k = z.ordinal();
             if (z == State.SOMATIC_HET){
                 log10UnnormalizedPosteriorProbabilities[k] = Math.log10(pi[k]) +
-                        MathUtils.log10BetaBinomialDensity(altDepth, depth, ContextDependentArtifactFilterEngine.alpha, ContextDependentArtifactFilterEngine.beta) +
+                        MathUtils.log10BetaBinomialDensity(altDepth, depth, ReadOrientationFilterLearningEngine.alpha, ReadOrientationFilterLearningEngine.beta) +
                         MathUtils.log10BinomialProbability(altDepth, altF1R2Depth, Math.log10(theta[k]));
 
-            } else if (State.getBalancedStates().contains(z)) {
+            } else if (State.getNonArtifactStates().contains(z)) {
                 log10UnnormalizedPosteriorProbabilities[k] = Math.log10(pi[k]) +
                         MathUtils.log10BinomialProbability(depth, altDepth, f[k]) +
                         MathUtils.log10BinomialProbability(altDepth, altF1R2Depth, theta[k]);

@@ -8,7 +8,7 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
 
-import static org.broadinstitute.hellbender.tools.walkers.readorientation.ContextDependentArtifactFilterEngine.NUM_STATES;
+import static org.broadinstitute.hellbender.tools.walkers.readorientation.ReadOrientationFilterLearningEngine.NUM_STATES;
 
 /**
  * Created by tsato on 9/6/17.

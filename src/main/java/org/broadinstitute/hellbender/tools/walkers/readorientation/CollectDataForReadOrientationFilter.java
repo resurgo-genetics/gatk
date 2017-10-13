@@ -7,14 +7,18 @@ import org.broadinstitute.hellbender.cmdline.StandardArgumentDefinitions;
 import org.broadinstitute.hellbender.cmdline.programgroups.VariantProgramGroup;
 import org.broadinstitute.hellbender.engine.*;
 import org.broadinstitute.hellbender.engine.filters.ReadFilter;
+import org.broadinstitute.hellbender.exceptions.UserException;
 import org.broadinstitute.hellbender.utils.BaseUtils;
 import org.broadinstitute.hellbender.utils.MathUtils;
 import org.broadinstitute.hellbender.utils.Nucleotide;
 import org.broadinstitute.hellbender.utils.Utils;
 import org.broadinstitute.hellbender.utils.pileup.ReadPileup;
 import org.broadinstitute.hellbender.utils.read.ReadUtils;
+import org.broadinstitute.hellbender.tools.walkers.readorientation.AltSiteRecord.AltSiteRecordTableWriter;
+import org.broadinstitute.hellbender.tools.walkers.readorientation.RefSiteHistogram.RefSiteHistogramWriter;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -22,38 +26,46 @@ import java.util.stream.Collectors;
  * Created by tsato on 7/26/17.
  */
 
-/***
- * This tools is the learning phase of the orientation filter.
- * Inference phase will likely feature variant context and what not.
- */
 @CommandLineProgramProperties(
         summary = "",
         oneLineSummary = "",
         programGroup = VariantProgramGroup.class
 )
 
-public class ContextDependentArtifactFilter extends LocusWalker {
+public class CollectDataForReadOrientationFilter extends LocusWalker {
+    public static final String ALT_DATA_TABLE_SHORT_NAME = "alt_table";
+    public static final String ALT_DATA_TABLE_LONG_NAME = "alt_data_table";
+
+    public static final String REF_HISTOGRAM_TABLE_SHORT_NAME = "ref_table";
+    public static final String REF_HISTOGRAM_TABLE_LONG_NAME = "ref_histogram_table";
+
+
     @Argument(fullName = "", shortName = "", doc = "exclude reads below this quality from pileup", optional = true)
     static int MINIMUM_MEDIAN_MQ = 20;
 
     @Argument(fullName = "", shortName = "", doc = "exclude bases below this quality from pileup", optional = true)
     static int MINIMUM_BASE_QUALITY = 10;
 
-    @Argument(fullName = "test", shortName = "test", doc = "", optional = true)
-    static boolean test = false;
+    @Argument(fullName = ALT_DATA_TABLE_LONG_NAME,
+            shortName = ALT_DATA_TABLE_SHORT_NAME,
+            doc = "a tab-separated table of data over alt sites")
+    static File altDataTable = null;
 
-    @Argument(fullName = StandardArgumentDefinitions.OUTPUT_LONG_NAME, shortName = StandardArgumentDefinitions.OUTPUT_SHORT_NAME, doc = "a tab-seprated table of hyperparameters")
-    static File output = null;
+    @Argument(fullName = REF_HISTOGRAM_TABLE_LONG_NAME,
+            shortName = REF_HISTOGRAM_TABLE_SHORT_NAME,
+            doc = "a tab-separated depth histogram over ref sites")
+    static File refHistogramTable = null;
 
-    public static PerContextData[] contextDependentDataMap;
+    private static RefSiteHistogram[] refSiteHistograms = new RefSiteHistogram[64];
 
-    public static final List<String> ALL_3_MERS = SequenceUtil.generateAllKmers(3).stream().map(String::new).collect(Collectors.toList());
+    private static final List<String> ALL_3_MERS = SequenceUtil.generateAllKmers(3).stream().map(String::new).collect(Collectors.toList());
 
     public static final List<String> SOME_3_MERS = Arrays.asList("ACT", "GTT", "AAA", "CGT");
 
-    // 37M bases in the exome, and there's about 1 SNP every 1000 bases. If we assume all 64 contexts are equally likely
-    // we get 37_000/64 = 57. Use 64 for the closest power of 2
-    static final int DEFAULT_INITIAL_LIST_SIZE = 64;
+    AltSiteRecordTableWriter altTableWriter;
+
+    RefSiteHistogramWriter refTableWriter;
+
 
 
     @Override
@@ -67,30 +79,37 @@ public class ContextDependentArtifactFilter extends LocusWalker {
     }
 
     @Override
-    public void onTraversalStart(){
-        contextDependentDataMap = new PerContextData[64]; // 4^3 = 64
-
+    public void onTraversalStart() {
         for (final String refContext : ALL_3_MERS){
-            contextDependentDataMap[contextToIndex(refContext)] = new PerContextData(refContext);
+            refSiteHistograms[contextToIndex(refContext)] = new RefSiteHistogram(refContext);
         }
+
+        // TODO: would it be faster to store the records in memory and write them all out in one go?
+        // intentionally not use try-with-resources so that the writers stay open outside of the try block
+        try {
+            altTableWriter = new AltSiteRecordTableWriter(altDataTable);
+        } catch (IOException e) {
+            throw new UserException(String.format("Encountered an IO exception creating writers for %s or %s", altDataTable, refHistogramTable), e);
+        }
+
     }
 
     @Override
     public void apply(final AlignmentContext alignmentContext, final ReferenceContext referenceContext, final FeatureContext featureContext){
-        // referenceContext always comes withe window of single base, so
+        // referenceContext always comes with a window of a single base, so
         // manually expand the window and get the 3-mer for now.
         // TODO: implement getBasesInInterval() in referenceContext. Maybe simplify to getKmer(int k)?
         // TODO: this is still relevant (10/2). I shouldn't mess with the internal state of the ref context object
         referenceContext.setWindow(1, 1);
-        final String reference3mer = new String(referenceContext.getBases());
-        assert reference3mer.length() == 3 : "kmer must have length 3";
-        if (reference3mer.contains("N")) {
+        final String refContext = new String(referenceContext.getBases());
+        assert refContext.length() == 3 : "kmer must have length 3";
+        if (refContext.contains("N")) {
             return;
         }
 
-        if (reference3mer == null){
+        if (refContext == null){
             logger.info(String.format("null reference found at interval %s, k-mer = %s",
-                    referenceContext.getInterval().toString(), reference3mer));
+                    referenceContext.getInterval().toString(), refContext));
             return;
         }
 
@@ -98,8 +117,6 @@ public class ContextDependentArtifactFilter extends LocusWalker {
 
         // FIXME; this is not ideal. AlignmentContext should come filtered and not reach here if it's empty
         if (pileup.size() == 0){
-            logger.info(String.format("Empty pileup at position %s:%d-%d",
-                    alignmentContext.getContig(), alignmentContext.getStart(), alignmentContext.getEnd()));
             return;
         }
 
@@ -128,7 +145,7 @@ public class ContextDependentArtifactFilter extends LocusWalker {
         // R in the docs
         final int depth = (int) MathUtils.sum(baseCounts);
 
-        final Nucleotide refBase = Nucleotide.valueOf(reference3mer.getBytes()[1]);
+        final Nucleotide refBase = Nucleotide.valueOf(refContext.getBytes()[1]);
 
         // make a copy fo base counts, update the counts of ref to -infty. Now the argmax of the array gives us
         // the alt base.
@@ -141,19 +158,12 @@ public class ContextDependentArtifactFilter extends LocusWalker {
 
         // if the site is ref, we simply update the coverage histogram
         if (referenceSite){
-            // TODO: accessing the map excessively. Use array, it'd be faster
-            contextDependentDataMap[contextToIndex(reference3mer)].addRefExample(depth);
+            refSiteHistograms[contextToIndex(refContext)].increment(depth);
             return;
         }
 
         // we have an alt site
         final Nucleotide altBase = Nucleotide.valueOf(BaseUtils.baseIndexToSimpleBase(altBaseIndex));
-
-        // m in the docs
-        final short altDepth = (short) baseCounts[altBase.ordinal()];
-
-        // x in the docs
-        final short altF1R2Depth = (short) pileup.getNumberOfElements(pe -> Nucleotide.valueOf(pe.getBase()) == altBase && ! ReadUtils.isF2R1(pe.getRead()));
 
         // TODO: this may be refactored
         final int[] altF1R2Counts = new int[4];
@@ -161,31 +171,40 @@ public class ContextDependentArtifactFilter extends LocusWalker {
             altF1R2Counts[nucleotide.ordinal()] = pileup.getNumberOfElements(pe -> Nucleotide.valueOf(pe.getBase()) == nucleotide && ! ReadUtils.isF2R1(pe.getRead()));
         }
 
-        contextDependentDataMap[contextToIndex(reference3mer)].addAltExample(depth, baseCounts, altF1R2Counts, altBase, alignmentContext);
+        try {
+            altTableWriter.writeRecord(new AltSiteRecord(refContext, baseCounts, altF1R2Counts, depth, altBase));
+        } catch (IOException e) {
+            throw new UserException("Encountered an IO Exception writing to the alt data table", e);
+        }
+
         return;
     }
 
     @Override
     public Object onTraversalSuccess() {
-        List<Hyperparameters> hyperparameterEstimates = new ArrayList<>();
-
-        // remember we run EM separately for each of 4^3 = 64 ref contexts
-        for (final String refContext : test ? SOME_3_MERS : ALL_3_MERS){
-            final PerContextData data = contextDependentDataMap[contextToIndex(refContext)];
-            if (data.getNumAltExamples() == 0){
-                // without alt examples there's no point in reporting any probabilities
-                continue;
-            }
-
-            final ContextDependentArtifactFilterEngine engine = new ContextDependentArtifactFilterEngine(data);
-            final Hyperparameters hyperparameters = engine.runEMAlgorithm(logger);
-            hyperparameterEstimates.add(hyperparameters);
-        }
-
-        Hyperparameters.writeHyperparameters(hyperparameterEstimates, output);
-
+        RefSiteHistogram.writeRefSiteHistograms(Arrays.asList(refSiteHistograms), refHistogramTable);
         return "SUCCESS";
     }
+
+    @Override
+    public void closeTool() {
+        if (altTableWriter != null) {
+            try {
+                altTableWriter.close();
+            } catch (IOException e) {
+                throw new UserException("Encountered an IO exception while closing the alt table writer", e);
+            }
+        }
+
+        if (refTableWriter != null) {
+            try {
+                refTableWriter.close();
+            } catch (IOException e) {
+                throw new UserException("Encountered an IO exception while closing the ref table writer", e);
+            }
+        }
+    }
+
 
     /***
      * Maps a reference 3-mer to an array index using the quaternary (base-4) numeral system

@@ -138,7 +138,9 @@ public class Hyperparameters {
         CONTEXT("context"),
         PI("pi"),
         F("allele_fraction"),
-        THETA("alt_f1r2_fraction");
+        THETA("alt_f1r2_fraction"),
+        N("num_examples"), // TODO add these
+        N_ALT("num_alt_examples");
 
         private String columnName;
 

@@ -8,20 +8,16 @@ import org.broadinstitute.hellbender.utils.SimpleInterval;
 import org.broadinstitute.hellbender.utils.pileup.ReadPileup;
 import org.testng.Assert;
 import org.testng.annotations.Test;
-import org.broadinstitute.hellbender.tools.walkers.readorientation.ContextDependentArtifactFilterEngine.State;
+import org.broadinstitute.hellbender.tools.walkers.readorientation.ReadOrientationFilterLearningEngine.State;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
 /**
  * Created by tsato on 8/14/17.
  */
-public class ContextDependentArtifactFilterEngineUnitTest {
-    private final byte A = "A".getBytes()[0];
-    private final byte C = "C".getBytes()[0];
-    private final byte G = "G".getBytes()[0];
-    private final byte T = "T".getBytes()[0];
-
+public class ReadOrientationFilterLearningEngineUnitTest {
     private static final double EPSILON = 1e-4;
 
     // the exact location of the site does not matter for this tool
@@ -30,7 +26,7 @@ public class ContextDependentArtifactFilterEngineUnitTest {
 
     final int DEPTH = 100;
     final int ALT_DEPTH = 20;
-    final int[] altDepthCounts = new int[]{0,0,0, ALT_DEPTH};
+    final int[] altSiteDepthCounts = new int[]{0,0,0, ALT_DEPTH};
     final int[] balancedAltF1R2DepthCounts = new int[]{0,0,0, ALT_DEPTH /2};
     final int[] biasedAltF1R2DepthCounts = new int[]{0,0,0, ALT_DEPTH};
 
@@ -47,18 +43,20 @@ public class ContextDependentArtifactFilterEngineUnitTest {
 
         final String refContext = "AGT";
 
-        final PerContextData data = new PerContextData(refContext);
+        final List<AltSiteRecord> altDeisgnMatrix = new ArrayList<>();
+        final RefSiteHistogram refSiteHistogram = new RefSiteHistogram(refContext);
+
         for (int n = 0; n < NUM_EXAMPLES; n++){
             // assume 20 in 100 examples is alt at ALT_DEPTH/DEPTH % allele fraction, and alt reads are entirely F1R2
             if (n < NUM_ALT_EXAMPLES){
-                data.addAltExample(DEPTH, altDepthCounts, biasedAltF1R2DepthCounts, Nucleotide.T, alignmentContext);
+                altDeisgnMatrix.add(new AltSiteRecord(refContext, altSiteDepthCounts, biasedAltF1R2DepthCounts, DEPTH, Nucleotide.T));
             } else {
-                data.addRefExample(DEPTH);
+                refSiteHistogram.increment(DEPTH);
             }
         }
 
-        ContextDependentArtifactFilterEngine engine = new ContextDependentArtifactFilterEngine(data);
-        Hyperparameters hyperparameters = engine.runEMAlgorithm(LogManager.getLogger(this.getClass()));
+        ReadOrientationFilterLearningEngine engine = new ReadOrientationFilterLearningEngine(refSiteHistogram, altDeisgnMatrix);
+        Hyperparameters hyperparameters = engine.runEMAlgorithm();
 
         Assert.assertEquals(engine.effectiveCounts[State.F1R2_T.ordinal()], (double) NUM_F1R2_EXAMPLES, EPSILON);
         Assert.assertEquals(engine.effectiveCounts[State.HOM_REF.ordinal()], (double) NUM_EXAMPLES - NUM_ALT_EXAMPLES, EPSILON);
@@ -88,6 +86,9 @@ public class ContextDependentArtifactFilterEngineUnitTest {
         final double epsilon = 0.5;
         final String refContext = "AGT";
 
+        final List<AltSiteRecord> altDeisgnMatrix = new ArrayList<>();
+        final RefSiteHistogram refSiteHistogram = new RefSiteHistogram(refContext);
+
         final int NUM_EXAMPLES_PER_ALLELE = 10000; // this many examples, ref and alt, per allele
         final int NUM_ALT_EXAMPLES = 10; // for each alt allele we have this many alt sites
         // TODO: want to have - 2 here instead of -1 and still detect the artifact. For that, we must learn theta
@@ -96,34 +97,33 @@ public class ContextDependentArtifactFilterEngineUnitTest {
 
         // first create the examples for the G -> T transitions, a fraction of which has read orientation bias
         List<Nucleotide> alleles = Arrays.asList(Nucleotide.A, Nucleotide.C, Nucleotide.G, Nucleotide.T);
-        final PerContextData data = new PerContextData(refContext);
         for (Nucleotide allele : alleles) {
             for (int n = 0; n < NUM_EXAMPLES_PER_ALLELE; n++) {
                 if (n < NUM_ALT_EXAMPLES && allele != Nucleotide.G) {
                     // Give G -> T transition 90% F1R2 artifact
                     // Give G -> A transition 95% F2R1 artifact
-                    final int[] altDepthCounts = new int[alleles.size()];
-                    final int[] altF1R2Counts = new int[alleles.size()];
+                    final int[] depthCounts = new int[alleles.size()];
+                    final int[] f1r2Counts = new int[alleles.size()];
 
-                    altDepthCounts[allele.ordinal()] = ALT_DEPTH;
+                    depthCounts[allele.ordinal()] = ALT_DEPTH;
                     switch (allele) {
-                        case T : altF1R2Counts[allele.ordinal()] = NUM_G_TO_T_F1R2_ARTIFACT; break; // 19 out of 20 alt reads is F1R2
-                        case A : altF1R2Counts[allele.ordinal()] = ALT_DEPTH - NUM_G_TO_A_F2R1_ARTIFACT; break; // 19 out of 20 alt reads is F2R1
-                        case C : altF1R2Counts[allele.ordinal()] = ALT_DEPTH / 2; break; // G -> C should be balanced
+                        case T : f1r2Counts[allele.ordinal()] = NUM_G_TO_T_F1R2_ARTIFACT; break; // 19 out of 20 alt reads is F1R2
+                        case A : f1r2Counts[allele.ordinal()] = ALT_DEPTH - NUM_G_TO_A_F2R1_ARTIFACT; break; // 19 out of 20 alt reads is F2R1
+                        case C : f1r2Counts[allele.ordinal()] = ALT_DEPTH / 2; break; // G -> C should be balanced
                         default : throw new UserException(String.format("We should never reach here but got allele %s", allele));
                     }
 
-                    data.addAltExample(DEPTH, altDepthCounts, altF1R2Counts, allele, alignmentContext);
+                    altDeisgnMatrix.add(new AltSiteRecord(refContext, depthCounts, f1r2Counts, DEPTH, allele));
                 } else {
                     // create hom ref examples
-                    data.addRefExample(DEPTH);
+                    refSiteHistogram.increment(DEPTH);
                 }
             }
         }
 
         // To consider: Can a site be both F1R2 and F2R1? What about the whole reverse complement thing?
-        ContextDependentArtifactFilterEngine engine = new ContextDependentArtifactFilterEngine(data);
-        Hyperparameters hyperparameters = engine.runEMAlgorithm(LogManager.getLogger(this.getClass()));
+        ReadOrientationFilterLearningEngine engine = new ReadOrientationFilterLearningEngine(refSiteHistogram, altDeisgnMatrix);
+        Hyperparameters hyperparameters = engine.runEMAlgorithm();
 
         Assert.assertEquals(engine.effectiveCounts[State.F1R2_T.ordinal()], (double) NUM_ALT_EXAMPLES, epsilon);
         Assert.assertEquals(engine.effectiveCounts[State.F2R1_A.ordinal()], (double) NUM_ALT_EXAMPLES, epsilon);
@@ -146,7 +146,7 @@ public class ContextDependentArtifactFilterEngineUnitTest {
         Assert.assertEquals(hyperparameters.getF()[State.SOMATIC_HET.ordinal()], (double) ALT_DEPTH/DEPTH, 1e-3);
 
         // test theta
-        // TODO: implement theta
+        // TODO: implement learning of theta
 
     }
 
